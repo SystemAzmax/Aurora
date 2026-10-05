@@ -1,0 +1,62 @@
+<ResourceDictionary xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+                    xmlns:tb="clr-namespace:Hardcodet.Wpf.TaskbarNotification;assembly=Hardcodet.NotifyIcon.Wpf">
+
+    <!--
+        タスクトレイアイコン。右クリック: メニュー表示 / ダブルクリック: 設定画面を表示
+
+        右クリックメニューは TaskbarIcon とは別のリソースにし、TrayIconService が
+        TrayIconViewModel を DataContext に設定した後で取り付ける。
+        （TaskbarIcon に直接書くと、DataContext 設定前に Hardcodet がメニューの DataContext を
+          TaskbarIcon 自身にするため、起動時にバインディングエラーが記録される）
+    -->
+    <tb:TaskbarIcon x:Key="TrayIcon"
+                    IconSource="pack://application:,,,/WallpaperChanger;component/Resources/AppIcon.ico"
+                    ToolTipText="{Binding ToolTipText}"
+                    MenuActivation="RightClick"
+                    NoLeftClickDelay="True"
+                    DoubleClickCommand="{Binding ShowSettingsCommand}" />
+
+    <ContextMenu x:Key="TrayContextMenu">
+        <MenuItem Header="次の壁紙" Command="{Binding NextWallpaperCommand}">
+            <MenuItem.Icon>
+                <TextBlock Style="{StaticResource SymbolTextStyle}" Text="&#xE893;" />
+            </MenuItem.Icon>
+        </MenuItem>
+        <MenuItem Header="前の壁紙" Command="{Binding PreviousWallpaperCommand}">
+            <MenuItem.Icon>
+                <TextBlock Style="{StaticResource SymbolTextStyle}" Text="&#xE892;" />
+            </MenuItem.Icon>
+        </MenuItem>
+        <Separator />
+        <MenuItem Header="{Binding PauseMenuHeader}" Command="{Binding TogglePauseCommand}"
+                  IsCheckable="False">
+            <MenuItem.Icon>
+                <TextBlock>
+                    <TextBlock.Style>
+                        <Style TargetType="TextBlock" BasedOn="{StaticResource SymbolTextStyle}">
+                            <Setter Property="Text" Value="&#xE769;" />
+                            <Style.Triggers>
+                                <DataTrigger Binding="{Binding IsPaused}" Value="True">
+                                    <Setter Property="Text" Value="&#xE768;" />
+                                </DataTrigger>
+                            </Style.Triggers>
+                        </Style>
+                    </TextBlock.Style>
+                </TextBlock>
+            </MenuItem.Icon>
+        </MenuItem>
+        <MenuItem Header="設定" Command="{Binding ShowSettingsCommand}" FontWeight="SemiBold">
+            <MenuItem.Icon>
+                <TextBlock Style="{StaticResource SymbolTextStyle}" Text="&#xE713;" />
+            </MenuItem.Icon>
+        </MenuItem>
+        <Separator />
+        <MenuItem Header="終了" Command="{Binding ExitCommand}">
+            <MenuItem.Icon>
+                <TextBlock Style="{StaticResource SymbolTextStyle}" Text="&#xE7E8;" />
+            </MenuItem.Icon>
+        </MenuItem>
+    </ContextMenu>
+
+</ResourceDictionary>

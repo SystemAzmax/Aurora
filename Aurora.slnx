@@ -1,0 +1,10 @@
+<Solution>
+  <Folder Name="/Solution Items/">
+    <File Path="Directory.Build.props" />
+    <File Path="Directory.Packages.props" />
+  </Folder>
+  <Project Path="WallpaperChanger.Core/WallpaperChanger.Core.csproj" />
+  <Project Path="WallpaperChanger.Infrastructure/WallpaperChanger.Infrastructure.csproj" />
+  <Project Path="WallpaperChanger.UI/WallpaperChanger.UI.csproj" />
+  <Project Path="WallpaperChanger.Tests/WallpaperChanger.Tests.csproj" />
+</Solution>

@@ -1,0 +1,19 @@
+<Application x:Class="WallpaperChanger.UI.App"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             ShutdownMode="OnExplicitShutdown">
+    <!--
+        コードビハインドは持たない。起動処理は Program.cs（コンポジションルート）で行う。
+        StartupUri も指定せず、ウィンドウは ISettingsWindowService が必要なときに生成する。
+    -->
+    <Application.Resources>
+        <ResourceDictionary>
+            <ResourceDictionary.MergedDictionaries>
+                <!-- WPF 標準の Fluent テーマ（Windows 11 風。システムのライト/ダーク設定に追従） -->
+                <ResourceDictionary Source="pack://application:,,,/PresentationFramework.Fluent;component/Themes/Fluent.xaml" />
+                <ResourceDictionary Source="Resources/Styles.xaml" />
+                <ResourceDictionary Source="Resources/TrayIcon.xaml" />
+            </ResourceDictionary.MergedDictionaries>
+        </ResourceDictionary>
+    </Application.Resources>
+</Application>

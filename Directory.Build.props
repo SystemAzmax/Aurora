@@ -1,0 +1,17 @@
+﻿<Project>
+
+  <PropertyGroup>
+    <LangVersion>latest</LangVersion>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <AnalysisLevel>latest-recommended</AnalysisLevel>
+    <TreatWarningsAsErrors>false</TreatWarningsAsErrors>
+    <Company>WallpaperChanger</Company>
+    <Product>WallpaperChanger</Product>
+    <Version>0.1.0</Version>
+    <NeutralLanguage>ja-JP</NeutralLanguage>
+    <!-- 単一ファイル発行でも例外のスタックトレースに行番号が出るよう PDB を埋め込む -->
+    <DebugType>embedded</DebugType>
+  </PropertyGroup>
+
+</Project>

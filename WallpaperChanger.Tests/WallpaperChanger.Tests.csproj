@@ -1,0 +1,38 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0-windows10.0.17763.0</TargetFramework>
+    <OutputType>Exe</OutputType>
+    <IsPackable>false</IsPackable>
+    <IsTestProject>true</IsTestProject>
+    <RootNamespace>WallpaperChanger.Tests</RootNamespace>
+    <!-- UI 層の ViewModel をテストするため WPF を参照する -->
+    <UseWPF>true</UseWPF>
+    <!--
+      テストコードのみ: メソッド名に下線を使うため CA1707、
+      ログ出力のテストで LoggerExtensions を直接呼ぶため CA1848 / CA1873 を抑制
+    -->
+    <NoWarn>$(NoWarn);CA1707;CA1848;CA1873</NoWarn>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.NET.Test.Sdk" />
+    <PackageReference Include="xunit.v3" />
+    <PackageReference Include="xunit.runner.visualstudio" />
+    <PackageReference Include="NSubstitute" />
+    <PackageReference Include="Microsoft.Extensions.TimeProvider.Testing" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Using Include="Xunit" />
+    <!-- UseWPF 時は暗黙の using から System.IO が除外されるため明示する -->
+    <Using Include="System.IO" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\WallpaperChanger.Core\WallpaperChanger.Core.csproj" />
+    <ProjectReference Include="..\WallpaperChanger.Infrastructure\WallpaperChanger.Infrastructure.csproj" />
+    <ProjectReference Include="..\WallpaperChanger.UI\WallpaperChanger.UI.csproj" />
+  </ItemGroup>
+
+</Project>
