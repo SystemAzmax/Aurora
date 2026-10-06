@@ -1,4 +1,4 @@
-<Window x:Class="WallpaperChanger.UI.Views.SettingsWindow"
+﻿<Window x:Class="WallpaperChanger.UI.Views.SettingsWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
@@ -71,14 +71,14 @@
                     <Run Text="{Binding SelectedMonitor.DisplayName, Mode=OneWay, FallbackValue=モニター未選択}" />
                 </TextBlock>
 
-                <!-- 壁紙フォルダ（1 枚表示 / 4 分割表示をここで切り替え、同じ一覧でフォルダを編集する） -->
+                <!-- 壁紙フォルダ（1 枚表示 / 4 分割 / 16 分割をここで切り替え、同じ一覧でフォルダを編集する） -->
                 <Border Style="{StaticResource CardStyle}" IsEnabled="{Binding HasSelectedMonitor}">
                     <StackPanel>
                         <TextBlock Text="壁紙フォルダ" Style="{StaticResource SectionTitleStyle}" />
 
-                        <!-- 表示レイアウトの切り替え -->
-                        <StackPanel Orientation="Horizontal" Margin="0,0,0,12">
-                            <RadioButton GroupName="Layout" Margin="0,0,32,0" VerticalContentAlignment="Center"
+                        <!-- 表示レイアウトの切り替え（狭いウィンドウでは折り返す） -->
+                        <WrapPanel Margin="0,0,0,6">
+                            <RadioButton GroupName="Layout" Margin="0,0,32,6" VerticalContentAlignment="Center"
                                          IsChecked="{Binding IsSingleImageLayout}">
                                 <StackPanel Orientation="Horizontal">
                                     <Border Width="48" Height="27" Margin="0,0,10,0" CornerRadius="3"
@@ -89,7 +89,7 @@
                                     </StackPanel>
                                 </StackPanel>
                             </RadioButton>
-                            <RadioButton GroupName="Layout" VerticalContentAlignment="Center"
+                            <RadioButton GroupName="Layout" Margin="0,0,32,6" VerticalContentAlignment="Center"
                                          IsChecked="{Binding IsGridLayout}">
                                 <StackPanel Orientation="Horizontal">
                                     <UniformGrid Width="48" Height="27" Margin="0,0,10,0" Rows="2" Columns="2">
@@ -104,7 +104,34 @@
                                     </StackPanel>
                                 </StackPanel>
                             </RadioButton>
-                        </StackPanel>
+                            <RadioButton GroupName="Layout" Margin="0,0,0,6" VerticalContentAlignment="Center"
+                                         IsChecked="{Binding IsGrid4x4Layout}">
+                                <StackPanel Orientation="Horizontal">
+                                    <UniformGrid Width="48" Height="27" Margin="0,0,10,0" Rows="4" Columns="4">
+                                        <Border Margin="0.5" Background="{DynamicResource AccentFillColorDefaultBrush}" />
+                                        <Border Margin="0.5" Background="{DynamicResource AccentFillColorDefaultBrush}" />
+                                        <Border Margin="0.5" Background="{DynamicResource AccentFillColorDefaultBrush}" />
+                                        <Border Margin="0.5" Background="{DynamicResource AccentFillColorDefaultBrush}" />
+                                        <Border Margin="0.5" Background="{DynamicResource AccentFillColorDefaultBrush}" />
+                                        <Border Margin="0.5" Background="{DynamicResource AccentFillColorDefaultBrush}" />
+                                        <Border Margin="0.5" Background="{DynamicResource AccentFillColorDefaultBrush}" />
+                                        <Border Margin="0.5" Background="{DynamicResource AccentFillColorDefaultBrush}" />
+                                        <Border Margin="0.5" Background="{DynamicResource AccentFillColorDefaultBrush}" />
+                                        <Border Margin="0.5" Background="{DynamicResource AccentFillColorDefaultBrush}" />
+                                        <Border Margin="0.5" Background="{DynamicResource AccentFillColorDefaultBrush}" />
+                                        <Border Margin="0.5" Background="{DynamicResource AccentFillColorDefaultBrush}" />
+                                        <Border Margin="0.5" Background="{DynamicResource AccentFillColorDefaultBrush}" />
+                                        <Border Margin="0.5" Background="{DynamicResource AccentFillColorDefaultBrush}" />
+                                        <Border Margin="0.5" Background="{DynamicResource AccentFillColorDefaultBrush}" />
+                                        <Border Margin="0.5" Background="{DynamicResource AccentFillColorDefaultBrush}" />
+                                    </UniformGrid>
+                                    <StackPanel VerticalAlignment="Center">
+                                        <TextBlock Text="16 分割表示" />
+                                        <TextBlock Text="4 × 4 で 16 枚を同時に表示" Style="{StaticResource CaptionTextStyle}" />
+                                    </StackPanel>
+                                </StackPanel>
+                            </RadioButton>
+                        </WrapPanel>
 
                         <TextBlock Text="{Binding FolderCaption}" Style="{StaticResource CaptionTextStyle}" Margin="0,0,0,10" />
 
@@ -114,14 +141,14 @@
                                 <ColumnDefinition Width="*" />
                             </Grid.ColumnDefinitions>
 
-                            <!-- 4 分割: 編集するマスの選択 -->
+                            <!-- 分割表示: 編集するマス（16 分割では区画）の選択 -->
                             <ListBox Grid.Column="0" Margin="0,0,16,0"
                                      ItemsSource="{Binding Tiles}" SelectedItem="{Binding SelectedTile}"
                                      Width="232" Height="136" Padding="0" BorderThickness="0" Background="Transparent"
                                      VerticalAlignment="Top"
                                      ScrollViewer.HorizontalScrollBarVisibility="Disabled"
                                      ScrollViewer.VerticalScrollBarVisibility="Disabled"
-                                     Visibility="{Binding IsGridLayout, Converter={StaticResource BooleanToVisibilityConverter}}">
+                                     Visibility="{Binding IsSplitLayout, Converter={StaticResource BooleanToVisibilityConverter}}">
                                 <ListBox.ItemsPanel>
                                     <ItemsPanelTemplate>
                                         <UniformGrid Rows="2" Columns="2" />
@@ -150,10 +177,10 @@
                                 </ListBox.ItemTemplate>
                             </ListBox>
 
-                            <!-- フォルダ一覧（1 枚表示: モニターのフォルダ / 4 分割: 選択中のマスのフォルダ） -->
+                            <!-- フォルダ一覧（1 枚表示: モニターのフォルダ / 分割表示: 選択中のマス（区画）のフォルダ） -->
                             <StackPanel Grid.Column="1">
                                 <TextBlock Text="{Binding EditingTargetText}" FontWeight="SemiBold" Margin="0,0,0,6"
-                                           Visibility="{Binding IsGridLayout, Converter={StaticResource BooleanToVisibilityConverter}}" />
+                                           Visibility="{Binding IsSplitLayout, Converter={StaticResource BooleanToVisibilityConverter}}" />
                                 <Grid>
                                     <ListBox ItemsSource="{Binding EditingFolders}" SelectedItem="{Binding SelectedFolder}"
                                              Height="112" ScrollViewer.HorizontalScrollBarVisibility="Disabled">
@@ -183,8 +210,8 @@
                         </DockPanel>
 
                         <TextBlock Style="{StaticResource CaptionTextStyle}" Margin="0,10,0,0"
-                                   Visibility="{Binding IsGridLayout, Converter={StaticResource BooleanToVisibilityConverter}}"
-                                   Text="4 分割では各画像をマスいっぱいに拡大し、はみ出した部分は中央で切り抜きます。" />
+                                   Visibility="{Binding IsSplitLayout, Converter={StaticResource BooleanToVisibilityConverter}}"
+                                   Text="分割表示では各画像をマスいっぱいに拡大し、はみ出した部分は中央で切り抜きます。" />
                     </StackPanel>
                 </Border>
 

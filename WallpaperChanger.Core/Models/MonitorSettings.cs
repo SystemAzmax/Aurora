@@ -17,10 +17,13 @@ public sealed record MonitorSettings
     /// <summary>次の壁紙の選び方。</summary>
     public ImageSelectionMode SelectionMode { get; init; } = ImageSelectionMode.Random;
 
-    /// <summary>1 枚表示か分割表示か。</summary>
+    /// <summary>1 枚表示か分割表示（4 分割・16 分割）か。</summary>
     public WallpaperLayout Layout { get; init; } = WallpaperLayout.SingleImage;
 
-    /// <summary>分割表示のマスごとの設定（左上から右方向、次の行へ、の順）。足りない分は既定値として扱う。</summary>
+    /// <summary>
+    /// 分割表示の区画ごとの設定（左上・右上・左下・右下の順）。足りない分は既定値として扱う。
+    /// 4 分割では各マス、16 分割では各区画（2 × 2 の 4 マス）に使う。
+    /// </summary>
     public IReadOnlyList<TileSettings> Tiles { get; init; } = [];
 
     public static MonitorSettings CreateDefault(string monitorId) => new() { MonitorId = monitorId };
@@ -57,26 +60,28 @@ public sealed record MonitorSettings
     public MonitorSettings RemoveTileFolder(int index, string folder) => WithTile(index, GetTile(index).RemoveFolder(folder));
 
     /// <summary>
-    /// 分割表示で、いずれかのマスに専用フォルダが設定されているか。
-    /// true の場合、専用フォルダの無いマスは黒で表示する。
+    /// 分割表示で、いずれかの区画に専用フォルダが設定されているか。
+    /// true の場合、専用フォルダの無い区画のマスは黒で表示する。
     /// </summary>
     public bool UsesTileFolders =>
-        Layout != WallpaperLayout.SingleImage
-        && Enumerable.Range(0, Layout.GetTileCount()).Any(i => GetTile(i).Folders.Count > 0);
+        Layout != WallpaperLayout.SingleImage && AnyQuadrantHasFolders;
 
     /// <summary>
     /// マスで実際に使うフォルダ。空のリストはそのマスに画像を置かない（黒で表示する）ことを表す。
-    /// どのマスにも専用フォルダが無ければ全マスで 1 枚表示のフォルダを使い、
-    /// 1 つでもあれば各マスの専用フォルダだけを使う。
+    /// どの区画にも専用フォルダが無ければ全マスで 1 枚表示のフォルダを使い、
+    /// 1 つでもあれば各マスが属する区画の専用フォルダだけを使う。
     /// </summary>
+    /// <param name="index">現在のレイアウトでのマスの番号（左上から右方向、次の行へ、の順）。</param>
     public IReadOnlyList<string> GetEffectiveTileFolders(int index) =>
-        UsesTileFolders ? GetTile(index).Folders : Folders;
+        UsesTileFolders ? GetTile(Layout.GetQuadrant(index)).Folders : Folders;
 
     /// <summary>現在のレイアウトで画像の取得元となるフォルダが 1 つでも設定されているか。</summary>
     public bool HasAnyFolder() =>
         Folders.Count > 0
-        || (Layout != WallpaperLayout.SingleImage
-            && Enumerable.Range(0, Layout.GetTileCount()).Any(i => GetTile(i).Folders.Count > 0));
+        || UsesTileFolders;
+
+    private bool AnyQuadrantHasFolders =>
+        Enumerable.Range(0, WallpaperLayoutExtensions.QuadrantCount).Any(i => GetTile(i).Folders.Count > 0);
 
     /// <summary>読み込んだ設定の null を補正する。</summary>
     internal MonitorSettings Normalize() => this with

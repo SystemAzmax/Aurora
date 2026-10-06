@@ -343,6 +343,58 @@ public sealed class WallpaperRotationServiceTests : IDisposable
         await _composer.Received(1).ComposeAsync(Arg.Any<WallpaperCompositionRequest>(), Arg.Any<CancellationToken>());
     }
 
+    // ---- 16 分割 ----
+
+    [Fact]
+    public async Task 十六分割で区画が未設定なら1枚表示のフォルダから16枚を重複なく選び4x4で合成する()
+    {
+        string[] many = [.. Enumerable.Range(1, 20).Select(i => $@"C:\w\{i}.jpg")];
+        SetupFolder(@"C:\w", many);
+        await _settings.UpdateAsync(s => s.WithMonitor(s.GetMonitor("MON1") with
+        {
+            Layout = WallpaperLayout.Grid4x4,
+            SelectionMode = ImageSelectionMode.Random,
+        }), TestContext.Current.CancellationToken);
+
+        await _sut.NextAsync("MON1", TestContext.Current.CancellationToken);
+
+        await _composer.Received(1).ComposeAsync(
+            Arg.Is<WallpaperCompositionRequest>(r => r.Columns == 4 && r.Rows == 4), Arg.Any<CancellationToken>());
+        IReadOnlyList<string?> composed = ComposedImages();
+        Assert.Equal(16, composed.Count);
+        Assert.Equal(16, composed.Distinct().Count());
+        Assert.All(composed, path => Assert.Contains(path, many));
+    }
+
+    [Fact]
+    public async Task 十六分割では区画のフォルダを区画内の4マスに重複なく使い未設定の区画は黒になる()
+    {
+        string[] upperLeft = [.. Enumerable.Range(1, 6).Select(i => $@"C:\a\{i}.jpg")];
+        string[] lowerRight = [.. Enumerable.Range(1, 4).Select(i => $@"C:\d\{i}.jpg")];
+        SetupFolder(@"C:\a", upperLeft);
+        SetupFolder(@"C:\d", lowerRight);
+        await _settings.UpdateAsync(s => s.WithMonitor(s.GetMonitor("MON1")
+            .AddTileFolder(0, @"C:\a")
+            .AddTileFolder(3, @"C:\d") with
+        {
+            Layout = WallpaperLayout.Grid4x4,
+            SelectionMode = ImageSelectionMode.Random,
+        }), TestContext.Current.CancellationToken);
+
+        await _sut.NextAsync("MON1", TestContext.Current.CancellationToken);
+
+        IReadOnlyList<string?> composed = ComposedImages();
+        int[] upperLeftTiles = [0, 1, 4, 5];
+        int[] lowerRightTiles = [10, 11, 14, 15];
+        string?[] fromA = [.. upperLeftTiles.Select(i => composed[i])];
+        string?[] fromD = [.. lowerRightTiles.Select(i => composed[i])];
+        Assert.All(fromA, path => Assert.Contains(path, upperLeft));
+        Assert.Equal(4, fromA.Distinct().Count());
+        Assert.Equal(lowerRight.Order(), fromD.Order());
+        // 右上・左下の区画は未設定なので、1 枚表示のフォルダ（C:\w）は使わずに黒（null）にする
+        Assert.All(Enumerable.Range(0, 16).Except(upperLeftTiles).Except(lowerRightTiles), i => Assert.Null(composed[i]));
+    }
+
     private void SetupFolder(string folder, string[] images) =>
         _images.GetImagesAsync(
                 Arg.Is<IEnumerable<string>>(f => f.SequenceEqual(new[] { folder })), Arg.Any<bool>(), Arg.Any<CancellationToken>())

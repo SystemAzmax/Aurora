@@ -5,7 +5,7 @@ using CommunityToolkit.Mvvm.ComponentModel;
 namespace WallpaperChanger.UI.ViewModels;
 
 /// <summary>
-/// 4 分割表示の 1 マス分。
+/// 分割表示でフォルダを設定する 1 単位（4 分割では 1 マス、16 分割では 4 マスずつの 1 区画）。
 /// </summary>
 public sealed partial class TileItemViewModel : ObservableObject
 {

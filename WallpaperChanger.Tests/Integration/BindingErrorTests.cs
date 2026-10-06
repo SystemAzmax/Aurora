@@ -73,12 +73,16 @@ public sealed class BindingErrorTests
             await viewModel.InitializeCommand.ExecuteAsync(null);
             await WpfTestApplication.FlushAsync();
 
-            // 1 枚表示 → 4 分割（マス選択）→ 別のモニター → 1 枚表示、と画面の状態を一通り切り替える
+            // 1 枚表示 → 4 分割（マス選択）→ 別のモニター → 16 分割（区画選択）→ 1 枚表示、と画面の状態を一通り切り替える
             viewModel.IsGridLayout = true;
             await WpfTestApplication.FlushAsync();
             viewModel.SelectedTile = viewModel.Tiles[3];
             await WpfTestApplication.FlushAsync();
             viewModel.SelectedMonitor = viewModel.Monitors[0];
+            await WpfTestApplication.FlushAsync();
+            viewModel.IsGrid4x4Layout = true;
+            await WpfTestApplication.FlushAsync();
+            viewModel.SelectedTile = viewModel.Tiles[2];
             await WpfTestApplication.FlushAsync();
             viewModel.IsSingleImageLayout = true;
             await WpfTestApplication.FlushAsync();

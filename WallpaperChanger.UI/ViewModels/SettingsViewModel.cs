@@ -72,7 +72,7 @@ public sealed partial class SettingsViewModel : ObservableObject, IDisposable
         SelectedIntervalUnit = IntervalUnitOption.Minutes;
         IntervalValue = AppSettings.DefaultIntervalMinutes;
         IncludeSubfolders = true;
-        Tiles = [.. Enumerable.Range(0, WallpaperLayout.Grid2x2.GetTileCount()).Select(i => new TileItemViewModel(i))];
+        Tiles = [.. Enumerable.Range(0, WallpaperLayoutExtensions.QuadrantCount).Select(i => new TileItemViewModel(i))];
         SelectedTile = Tiles[0];
         _isLoading = false;
 
@@ -85,7 +85,10 @@ public sealed partial class SettingsViewModel : ObservableObject, IDisposable
 
     public ObservableCollection<string> Folders { get; } = [];
 
-    /// <summary>4 分割表示のマス（左上・右上・左下・右下）。</summary>
+    /// <summary>
+    /// 分割表示でフォルダを設定する単位（左上・右上・左下・右下）。
+    /// 4 分割では各マス、16 分割では 4 マスずつの各区画を表し、両方のレイアウトで設定を共有する。
+    /// </summary>
     public IReadOnlyList<TileItemViewModel> Tiles { get; }
 
     public IReadOnlyList<IntervalUnitOption> IntervalUnits { get; } = IntervalUnitOption.All;
@@ -154,6 +157,8 @@ public sealed partial class SettingsViewModel : ObservableObject, IDisposable
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(IsSingleImageLayout))]
     [NotifyPropertyChangedFor(nameof(IsGridLayout))]
+    [NotifyPropertyChangedFor(nameof(IsGrid4x4Layout))]
+    [NotifyPropertyChangedFor(nameof(IsSplitLayout))]
     [NotifyPropertyChangedFor(nameof(FolderCaption))]
     [NotifyPropertyChangedFor(nameof(EditingFolders))]
     [NotifyPropertyChangedFor(nameof(EditingTargetText))]
@@ -161,14 +166,20 @@ public sealed partial class SettingsViewModel : ObservableObject, IDisposable
     public partial WallpaperLayout Layout { get; set; }
 
     /// <summary>壁紙フォルダ欄の説明。</summary>
-    public string FolderCaption => IsGridLayout
-        ? "マスを選んでフォルダを設定します。どのマスも未設定なら 1 枚表示のフォルダから 4 枚を選び、1 つでも設定すると未設定のマスは黒になります。"
-        : "このモニターに表示する画像のフォルダ（JPG / JPEG / PNG / BMP / WEBP）";
+    public string FolderCaption => Layout switch
+    {
+        WallpaperLayout.Grid2x2 => "マスを選んでフォルダを設定します。どのマスも未設定なら 1 枚表示のフォルダから 4 枚を選び、1 つでも設定すると未設定のマスは黒になります。",
+        WallpaperLayout.Grid4x4 => "区画（4 マスずつ）を選んでフォルダを設定します。どの区画も未設定なら 1 枚表示のフォルダから 16 枚を選び、1 つでも設定すると未設定の区画は黒になります。4 分割のマスの設定と共通です。",
+        _ => "このモニターに表示する画像のフォルダ（JPG / JPEG / PNG / BMP / WEBP）",
+    };
 
-    /// <summary>いずれかのマスに専用フォルダがあるか（あれば未設定のマスは黒になる）。</summary>
+    /// <summary>いずれかのマス（区画）に専用フォルダがあるか（あれば未設定のマス（区画）は黒になる）。</summary>
     private bool AnyTileHasFolders => Tiles.Any(t => t.HasOwnFolders);
 
-    /// <summary>4 分割表示で編集中のマス。</summary>
+    /// <summary>画面の文言で使う、フォルダを設定する単位の呼び方。</summary>
+    private string TileUnit => Layout == WallpaperLayout.Grid4x4 ? "区画" : "マス";
+
+    /// <summary>分割表示で編集中のマス（区画）。</summary>
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(EditingFolders))]
     [NotifyPropertyChangedFor(nameof(EditingTargetText))]
@@ -176,16 +187,16 @@ public sealed partial class SettingsViewModel : ObservableObject, IDisposable
 
     /// <summary>
     /// 壁紙フォルダ欄に表示・編集するフォルダ一覧。
-    /// 1 枚表示ではモニターのフォルダ、4 分割では選択中のマスのフォルダ。
+    /// 1 枚表示ではモニターのフォルダ、分割表示では選択中のマス（区画）のフォルダ。
     /// </summary>
-    public ObservableCollection<string>? EditingFolders => IsGridLayout ? SelectedTile?.Folders : Folders;
+    public ObservableCollection<string>? EditingFolders => IsSplitLayout ? SelectedTile?.Folders : Folders;
 
-    /// <summary>4 分割で編集対象のマスを示す見出し。</summary>
-    public string? EditingTargetText => IsGridLayout && SelectedTile is { } tile ? $"{tile.Position} のマスのフォルダ" : null;
+    /// <summary>分割表示で編集対象のマス（区画）を示す見出し。</summary>
+    public string? EditingTargetText => IsSplitLayout && SelectedTile is { } tile ? $"{tile.Position} の{TileUnit}のフォルダ" : null;
 
-    public string EmptyFoldersMessage => (IsGridLayout, AnyTileHasFolders) switch
+    public string EmptyFoldersMessage => (IsSplitLayout, AnyTileHasFolders) switch
     {
-        (true, true) => "未設定（このマスは黒で表示）",
+        (true, true) => $"未設定（この{TileUnit}は黒で表示）",
         (true, false) => "未設定（1 枚表示のフォルダから選ぶ）",
         _ => "フォルダが登録されていません。「追加」から登録してください。",
     };
@@ -202,6 +213,7 @@ public sealed partial class SettingsViewModel : ObservableObject, IDisposable
         }
     }
 
+    /// <summary>4 分割表示か。</summary>
     public bool IsGridLayout
     {
         get => Layout == WallpaperLayout.Grid2x2;
@@ -213,6 +225,22 @@ public sealed partial class SettingsViewModel : ObservableObject, IDisposable
             }
         }
     }
+
+    /// <summary>16 分割表示か（4 マスずつの区画ごとにフォルダを設定できる）。</summary>
+    public bool IsGrid4x4Layout
+    {
+        get => Layout == WallpaperLayout.Grid4x4;
+        set
+        {
+            if (value)
+            {
+                Layout = WallpaperLayout.Grid4x4;
+            }
+        }
+    }
+
+    /// <summary>複数の画像を合成する分割表示（4 分割・16 分割）か。</summary>
+    public bool IsSplitLayout => Layout != WallpaperLayout.SingleImage;
 
     // ---- 切替設定 ----
 
@@ -313,7 +341,7 @@ public sealed partial class SettingsViewModel : ObservableObject, IDisposable
     });
 
     /// <summary>
-    /// 編集中の一覧にフォルダを追加する。1 枚表示ではモニターのフォルダ、4 分割では選択中のマスのフォルダが対象。
+    /// 編集中の一覧にフォルダを追加する。1 枚表示ではモニターのフォルダ、分割表示では選択中のマス（区画）のフォルダが対象。
     /// </summary>
     [RelayCommand(CanExecute = nameof(HasSelectedMonitor))]
     private Task AddFolderAsync() => ExecuteSafelyAsync("フォルダの追加", async () =>
@@ -323,21 +351,21 @@ public sealed partial class SettingsViewModel : ObservableObject, IDisposable
             return;
         }
 
-        if (IsGridLayout)
+        if (IsSplitLayout)
         {
             if (SelectedTile is not { } tile)
             {
                 return;
             }
 
-            IReadOnlyList<string> tileFolders = _folderPicker.PickFolders($"{tile.Position}のマスに表示するフォルダを選択");
+            IReadOnlyList<string> tileFolders = _folderPicker.PickFolders($"{tile.Position}の{TileUnit}に表示するフォルダを選択");
             if (tileFolders.Count == 0)
             {
                 return;
             }
 
             await UpdateMonitorSettingsAsync(monitor, m => tileFolders.Aggregate(m, (current, folder) => current.AddTileFolder(tile.Index, folder)));
-            ShowInfo($"{tile.Position}のマスに {tileFolders.Count} 件のフォルダを追加しました。");
+            ShowInfo($"{tile.Position}の{TileUnit}に {tileFolders.Count} 件のフォルダを追加しました。");
 
             // 設定したフォルダの画像をすぐに確認できるよう表示し直す
             await _rotationService.NextAsync(monitor.Id);
@@ -362,7 +390,7 @@ public sealed partial class SettingsViewModel : ObservableObject, IDisposable
     });
 
     /// <summary>
-    /// 編集中の一覧からフォルダを削除する。1 枚表示ではモニターのフォルダ、4 分割では選択中のマスのフォルダが対象。
+    /// 編集中の一覧からフォルダを削除する。1 枚表示ではモニターのフォルダ、分割表示では選択中のマス（区画）のフォルダが対象。
     /// </summary>
     [RelayCommand(CanExecute = nameof(CanRemoveFolder))]
     private Task RemoveFolderAsync() => ExecuteSafelyAsync("フォルダの削除", async () =>
@@ -372,7 +400,7 @@ public sealed partial class SettingsViewModel : ObservableObject, IDisposable
             return;
         }
 
-        if (IsGridLayout)
+        if (IsSplitLayout)
         {
             if (SelectedTile is not { } tile)
             {
@@ -382,9 +410,9 @@ public sealed partial class SettingsViewModel : ObservableObject, IDisposable
             await UpdateMonitorSettingsAsync(monitor, m => m.RemoveTileFolder(tile.Index, folder));
             ShowInfo((tile.HasOwnFolders, AnyTileHasFolders) switch
             {
-                (true, _) => $"{tile.Position}のマスからフォルダを削除しました。",
-                (false, true) => $"{tile.Position}のマスは未設定になり、黒で表示します。",
-                _ => "すべてのマスが未設定になったため、1 枚表示のフォルダから 4 枚を選びます。",
+                (true, _) => $"{tile.Position}の{TileUnit}からフォルダを削除しました。",
+                (false, true) => $"{tile.Position}の{TileUnit}は未設定になり、黒で表示します。",
+                _ => $"すべての{TileUnit}が未設定になったため、1 枚表示のフォルダから {Layout.GetTileCount()} 枚を選びます。",
             });
 
             // マスの表示内容が変わるため、すぐに表示し直す
@@ -490,7 +518,12 @@ public sealed partial class SettingsViewModel : ObservableObject, IDisposable
                 await _rotationService.NextAsync(monitor.Id);
             }
 
-            ShowInfo(value == WallpaperLayout.Grid2x2 ? "4 分割表示に切り替えました。" : "1 枚表示に切り替えました。");
+            ShowInfo(value switch
+            {
+                WallpaperLayout.Grid2x2 => "4 分割表示に切り替えました。",
+                WallpaperLayout.Grid4x4 => "16 分割表示に切り替えました。",
+                _ => "1 枚表示に切り替えました。",
+            });
         });
     }
 

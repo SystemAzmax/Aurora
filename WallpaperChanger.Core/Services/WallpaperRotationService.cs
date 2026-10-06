@@ -149,9 +149,9 @@ public sealed partial class WallpaperRotationService : IWallpaperRotationService
     /// 設定済みのフォルダに対応画像が 1 枚も無い場合は null を返し、今の表示を残す。
     /// </summary>
     /// <remarks>
-    /// 4 分割では、どのマスにも専用フォルダが無ければ 4 マスとも 1 枚表示のフォルダから選ぶ。
-    /// 1 つでも専用フォルダがあれば、専用フォルダの無いマスは黒にする。
-    /// 同じフォルダを使うマスはまとめて選び、マス同士で同じ画像が並ばないようにする。
+    /// 分割表示では、どの区画にも専用フォルダが無ければ全マスを 1 枚表示のフォルダから選ぶ。
+    /// 1 つでも専用フォルダがあれば、専用フォルダの無い区画のマスは黒にする。
+    /// 同じフォルダを使うマス（16 分割の同じ区画の 4 マスなど）はまとめて選び、マス同士で同じ画像が並ばないようにする。
     /// </remarks>
     private async Task<IReadOnlyList<string?>?> SelectImagesAsync(
         MonitorSettings settings,

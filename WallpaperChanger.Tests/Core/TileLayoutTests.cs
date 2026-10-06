@@ -53,8 +53,34 @@ public class TileLayoutTests
     [Theory]
     [InlineData(WallpaperLayout.SingleImage, 1)]
     [InlineData(WallpaperLayout.Grid2x2, 4)]
+    [InlineData(WallpaperLayout.Grid4x4, 16)]
     public void レイアウトごとの必要枚数(WallpaperLayout layout, int expected)
     {
         Assert.Equal(expected, layout.GetTileCount());
+    }
+
+    [Theory]
+    [InlineData(WallpaperLayout.Grid2x2, 0, 0)]
+    [InlineData(WallpaperLayout.Grid2x2, 1, 1)]
+    [InlineData(WallpaperLayout.Grid2x2, 2, 2)]
+    [InlineData(WallpaperLayout.Grid2x2, 3, 3)]
+    [InlineData(WallpaperLayout.Grid4x4, 0, 0)]
+    [InlineData(WallpaperLayout.Grid4x4, 5, 0)]
+    [InlineData(WallpaperLayout.Grid4x4, 2, 1)]
+    [InlineData(WallpaperLayout.Grid4x4, 7, 1)]
+    [InlineData(WallpaperLayout.Grid4x4, 8, 2)]
+    [InlineData(WallpaperLayout.Grid4x4, 13, 2)]
+    [InlineData(WallpaperLayout.Grid4x4, 10, 3)]
+    [InlineData(WallpaperLayout.Grid4x4, 15, 3)]
+    public void マスが属する区画(WallpaperLayout layout, int tileIndex, int expected)
+    {
+        Assert.Equal(expected, layout.GetQuadrant(tileIndex));
+    }
+
+    [Fact]
+    public void レイアウトの範囲外のマスの区画は求められない()
+    {
+        Assert.Throws<ArgumentOutOfRangeException>(() => WallpaperLayout.Grid2x2.GetQuadrant(4));
+        Assert.Throws<ArgumentOutOfRangeException>(() => WallpaperLayout.Grid4x4.GetQuadrant(-1));
     }
 }

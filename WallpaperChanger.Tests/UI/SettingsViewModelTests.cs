@@ -163,6 +163,64 @@ public sealed class SettingsViewModelTests : IDisposable
     }
 
     [Fact]
+    public async Task 十六分割に切り替えると4分割と共通の区画のフォルダを編集対象にする()
+    {
+        await _settings.UpdateAsync(s => s.WithMonitor(s.GetMonitor("MON-P").AddTileFolder(2, @"D:\Birds")),
+            TestContext.Current.CancellationToken);
+        await _sut.InitializeCommand.ExecuteAsync(null);
+        _rotation.ClearReceivedCalls();
+
+        _sut.IsGrid4x4Layout = true;
+
+        Assert.Equal(WallpaperLayout.Grid4x4, _settings.Current.GetMonitor("MON-P").Layout);
+        Assert.False(_sut.IsGridLayout);
+        Assert.True(_sut.IsSplitLayout);
+        Assert.Same(_sut.Tiles[0].Folders, _sut.EditingFolders);
+        Assert.Equal("左上 の区画のフォルダ", _sut.EditingTargetText);
+        Assert.Equal("未設定（この区画は黒で表示）", _sut.EmptyFoldersMessage);
+        Assert.Equal("16 分割表示に切り替えました。", _sut.StatusMessage);
+        await _rotation.Received(1).NextAsync("MON-P", Arg.Any<CancellationToken>());
+
+        _sut.SelectedTile = _sut.Tiles[2];
+        Assert.Equal([@"D:\Birds"], _sut.EditingFolders);
+    }
+
+    [Fact]
+    public async Task 十六分割では追加ボタンで選択中の区画にフォルダを追加する()
+    {
+        await _sut.InitializeCommand.ExecuteAsync(null);
+        _sut.IsGrid4x4Layout = true;
+        _rotation.ClearReceivedCalls();
+        _sut.SelectedTile = _sut.Tiles[1];
+        _folderPicker.PickFolders(Arg.Any<string>()).Returns([@"D:\Cats"]);
+
+        await _sut.AddFolderCommand.ExecuteAsync(null);
+
+        MonitorSettings saved = _settings.Current.GetMonitor("MON-P");
+        Assert.Equal([@"D:\Cats"], saved.GetTile(1).Folders);
+        Assert.Equal([@"D:\Cats"], saved.GetEffectiveTileFolders(2));
+        Assert.Equal("右上の区画に 1 件のフォルダを追加しました。", _sut.StatusMessage);
+        _folderPicker.Received(1).PickFolders(Arg.Is<string>(t => t.Contains("右上の区画", StringComparison.Ordinal)));
+        await _rotation.Received(1).NextAsync("MON-P", Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task 十六分割で全区画が未設定になると1枚表示のフォルダから16枚を選ぶと案内する()
+    {
+        await _settings.UpdateAsync(s => s.WithMonitor(s.GetMonitor("MON-P").AddTileFolder(0, @"D:\A") with
+        {
+            Layout = WallpaperLayout.Grid4x4,
+        }), TestContext.Current.CancellationToken);
+        await _sut.InitializeCommand.ExecuteAsync(null);
+        _sut.SelectedTile = _sut.Tiles[0];
+        _sut.SelectedFolder = @"D:\A";
+
+        await _sut.RemoveFolderCommand.ExecuteAsync(null);
+
+        Assert.Equal("すべての区画が未設定になったため、1 枚表示のフォルダから 16 枚を選びます。", _sut.StatusMessage);
+    }
+
+    [Fact]
     public async Task 保存済みの表示レイアウトを読み込む()
     {
         await _settings.UpdateAsync(s => s.WithMonitor(s.GetMonitor("MON-L") with { Layout = WallpaperLayout.Grid2x2 }),

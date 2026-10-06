@@ -84,6 +84,33 @@ public class AppSettingsTests
         Assert.True((monitor with { Layout = WallpaperLayout.Grid2x2 }).HasAnyFolder());
     }
 
+    [Fact]
+    public void 十六分割では各マスが属する区画のフォルダを使う()
+    {
+        MonitorSettings monitor = MonitorSettings.CreateDefault("MON1").AddFolder(@"C:\common")
+            with { Layout = WallpaperLayout.Grid4x4 };
+
+        Assert.False(monitor.UsesTileFolders);
+        Assert.All(Enumerable.Range(0, 16), i => Assert.Equal([@"C:\common"], monitor.GetEffectiveTileFolders(i)));
+
+        // 左下の区画 = 16 分割の 8, 9, 12, 13 番目のマス
+        monitor = monitor.AddTileFolder(2, @"C:\lowerLeft");
+
+        Assert.True(monitor.UsesTileFolders);
+        int[] lowerLeft = [8, 9, 12, 13];
+        Assert.All(lowerLeft, i => Assert.Equal([@"C:\lowerLeft"], monitor.GetEffectiveTileFolders(i)));
+        Assert.All(Enumerable.Range(0, 16).Except(lowerLeft), i => Assert.Empty(monitor.GetEffectiveTileFolders(i)));
+    }
+
+    [Fact]
+    public void 十六分割は区画のフォルダだけでも取得元がある()
+    {
+        MonitorSettings monitor = MonitorSettings.CreateDefault("MON1").AddTileFolder(3, @"C:\lowerRight")
+            with { Layout = WallpaperLayout.Grid4x4 };
+
+        Assert.True(monitor.HasAnyFolder());
+    }
+
     [Theory]
     [InlineData(0, false)]
     [InlineData(1, true)]
