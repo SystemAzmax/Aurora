@@ -27,4 +27,10 @@ public sealed class WallpaperCompositionOptions
 
     /// <summary>モニターごとに残す合成画像の数（設定中の壁紙を削除しないよう 2 以上にする）。</summary>
     public int FilesToKeepPerMonitor { get; set; } = 3;
+
+    /// <summary>
+    /// 接続されていないモニターの合成画像を残す期間（最後に保存してから）。
+    /// ドッキングなどで日常的に抜き差しするモニターでは、再接続時に Windows がその画像を表示するため、すぐには削除しない。
+    /// </summary>
+    public TimeSpan DisconnectedMonitorRetention { get; set; } = TimeSpan.FromDays(30);
 }

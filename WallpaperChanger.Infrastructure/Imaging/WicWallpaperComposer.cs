@@ -204,6 +204,47 @@ internal sealed partial class WicWallpaperComposer : IWallpaperComposer
         }
     }
 
+    public void DeleteDisconnectedMonitorFiles(IReadOnlyCollection<string> connectedMonitorIds)
+    {
+        ArgumentNullException.ThrowIfNull(connectedMonitorIds);
+
+        // 合成画像はモニターごとに最新の数枚だけを残すが、接続されなくなったモニターの分は合成されないため残り続ける
+        HashSet<string> connectedKeys = [.. connectedMonitorIds.Select(GetMonitorKey)];
+        DateTime threshold = _timeProvider.GetUtcNow().UtcDateTime - _options.DisconnectedMonitorRetention;
+        try
+        {
+            var directory = new DirectoryInfo(_options.OutputDirectory);
+            if (!directory.Exists)
+            {
+                return;
+            }
+
+            foreach (FileInfo file in directory.EnumerateFiles("*_*.jpg"))
+            {
+                string key = file.Name[..file.Name.IndexOf('_', StringComparison.Ordinal)];
+                if (connectedKeys.Contains(key) || file.LastWriteTimeUtc > threshold)
+                {
+                    continue;
+                }
+
+                try
+                {
+                    file.Delete();
+                    LogDisconnectedMonitorFileDeleted(file.FullName);
+                }
+                catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+                {
+                    LogDeleteFailed(ex, file.FullName);
+                }
+            }
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            // 後片付けに過ぎないため、フォルダを読めなくても次回に再試行する
+            LogDeleteFailed(ex, _options.OutputDirectory);
+        }
+    }
+
     private static void FillRect(byte[] pixels, int stride, PixelRect rect, int rgb)
     {
         byte b = (byte)(rgb & 0xFF);
@@ -243,6 +284,9 @@ internal sealed partial class WicWallpaperComposer : IWallpaperComposer
 
     [LoggerMessage(Level = LogLevel.Debug, Message = "{Count} 枚の画像を合成しました ({Width}×{Height}): {OutputPath}")]
     private partial void LogComposed(int count, int width, int height, string outputPath);
+
+    [LoggerMessage(Level = LogLevel.Information, Message = "接続されていないモニターの古い合成画像を削除しました: {FilePath}")]
+    private partial void LogDisconnectedMonitorFileDeleted(string filePath);
 
     [LoggerMessage(Level = LogLevel.Warning, Message = "古い合成画像を削除できませんでした: {FilePath}")]
     private partial void LogDeleteFailed(Exception exception, string filePath);

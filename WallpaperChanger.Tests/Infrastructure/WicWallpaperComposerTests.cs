@@ -204,6 +204,37 @@ public sealed class WicWallpaperComposerTests : IDisposable
         Assert.True(File.Exists(other));
     }
 
+    [Fact]
+    public async Task 接続されていないモニターの合成画像は保存期間を過ぎたら削除する()
+    {
+        CancellationToken ct = TestContext.Current.CancellationToken;
+        string red = CreateImage("red.png", 64, 64, Colors.Red, new PngBitmapEncoder());
+        WicWallpaperComposer sut = CreateSut(gap: 0);
+        string connectedOld = await sut.ComposeAsync(new("MON1", [red], 2, 2, 100, 100), ct);
+        string disconnectedOld = await sut.ComposeAsync(new("MON2", [red], 2, 2, 100, 100), ct);
+        string disconnectedRecent = await sut.ComposeAsync(new("MON3", [red], 2, 2, 100, 100), ct);
+        DateTime now = _time.GetUtcNow().UtcDateTime;
+        File.SetLastWriteTimeUtc(connectedOld, now - TimeSpan.FromDays(31));
+        File.SetLastWriteTimeUtc(disconnectedOld, now - TimeSpan.FromDays(31));
+        File.SetLastWriteTimeUtc(disconnectedRecent, now - TimeSpan.FromDays(29));
+
+        sut.DeleteDisconnectedMonitorFiles(["mon1"]); // モニター ID の大文字小文字は区別しない
+
+        Assert.True(File.Exists(connectedOld));       // 接続中のモニターは古くても残す（モニターごとの枚数で管理する）
+        Assert.False(File.Exists(disconnectedOld));
+        Assert.True(File.Exists(disconnectedRecent)); // 再接続に備えて保存期間内は残す
+    }
+
+    [Fact]
+    public void 合成画像の保存先が無くても後片付けは例外にならない()
+    {
+        WicWallpaperComposer sut = CreateSut(gap: 0);
+
+        sut.DeleteDisconnectedMonitorFiles(["MON1"]);
+
+        Assert.False(Directory.Exists(_outputDirectory));
+    }
+
     private WicWallpaperComposer CreateSut(int gap, ImageSourceLimits? limits = null) => new(
         Options.Create(new WallpaperCompositionOptions { OutputDirectory = _outputDirectory, TileGap = gap }),
         Options.Create(limits ?? new ImageSourceLimits()),

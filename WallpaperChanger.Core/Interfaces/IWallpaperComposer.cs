@@ -25,4 +25,10 @@ public interface IWallpaperComposer
 {
     /// <summary>画像を合成してファイルに保存し、そのフルパスを返す。</summary>
     Task<string> ComposeAsync(WallpaperCompositionRequest request, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// 接続されていないモニターの合成画像のうち、一定期間更新されていないものを削除する（後片付けのため、失敗しても例外にしない）。
+    /// </summary>
+    /// <param name="connectedMonitorIds">現在接続されているモニターの ID。これらの合成画像は削除しない。</param>
+    void DeleteDisconnectedMonitorFiles(IReadOnlyCollection<string> connectedMonitorIds);
 }

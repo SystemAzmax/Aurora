@@ -218,8 +218,11 @@ public sealed partial class WallpaperScheduler : IWallpaperScheduler, IDisposabl
             _resetCts = new CancellationTokenSource();
         }
 
-        // ループ側のリンク済みトークンへ伝播させる。リンク解除前の破棄を避けるため previous は Dispose しない。
+        // ループ側のリンク済みトークンへ伝播させる。
+        // previous にリンクするトークンは差し替えと同じロックの内側でしか作られないため、差し替え後に新たにリンクされることはなく、
+        // Cancel が終われば登録済みの通知も実行済みなので、ここで破棄してよい（リンク側の登録解除は破棄後でも安全）。
         previous.Cancel();
+        previous.Dispose();
     }
 
     private void OnSettingsChanged(object? sender, AppSettings settings)

@@ -93,6 +93,9 @@ public sealed partial class WallpaperRotationService : IWallpaperRotationService
                 }
             }
 
+            // 接続されなくなったモニターの合成画像は、そのモニターでは合成されないため、ここで後片付けする
+            _composer.DeleteDisconnectedMonitorFiles([.. monitors.Select(m => m.Id)]);
+
             if (errors.Count > 0)
             {
                 throw new AggregateException("一部のモニターで壁紙の変更に失敗しました。", errors);

@@ -111,6 +111,25 @@ public sealed class WallpaperSchedulerTests : IAsyncDisposable
     }
 
     [Fact]
+    public async Task 即時変更でタイマーを何度リセットしても定期実行は続く()
+    {
+        CancellationToken ct = TestContext.Current.CancellationToken;
+        _sut.Start();
+        await WaitForTimerAsync();
+        for (int i = 0; i < 5; i++)
+        {
+            await _sut.ChangeNowAsync(ct);
+        }
+
+        _changed = NewSignal();
+        await WaitForTimerAsync();
+        _time.Advance(TimeSpan.FromMinutes(10));
+
+        await _changed.Task.WaitAsync(WaitTimeout, ct);
+        Assert.Equal(6, _nextCount);
+    }
+
+    [Fact]
     public async Task 変更が失敗しても定期実行は継続する()
     {
         int calls = 0;

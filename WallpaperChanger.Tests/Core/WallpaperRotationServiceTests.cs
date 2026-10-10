@@ -14,6 +14,7 @@ public sealed class WallpaperRotationServiceTests : IDisposable
     private static readonly MonitorInfo Monitor2 = new("MON2", 1, "Monitor 2", new MonitorBounds(1920, 0, 3840, 1080), 1920, 1080);
     private static readonly string[] Images = [@"C:\w\1.jpg", @"C:\w\2.jpg", @"C:\w\3.jpg"];
     private static readonly string[] CommonFolders = [@"C:\w"];
+    private static readonly string[] AllMonitorIds = ["MON1", "MON2"];
 
     private readonly IMonitorService _monitors = Substitute.For<IMonitorService>();
     private readonly IWallpaperService _wallpaper = Substitute.For<IWallpaperService>();
@@ -107,6 +108,15 @@ public sealed class WallpaperRotationServiceTests : IDisposable
         WallpaperChangeResult result = await _sut.PreviousAsync("MON1", TestContext.Current.CancellationToken);
 
         Assert.Equal(WallpaperChangeStatus.NoPreviousWallpaper, Assert.Single(result.Monitors).Status);
+    }
+
+    [Fact]
+    public async Task 切り替えの後に接続されていないモニターの合成画像を後片付けする()
+    {
+        await _sut.NextAsync("MON1", TestContext.Current.CancellationToken);
+
+        _composer.Received(1).DeleteDisconnectedMonitorFiles(
+            Arg.Is<IReadOnlyCollection<string>>(ids => ids.SequenceEqual(AllMonitorIds)));
     }
 
     [Fact]
