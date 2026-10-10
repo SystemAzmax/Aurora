@@ -1,3 +1,5 @@
+using System.Security.AccessControl;
+using System.Security.Principal;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Microsoft.Extensions.Time.Testing;
@@ -97,8 +99,61 @@ public sealed class FileLoggerProviderTests : IDisposable
         Assert.Contains("while running", reader.ReadToEnd(), StringComparison.Ordinal);
     }
 
-    private FileLoggerProvider CreateSut(LogLevel minimumLevel = LogLevel.Information, int retentionDays = 14) => new(
-        Options.Create(new FileLoggerOptions { Directory = _temp.Path, MinimumLevel = minimumLevel, RetentionDays = retentionDays }),
+    [Fact]
+    public void 例外の詳細を取得できなくてもログを書き込み続ける()
+    {
+        using (FileLoggerProvider provider = CreateSut())
+        {
+            ILogger logger = provider.CreateLogger("Cat");
+            logger.LogError(new BrokenException(), "失敗しました");
+            logger.LogInformation("その後のログ");
+        }
+
+        string log = ReadAllLogs();
+        Assert.Contains("[ERR] Cat: 失敗しました", log, StringComparison.Ordinal);
+        Assert.Contains(typeof(BrokenException).FullName!, log, StringComparison.Ordinal);
+        Assert.Contains("[INF] Cat: その後のログ", log, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void 古いログを整理するためのフォルダの一覧を取得できなくてもログを書き込む()
+    {
+        // 一覧の取得（古いログの整理）だけを拒否し、ファイルの作成・書き込みは許可する
+        string directory = Path.Combine(_temp.Path, "logs");
+        var info = new DirectoryInfo(directory);
+        info.Create();
+        var denyList = new FileSystemAccessRule(
+            WindowsIdentity.GetCurrent().User!, FileSystemRights.ListDirectory, AccessControlType.Deny);
+        DirectorySecurity security = info.GetAccessControl();
+        security.AddAccessRule(denyList);
+        info.SetAccessControl(security);
+
+        try
+        {
+            Assert.Throws<UnauthorizedAccessException>(() => Directory.GetFiles(directory));
+
+            using FileLoggerProvider provider = CreateSut(directory: directory);
+            provider.CreateLogger("Cat").LogInformation("一覧を取得できなくても書き込む");
+        }
+        finally
+        {
+            security = info.GetAccessControl();
+            security.RemoveAccessRule(denyList);
+            info.SetAccessControl(security);
+        }
+
+        string log = File.ReadAllText(Path.Combine(directory, "wallpaperchanger-20261005.log"));
+        Assert.Contains("一覧を取得できなくても書き込む", log, StringComparison.Ordinal);
+    }
+
+    private FileLoggerProvider CreateSut(
+        LogLevel minimumLevel = LogLevel.Information, int retentionDays = 14, string? directory = null) => new(
+        Options.Create(new FileLoggerOptions
+        {
+            Directory = directory ?? _temp.Path,
+            MinimumLevel = minimumLevel,
+            RetentionDays = retentionDays,
+        }),
         _time);
 
     private string ReadAllLogs() =>
@@ -119,5 +174,11 @@ public sealed class FileLoggerProviderTests : IDisposable
         }
 
         throw new TimeoutException($"ログファイルが作成されませんでした: {name}");
+    }
+
+    /// <summary>メッセージの取得（ToString）自体が失敗する例外。</summary>
+    private sealed class BrokenException : Exception
+    {
+        public override string Message => throw new InvalidOperationException("メッセージを取得できません");
     }
 }

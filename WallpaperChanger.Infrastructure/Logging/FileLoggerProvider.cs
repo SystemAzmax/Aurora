@@ -44,9 +44,17 @@ internal sealed class FileLoggerProvider : ILoggerProvider
     {
         // 終了時は書き込み待ちのログを書き切ってから閉じる（長く待ちすぎないよう上限を設ける）
         _queue.Writer.TryComplete();
-        if (!_writerTask.Wait(DisposeTimeout))
+        try
         {
-            Debug.WriteLine("FileLoggerProvider: 終了時にログを書き切れませんでした。");
+            if (!_writerTask.Wait(DisposeTimeout))
+            {
+                Debug.WriteLine("FileLoggerProvider: 終了時にログを書き切れませんでした。");
+            }
+        }
+        catch (AggregateException ex)
+        {
+            // 書き込みループが想定外の理由で終了していても、アプリの終了処理は止めない
+            Debug.WriteLine($"FileLoggerProvider: ログの書き込みが異常終了していました: {ex.InnerException?.Message}");
         }
     }
 
@@ -56,6 +64,10 @@ internal sealed class FileLoggerProvider : ILoggerProvider
 
     internal DateTimeOffset Now => _timeProvider.GetLocalNow();
 
+    /// <summary>
+    /// キューのログを書き込み続ける。1 件の書き込みや古いログの削除に失敗しても、このループは止めない
+    /// （止まると以降のログがすべて失われ、そのことにも気付けないため）。
+    /// </summary>
     private async Task WriteLoopAsync()
     {
         try
@@ -86,12 +98,12 @@ internal sealed class FileLoggerProvider : ILoggerProvider
             StreamWriter writer = GetWriter(DateOnly.FromDateTime(entry.Timestamp.DateTime));
             writer.Write(Format(entry));
         }
-        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        catch (Exception ex)
         {
-            // ログの書き込み失敗は自分自身に記録できないため、デバッグ出力に残して処理を続ける（アプリは止めない）
+            // ログの書き込み失敗は自分自身に記録できないため、デバッグ出力に残して処理を続ける（アプリは止めない）。
+            // 想定外の例外でも書き込みループを止めないよう、種類を問わず捕捉する。次のログでファイルを開き直す
             Debug.WriteLine($"FileLoggerProvider: ログを書き込めませんでした: {ex.Message}");
-            _writer?.Dispose();
-            _writer = null;
+            DisposeWriterSafely();
         }
     }
 
@@ -101,12 +113,26 @@ internal sealed class FileLoggerProvider : ILoggerProvider
         {
             _writer?.Flush();
         }
-        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        catch (Exception ex)
         {
             Debug.WriteLine($"FileLoggerProvider: ログをフラッシュできませんでした: {ex.Message}");
-            _writer?.Dispose();
-            _writer = null;
+            DisposeWriterSafely();
         }
+    }
+
+    private void DisposeWriterSafely()
+    {
+        try
+        {
+            _writer?.Dispose();
+        }
+        catch (Exception ex)
+        {
+            // 書き込めなかった内容を閉じる際に再度書き出そうとして失敗することがある
+            Debug.WriteLine($"FileLoggerProvider: ログファイルを閉じられませんでした: {ex.Message}");
+        }
+
+        _writer = null;
     }
 
     private StreamWriter GetWriter(DateOnly date)
@@ -135,6 +161,19 @@ internal sealed class FileLoggerProvider : ILoggerProvider
     }
 
     private void DeleteExpiredFiles()
+    {
+        try
+        {
+            DeleteExpiredFilesCore();
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            // フォルダの一覧を取得できなくても、ログの書き込みは続ける（古いログの削除は次回に再試行する）
+            Debug.WriteLine($"FileLoggerProvider: 古いログを整理できませんでした: {ex.Message}");
+        }
+    }
+
+    private void DeleteExpiredFilesCore()
     {
         if (!Directory.Exists(_options.Directory))
         {
@@ -176,10 +215,23 @@ internal sealed class FileLoggerProvider : ILoggerProvider
 
         if (entry.Exception is not null)
         {
-            builder.AppendLine(entry.Exception.ToString());
+            builder.AppendLine(DescribeException(entry.Exception));
         }
 
         return builder.ToString();
+    }
+
+    /// <summary>例外の詳細。ToString 自体が失敗する例外でも、ログの本文は書き込めるよう種類だけを残す。</summary>
+    private static string DescribeException(Exception exception)
+    {
+        try
+        {
+            return exception.ToString();
+        }
+        catch (Exception ex)
+        {
+            return $"{exception.GetType().FullName}（例外の詳細を取得できませんでした: {ex.GetType().FullName}）";
+        }
     }
 
     private static string GetLevelText(LogLevel level) => level switch
