@@ -84,6 +84,37 @@ public sealed class WicWallpaperComposerTests : IDisposable
         AssertColor(result, 150, 75, Colors.Red);
     }
 
+    /// <summary>
+    /// 保存されている画像（200×100）は 左上: 赤 / 右上: 青 / 左下: 緑 / 右下: 黄。
+    /// 撮影時の向き（EXIF Orientation）に従って回転・反転した後の四隅の色を検証する。
+    /// </summary>
+    [Theory]
+    [InlineData(1, "R", "B", "G", "Y")] // そのまま
+    [InlineData(2, "B", "R", "Y", "G")] // 左右反転
+    [InlineData(3, "Y", "G", "B", "R")] // 180° 回転
+    [InlineData(4, "G", "Y", "R", "B")] // 上下反転
+    [InlineData(5, "R", "G", "B", "Y")] // 転置
+    [InlineData(6, "G", "R", "Y", "B")] // 時計回りに 90° 回転
+    [InlineData(7, "Y", "B", "G", "R")] // 反転置
+    [InlineData(8, "B", "Y", "R", "G")] // 時計回りに 270° 回転
+    public async Task 撮影時の向きに従って回転反転してから配置する(
+        int orientation, string topLeft, string topRight, string bottomLeft, string bottomRight)
+    {
+        string image = CreateQuadrantJpeg($"oriented{orientation}.jpg", orientation);
+        WicWallpaperComposer sut = CreateSut(gap: 0);
+
+        // 縦横が入れ替わる向きは縦長の 1 マスに、それ以外は横長の 1 マスに、拡大縮小せずに収まる大きさで合成する
+        (int width, int height) = orientation >= 5 ? (100, 200) : (200, 100);
+        string output = await sut.ComposeAsync(
+            new WallpaperCompositionRequest("MON1", [image], 1, 1, width, height), TestContext.Current.CancellationToken);
+
+        BitmapSource result = Load(output);
+        AssertColor(result, width / 4, height / 4, QuadrantColor(topLeft));
+        AssertColor(result, width * 3 / 4, height / 4, QuadrantColor(topRight));
+        AssertColor(result, width / 4, height * 3 / 4, QuadrantColor(bottomLeft));
+        AssertColor(result, width * 3 / 4, height * 3 / 4, QuadrantColor(bottomRight));
+    }
+
     [Fact]
     public async Task 読み込めない画像はパス付きの例外になる()
     {
@@ -197,6 +228,55 @@ public sealed class WicWallpaperComposerTests : IDisposable
         encoder.Save(stream);
         return path;
     }
+
+    /// <summary>200×100 の 4 色の画像を、EXIF の Orientation を付けて JPEG で保存する。</summary>
+    internal static string CreateQuadrantJpeg(string directory, string name, int orientation)
+    {
+        const int width = 200;
+        const int height = 100;
+        byte[] pixels = new byte[width * height * 4];
+        for (int y = 0; y < height; y++)
+        {
+            for (int x = 0; x < width; x++)
+            {
+                Color color = QuadrantColor((x < width / 2, y < height / 2) switch
+                {
+                    (true, true) => "R",
+                    (false, true) => "B",
+                    (true, false) => "G",
+                    _ => "Y",
+                });
+                int i = ((y * width) + x) * 4;
+                pixels[i] = color.B;
+                pixels[i + 1] = color.G;
+                pixels[i + 2] = color.R;
+                pixels[i + 3] = 0xFF;
+            }
+        }
+
+        BitmapSource bitmap = BitmapSource.Create(width, height, 96, 96, PixelFormats.Bgr32, null, pixels, width * 4);
+        var metadata = new BitmapMetadata("jpg");
+        metadata.SetQuery("System.Photo.Orientation", (ushort)orientation);
+
+        var encoder = new JpegBitmapEncoder { QualityLevel = 100 };
+        encoder.Frames.Add(BitmapFrame.Create(bitmap, null, metadata, null));
+
+        string path = Path.Combine(directory, name);
+        using var stream = File.Create(path);
+        encoder.Save(stream);
+        return path;
+    }
+
+    private string CreateQuadrantJpeg(string name, int orientation) => CreateQuadrantJpeg(_temp.Path, name, orientation);
+
+    private static Color QuadrantColor(string name) => name switch
+    {
+        "R" => Colors.Red,
+        "B" => Colors.Blue,
+        "G" => Colors.Lime,
+        "Y" => Colors.Yellow,
+        _ => throw new ArgumentOutOfRangeException(nameof(name), name, null),
+    };
 
     private static FormatConvertedBitmap Load(string path)
     {

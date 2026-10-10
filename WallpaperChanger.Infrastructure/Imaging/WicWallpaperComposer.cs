@@ -116,19 +116,26 @@ internal sealed partial class WicWallpaperComposer : IWallpaperComposer
                     $"画像のピクセル数 ({header.PixelWidth}×{header.PixelHeight}) が上限 ({_limits.MaxPixelCount:N0}) を超えるため読み込みません: {imagePath}");
             }
 
-            FillScaling fill = TileLayout.CalculateFill(header.PixelWidth, header.PixelHeight, tileWidth, tileHeight);
+            // 撮影時の向き（EXIF）を反映した縦横で、タイルを覆う大きさを決める
+            int orientation = ExifOrientation.Read(header);
+            bool swapsDimensions = ExifOrientation.SwapsDimensions(orientation);
+            FillScaling fill = swapsDimensions
+                ? TileLayout.CalculateFill(header.PixelHeight, header.PixelWidth, tileWidth, tileHeight)
+                : TileLayout.CalculateFill(header.PixelWidth, header.PixelHeight, tileWidth, tileHeight);
 
-            // 2. タイルを覆うサイズで直接デコードする（大きな写真でもメモリを抑えられる）
+            // 2. タイルを覆うサイズで直接デコードする（大きな写真でもメモリを抑えられる）。
+            //    デコードは保存されている向きのまま行うため、縦横が入れ替わる場合はデコードする大きさも入れ替える
             stream.Position = 0;
-            var scaled = new BitmapImage();
-            scaled.BeginInit();
-            scaled.CacheOption = BitmapCacheOption.OnLoad;
-            scaled.CreateOptions = BitmapCreateOptions.IgnoreColorProfile;
-            scaled.DecodePixelWidth = fill.ScaledWidth;
-            scaled.DecodePixelHeight = fill.ScaledHeight;
-            scaled.StreamSource = stream;
-            scaled.EndInit();
-            scaled.Freeze();
+            var decoded = new BitmapImage();
+            decoded.BeginInit();
+            decoded.CacheOption = BitmapCacheOption.OnLoad;
+            decoded.CreateOptions = BitmapCreateOptions.IgnoreColorProfile;
+            decoded.DecodePixelWidth = swapsDimensions ? fill.ScaledHeight : fill.ScaledWidth;
+            decoded.DecodePixelHeight = swapsDimensions ? fill.ScaledWidth : fill.ScaledHeight;
+            decoded.StreamSource = stream;
+            decoded.EndInit();
+            decoded.Freeze();
+            BitmapSource scaled = ExifOrientation.Apply(decoded, orientation);
 
             // 3. 中央を切り抜き、合成バッファと同じ形式に変換する
             var cropRect = new Int32Rect(

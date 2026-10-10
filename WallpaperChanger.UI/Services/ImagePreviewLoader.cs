@@ -21,7 +21,7 @@ internal sealed partial class ImagePreviewLoader(IOptions<ImageSourceLimits> lim
         return Task.Run<ImageSource?>(() => Load(imagePath, decodePixelWidth), cancellationToken);
     }
 
-    private BitmapImage? Load(string imagePath, int decodePixelWidth)
+    private BitmapSource? Load(string imagePath, int decodePixelWidth)
     {
         try
         {
@@ -43,16 +43,27 @@ internal sealed partial class ImagePreviewLoader(IOptions<ImageSourceLimits> lim
                 return null;
             }
 
+            // 撮影時の向き（EXIF）を反映する。90° 回転する画像は、表示したときの幅が保存されている高さになる
+            int orientation = ExifOrientation.Read(header);
+
             stream.Position = 0;
             var bitmap = new BitmapImage();
             bitmap.BeginInit();
             bitmap.CacheOption = BitmapCacheOption.OnLoad;
             bitmap.CreateOptions = BitmapCreateOptions.IgnoreColorProfile;
-            bitmap.DecodePixelWidth = decodePixelWidth;
+            if (ExifOrientation.SwapsDimensions(orientation))
+            {
+                bitmap.DecodePixelHeight = decodePixelWidth;
+            }
+            else
+            {
+                bitmap.DecodePixelWidth = decodePixelWidth;
+            }
+
             bitmap.StreamSource = stream;
             bitmap.EndInit();
             bitmap.Freeze();
-            return bitmap;
+            return ExifOrientation.Apply(bitmap, orientation);
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or NotSupportedException or FileFormatException)
         {

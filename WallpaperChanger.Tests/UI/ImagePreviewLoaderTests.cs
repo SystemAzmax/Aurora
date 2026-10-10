@@ -26,6 +26,24 @@ public sealed class ImagePreviewLoaderTests : IDisposable
         Assert.Equal(50, bitmap.PixelWidth);
     }
 
+    [Theory]
+    [InlineData(1, 50, 25)] // 横長のまま
+    [InlineData(3, 50, 25)] // 180° 回転（縦横は変わらない）
+    [InlineData(6, 50, 100)] // 90° 回転して縦長になる。表示の幅を指定どおりにする
+    [InlineData(8, 50, 100)]
+    public async Task 撮影時の向きに従って回転し指定した幅に縮小する(int orientation, int expectedWidth, int expectedHeight)
+    {
+        string image = Infrastructure.WicWallpaperComposerTests.CreateQuadrantJpeg(_temp.Path, "photo.jpg", orientation);
+        ImagePreviewLoader sut = CreateSut(new ImageSourceLimits());
+
+        ImageSource? result = await sut.LoadAsync(image, 50, TestContext.Current.CancellationToken);
+
+        BitmapSource bitmap = Assert.IsAssignableFrom<BitmapSource>(result);
+        Assert.Equal(expectedWidth, bitmap.PixelWidth);
+        Assert.Equal(expectedHeight, bitmap.PixelHeight);
+        Assert.True(bitmap.IsFrozen);
+    }
+
     [Fact]
     public async Task ピクセル数が上限を超える画像は読み込まない()
     {
