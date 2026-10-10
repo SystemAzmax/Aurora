@@ -422,6 +422,20 @@ public sealed class SettingsViewModelTests : IDisposable
     }
 
     [Fact]
+    public async Task 一時フォルダからの実行で自動起動を登録できない場合は理由を表示する()
+    {
+        await _sut.InitializeCommand.ExecuteAsync(null);
+        _startup.When(s => s.Enable()).Do(_ => throw new InvalidOperationException("一時フォルダから実行しているため"));
+        _startup.IsEnabled().Returns(false);
+
+        _sut.StartWithWindows = true;
+
+        Assert.False(_sut.StartWithWindows);
+        Assert.True(_sut.IsStatusError);
+        Assert.Contains("一時フォルダから実行しているため", _sut.StatusMessage, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public async Task モニター構成が変わったら選択を保ったまま一覧を更新する()
     {
         await _sut.InitializeCommand.ExecuteAsync(null);

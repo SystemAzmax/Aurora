@@ -547,7 +547,8 @@ public sealed partial class SettingsViewModel : ObservableObject, IDisposable
                 ShowInfo("Windows の起動時に自動的に開始しないようにしました。");
             }
         }
-        catch (Exception ex) when (ex is UnauthorizedAccessException or System.Security.SecurityException or System.IO.IOException)
+        catch (Exception ex) when (ex is UnauthorizedAccessException or System.Security.SecurityException or System.IO.IOException
+                                       or InvalidOperationException)
         {
             LogOperationFailed(ex, "自動起動の設定");
             ShowError($"自動起動の設定に失敗しました。{ErrorMessages.Describe(ex)}");

@@ -2,6 +2,7 @@ using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
 using Microsoft.Win32;
 using WallpaperChanger.Infrastructure.Startup;
+using WallpaperChanger.Tests.Fakes;
 
 namespace WallpaperChanger.Tests.Infrastructure;
 
@@ -15,7 +16,11 @@ public sealed class RegistryStartupRegistrationServiceTests : IDisposable
 
     private const string TestRootPath = @"Software\WallpaperChanger.Tests";
 
+    /// <summary>テストで一時フォルダとして扱う場所（実在しなくてよい）。</summary>
+    private const string FakeTemporaryDirectory = @"C:\FakeTemp";
+
     private readonly string _rootPath = $@"{TestRootPath}\{Guid.NewGuid():N}";
+    private readonly TempDirectory _temp = new();
     private readonly RegistryStartupRegistrationService _sut;
 
     public RegistryStartupRegistrationServiceTests()
@@ -29,6 +34,7 @@ public sealed class RegistryStartupRegistrationServiceTests : IDisposable
 
     public void Dispose()
     {
+        _temp.Dispose();
         Registry.CurrentUser.DeleteSubKeyTree(_rootPath, throwOnMissingSubKey: false);
 
         // 他のテストが使用中でなければ、共通の親キーも残さない
@@ -116,6 +122,71 @@ public sealed class RegistryStartupRegistrationServiceTests : IDisposable
         Assert.False(_sut.UpdateRegisteredPathIfNeeded());
     }
 
+    [Fact]
+    public void 登録先の実行ファイルが存在すれば別の場所から起動しても登録を変えない()
+    {
+        string installed = _temp.CreateFile(@"Installed\WallpaperChanger.exe");
+        WriteRunValue($"\"{installed}\"");
+
+        bool updated = _sut.UpdateRegisteredPathIfNeeded();
+
+        Assert.False(updated);
+        Assert.Equal($"\"{installed}\"", ReadRunValue());
+    }
+
+    [Fact]
+    public void 一時フォルダから起動した場合は登録先が無くても登録を変えない()
+    {
+        CreateSut(@"C:\Old\WallpaperChanger.exe").Enable();
+        RegistryStartupRegistrationService sut = CreateSut($@"{FakeTemporaryDirectory}\Temp1_app.zip\WallpaperChanger.exe");
+
+        bool updated = sut.UpdateRegisteredPathIfNeeded();
+
+        Assert.False(updated);
+        Assert.Equal("\"C:\\Old\\WallpaperChanger.exe\"", ReadRunValue());
+    }
+
+    [Fact]
+    public void 一時フォルダから起動した場合は有効にできない()
+    {
+        RegistryStartupRegistrationService sut = CreateSut($@"{FakeTemporaryDirectory}\Temp1_app.zip\WallpaperChanger.exe");
+
+        var ex = Assert.Throws<InvalidOperationException>(sut.Enable);
+
+        Assert.Contains("一時フォルダ", ex.Message, StringComparison.Ordinal);
+        Assert.Null(ReadRunValue());
+    }
+
+    [Fact]
+    public void 一時フォルダと名前が前方一致するだけのフォルダからは有効にできる()
+    {
+        string executable = $@"{FakeTemporaryDirectory}Other\WallpaperChanger.exe";
+
+        CreateSut(executable).Enable();
+
+        Assert.Equal($"\"{executable}\"", ReadRunValue());
+    }
+
+    [Theory]
+    [InlineData("\"C:\\Program Files\\App\\app.exe\"", @"C:\Program Files\App\app.exe")]
+    [InlineData("\"C:\\Program Files\\App\\app.exe\" --minimized", @"C:\Program Files\App\app.exe")]
+    [InlineData(@"  C:\App\app.exe  ", @"C:\App\app.exe")]
+    [InlineData("\"", null)]
+    [InlineData("\"\"", null)]
+    [InlineData("   ", null)]
+    public void 登録値から実行ファイルのパスを取り出す(string command, string? expected)
+    {
+        Assert.Equal(expected, RegistryStartupRegistrationService.ParseExecutablePath(command));
+    }
+
+    [Fact]
+    public void 登録値の環境変数は展開して実行ファイルを探す()
+    {
+        string expected = Path.Combine(Environment.GetEnvironmentVariable("SystemRoot")!, "notepad.exe");
+
+        Assert.Equal(expected, RegistryStartupRegistrationService.ParseExecutablePath("\"%SystemRoot%\\notepad.exe\""));
+    }
+
     private RegistryStartupRegistrationService CreateSut(string executablePath) => new(
         Options.Create(new StartupRegistrationOptions
         {
@@ -123,6 +194,7 @@ public sealed class RegistryStartupRegistrationServiceTests : IDisposable
             StartupApprovedKeyPath = ApprovedKeyPath,
             ValueName = ValueName,
             ExecutablePath = executablePath,
+            TemporaryDirectory = FakeTemporaryDirectory,
         }),
         NullLogger<RegistryStartupRegistrationService>.Instance);
 
@@ -130,6 +202,12 @@ public sealed class RegistryStartupRegistrationServiceTests : IDisposable
     {
         using RegistryKey? run = Registry.CurrentUser.OpenSubKey(RunKeyPath);
         return run?.GetValue(ValueName) as string;
+    }
+
+    private void WriteRunValue(string command)
+    {
+        using RegistryKey run = Registry.CurrentUser.CreateSubKey(RunKeyPath);
+        run.SetValue(ValueName, command, RegistryValueKind.String);
     }
 
     private void WriteApprovedValue(byte flag)

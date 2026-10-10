@@ -11,15 +11,19 @@ public interface IStartupRegistrationService
     /// </summary>
     bool IsEnabled();
 
-    /// <summary>自動起動を有効にする。タスク マネージャーで無効にされていた場合も有効に戻す。</summary>
+    /// <summary>
+    /// 自動起動を有効にする。タスク マネージャーで無効にされていた場合も有効に戻す。
+    /// 一時フォルダから実行しているなど、登録できない場合は <see cref="InvalidOperationException"/>。
+    /// </summary>
     void Enable();
 
     /// <summary>自動起動を無効にする（登録を削除する）。</summary>
     void Disable();
 
     /// <summary>
-    /// 登録済みの実行ファイルのパスが現在のものと異なる場合（アプリを移動・更新した場合など）に更新する。
-    /// 未登録の場合は何もしない。
+    /// 登録済みの実行ファイルが見つからない場合（アプリを移動した場合など）に、現在の実行ファイルで登録し直す。
+    /// 登録済みの実行ファイルが存在する場合（別の場所のコピーを起動しただけの場合）、未登録の場合、
+    /// 現在の実行ファイルが一時フォルダにある場合は何もしない。
     /// </summary>
     /// <returns>更新した場合は true。</returns>
     bool UpdateRegisteredPathIfNeeded();

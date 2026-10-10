@@ -19,4 +19,7 @@ public sealed class StartupRegistrationOptions
 
     /// <summary>起動する実行ファイル。null の場合は現在のプロセスの実行ファイル。</summary>
     public string? ExecutablePath { get; set; }
+
+    /// <summary>この配下の実行ファイルは自動起動に登録しない（後で消えるため）。テストでは差し替える。</summary>
+    public string TemporaryDirectory { get; set; } = Path.GetTempPath();
 }
