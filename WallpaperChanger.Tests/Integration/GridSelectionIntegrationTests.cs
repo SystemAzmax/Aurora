@@ -1,9 +1,11 @@
 using Microsoft.Extensions.Logging.Abstractions;
+using Microsoft.Extensions.Options;
 using NSubstitute;
 using WallpaperChanger.Core.Interfaces;
 using WallpaperChanger.Core.Models;
 using WallpaperChanger.Core.Services;
 using WallpaperChanger.Infrastructure.FileSystem;
+using WallpaperChanger.Infrastructure.Imaging;
 using WallpaperChanger.Tests.Fakes;
 
 namespace WallpaperChanger.Tests.Integration;
@@ -64,7 +66,7 @@ public sealed class GridSelectionIntegrationTests : IDisposable
         return new WallpaperRotationService(
             monitors,
             Substitute.For<IWallpaperService>(),
-            new FileSystemImageProvider(NullLogger<FileSystemImageProvider>.Instance),
+            new FileSystemImageProvider(Options.Create(new ImageSourceLimits()), NullLogger<FileSystemImageProvider>.Instance),
             _composer,
             new InMemorySettingsService(settings),
             [new RandomImageSelector(), new SequentialImageSelector()],

@@ -97,6 +97,46 @@ public sealed class WicWallpaperComposerTests : IDisposable
     }
 
     [Fact]
+    public async Task ピクセル数が上限を超える画像はデコードせず理由付きの例外になる()
+    {
+        string image = CreateImage("big.png", 100, 100, Colors.Red, new PngBitmapEncoder());
+        WicWallpaperComposer sut = CreateSut(gap: 0, new ImageSourceLimits { MaxPixelCount = (100 * 100) - 1 });
+
+        var ex = await Assert.ThrowsAnyAsync<InvalidOperationException>(() => sut.ComposeAsync(
+            new WallpaperCompositionRequest("MON1", [image], 2, 2, 200, 100), TestContext.Current.CancellationToken));
+
+        Assert.Contains(image, ex.Message, StringComparison.Ordinal);
+        Assert.Contains("100×100", ex.Message, StringComparison.Ordinal);
+        Assert.False(Directory.Exists(_outputDirectory) && Directory.GetFiles(_outputDirectory).Length > 0);
+    }
+
+    [Fact]
+    public async Task ファイルサイズが上限を超える画像は理由付きの例外になる()
+    {
+        string image = CreateImage("big.png", 64, 64, Colors.Red, new PngBitmapEncoder());
+        WicWallpaperComposer sut = CreateSut(gap: 0, new ImageSourceLimits { MaxFileBytes = new FileInfo(image).Length - 1 });
+
+        var ex = await Assert.ThrowsAnyAsync<InvalidOperationException>(() => sut.ComposeAsync(
+            new WallpaperCompositionRequest("MON1", [image], 2, 2, 200, 100), TestContext.Current.CancellationToken));
+
+        Assert.Contains(image, ex.Message, StringComparison.Ordinal);
+        Assert.Contains("ファイルサイズ", ex.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task 上限ちょうどの画像は合成できる()
+    {
+        string image = CreateImage("exact.png", 100, 100, Colors.Red, new PngBitmapEncoder());
+        WicWallpaperComposer sut = CreateSut(
+            gap: 0, new ImageSourceLimits { MaxPixelCount = 100 * 100, MaxFileBytes = new FileInfo(image).Length });
+
+        string output = await sut.ComposeAsync(
+            new WallpaperCompositionRequest("MON1", [image], 2, 2, 200, 100), TestContext.Current.CancellationToken);
+
+        AssertColor(Load(output), 50, 25, Colors.Red);
+    }
+
+    [Fact]
     public async Task 毎回別名で保存し古い合成画像は指定数だけ残す()
     {
         string red = CreateImage("red.png", 64, 64, Colors.Red, new PngBitmapEncoder());
@@ -133,8 +173,9 @@ public sealed class WicWallpaperComposerTests : IDisposable
         Assert.True(File.Exists(other));
     }
 
-    private WicWallpaperComposer CreateSut(int gap) => new(
+    private WicWallpaperComposer CreateSut(int gap, ImageSourceLimits? limits = null) => new(
         Options.Create(new WallpaperCompositionOptions { OutputDirectory = _outputDirectory, TileGap = gap }),
+        Options.Create(limits ?? new ImageSourceLimits()),
         _time,
         NullLogger<WicWallpaperComposer>.Instance);
 

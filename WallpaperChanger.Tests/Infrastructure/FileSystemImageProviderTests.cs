@@ -1,5 +1,7 @@
 using Microsoft.Extensions.Logging.Abstractions;
+using Microsoft.Extensions.Options;
 using WallpaperChanger.Infrastructure.FileSystem;
+using WallpaperChanger.Infrastructure.Imaging;
 using WallpaperChanger.Tests.Fakes;
 
 namespace WallpaperChanger.Tests.Infrastructure;
@@ -7,7 +9,7 @@ namespace WallpaperChanger.Tests.Infrastructure;
 public sealed class FileSystemImageProviderTests : IDisposable
 {
     private readonly TempDirectory _temp = new();
-    private readonly FileSystemImageProvider _sut = new(NullLogger<FileSystemImageProvider>.Instance);
+    private readonly FileSystemImageProvider _sut = CreateSut(new ImageSourceLimits());
 
     public void Dispose() => _temp.Dispose();
 
@@ -62,4 +64,19 @@ public sealed class FileSystemImageProviderTests : IDisposable
         Assert.False(_sut.Exists(text));
         Assert.False(_sut.Exists(Path.Combine(_temp.Path, "missing.png")));
     }
+
+    [Fact]
+    public async Task ファイルサイズが上限を超える画像は候補に含めない()
+    {
+        string small = _temp.CreateFile("small.jpg", "12345");
+        _temp.CreateFile("large.jpg", "123456");
+        FileSystemImageProvider sut = CreateSut(new ImageSourceLimits { MaxFileBytes = 5 });
+
+        IReadOnlyList<string> images = await sut.GetImagesAsync([_temp.Path], false, TestContext.Current.CancellationToken);
+
+        Assert.Equal([small], images);
+    }
+
+    private static FileSystemImageProvider CreateSut(ImageSourceLimits limits) =>
+        new(Options.Create(limits), NullLogger<FileSystemImageProvider>.Instance);
 }

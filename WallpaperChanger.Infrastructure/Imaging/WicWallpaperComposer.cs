@@ -21,17 +21,21 @@ internal sealed partial class WicWallpaperComposer : IWallpaperComposer
     private const int BytesPerPixel = 4; // Bgr32
 
     private readonly WallpaperCompositionOptions _options;
+    private readonly ImageSourceLimits _limits;
     private readonly TimeProvider _timeProvider;
     private readonly ILogger<WicWallpaperComposer> _logger;
 
     public WicWallpaperComposer(
         IOptions<WallpaperCompositionOptions> options,
+        IOptions<ImageSourceLimits> limits,
         TimeProvider timeProvider,
         ILogger<WicWallpaperComposer> logger)
     {
         ArgumentNullException.ThrowIfNull(options);
+        ArgumentNullException.ThrowIfNull(limits);
 
         _options = options.Value;
+        _limits = limits.Value;
         _timeProvider = timeProvider ?? throw new ArgumentNullException(nameof(timeProvider));
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
     }
@@ -90,15 +94,28 @@ internal sealed partial class WicWallpaperComposer : IWallpaperComposer
     }
 
     /// <summary>画像を読み込み、タイルと同じサイズ（Bgr32）に拡大縮小・切り抜きする。</summary>
-    private static FormatConvertedBitmap LoadTileImage(string imagePath, int tileWidth, int tileHeight)
+    private FormatConvertedBitmap LoadTileImage(string imagePath, int tileWidth, int tileHeight)
     {
         try
         {
             using var stream = new FileStream(imagePath, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete);
+            if (!_limits.IsAllowedFileSize(stream.Length))
+            {
+                throw new ImageTooLargeException(
+                    $"画像のファイルサイズが上限 ({_limits.MaxFileBytes:N0} バイト) を超えるため読み込みません: {imagePath}");
+            }
 
             // 1. ヘッダーだけ読んで元のサイズを得る（全体のデコードは縮小と同時に行う）
             BitmapFrame header = BitmapFrame.Create(
                 stream, BitmapCreateOptions.DelayCreation | BitmapCreateOptions.IgnoreColorProfile, BitmapCacheOption.None);
+
+            // 展開すると巨大になる画像でメモリを使い果たさないよう、デコードする前に断る
+            if (!_limits.IsAllowedPixelCount(header.PixelWidth, header.PixelHeight))
+            {
+                throw new ImageTooLargeException(
+                    $"画像のピクセル数 ({header.PixelWidth}×{header.PixelHeight}) が上限 ({_limits.MaxPixelCount:N0}) を超えるため読み込みません: {imagePath}");
+            }
+
             FillScaling fill = TileLayout.CalculateFill(header.PixelWidth, header.PixelHeight, tileWidth, tileHeight);
 
             // 2. タイルを覆うサイズで直接デコードする（大きな写真でもメモリを抑えられる）
@@ -123,6 +140,11 @@ internal sealed partial class WicWallpaperComposer : IWallpaperComposer
             var converted = new FormatConvertedBitmap(cropped, PixelFormats.Bgr32, null, 0);
             converted.Freeze();
             return converted;
+        }
+        catch (ImageTooLargeException)
+        {
+            // 理由とパスを含むメッセージのまま送出する
+            throw;
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or NotSupportedException
                                        or FileFormatException or ArgumentException or InvalidOperationException)
