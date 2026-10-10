@@ -569,12 +569,15 @@ public sealed partial class SettingsViewModel : ObservableObject, IDisposable
             return;
         }
 
-        int minutes = IntervalValue * SelectedIntervalUnit.MinutesPerUnit;
-        if (!AppSettings.IsValidInterval(minutes))
+        // int のまま掛けると大きな値で桁あふれし、範囲内の値に化けることがあるため long で計算する
+        long totalMinutes = (long)IntervalValue * SelectedIntervalUnit.MinutesPerUnit;
+        if (totalMinutes is < AppSettings.MinIntervalMinutes or > AppSettings.MaxIntervalMinutes)
         {
             IntervalError = "切り替え間隔は 1 分～24 時間の範囲で指定してください。";
             return;
         }
+
+        int minutes = (int)totalMinutes;
 
         IntervalError = null;
         if (minutes == _settingsService.Current.IntervalMinutes)

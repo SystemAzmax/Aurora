@@ -137,6 +137,22 @@ public sealed class SettingsViewModelTests : IDisposable
         Assert.Equal(AppSettings.MaxIntervalMinutes, _settings.Current.IntervalMinutes);
     }
 
+    [Theory]
+    [InlineData(71_582_789)] // × 60 が int で桁あふれすると 44 分になる値
+    [InlineData(int.MaxValue)]
+    [InlineData(-71_582_788)] // × 60 が int で桁あふれすると正の値になる値
+    [InlineData(0)]
+    public async Task 時間単位で大きすぎる値は桁あふれせず範囲外のエラーになる(int hours)
+    {
+        await _sut.InitializeCommand.ExecuteAsync(null);
+        _sut.SelectedIntervalUnit = IntervalUnitOption.Hours;
+
+        _sut.IntervalValue = hours;
+
+        Assert.True(_sut.HasIntervalError);
+        Assert.Equal(120, _settings.Current.IntervalMinutes);
+    }
+
     [Fact]
     public async Task 操作の失敗は画面下部にエラーとして表示する()
     {
