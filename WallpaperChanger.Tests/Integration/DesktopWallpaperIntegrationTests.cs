@@ -1,4 +1,5 @@
 ﻿using Microsoft.Extensions.Logging.Abstractions;
+using Microsoft.Extensions.Options;
 using WallpaperChanger.Core.Models;
 using WallpaperChanger.Infrastructure.DesktopWallpaper;
 
@@ -11,7 +12,8 @@ namespace WallpaperChanger.Tests.Integration;
 [Trait("Category", "Integration")]
 public sealed class DesktopWallpaperIntegrationTests : IDisposable
 {
-    private readonly DesktopWallpaperComHost _comHost = new(NullLogger<DesktopWallpaperComHost>.Instance);
+    private readonly DesktopWallpaperComHost _comHost = new(
+        Options.Create(new DesktopWallpaperOptions()), NullLogger<DesktopWallpaperComHost>.Instance);
 
     public void Dispose() => _comHost.Dispose();
 

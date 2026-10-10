@@ -30,6 +30,7 @@ public static class InfrastructureServiceCollectionExtensions
 
         services.AddOptions<StartupRegistrationOptions>();
         services.AddOptions<ImageSourceLimits>();
+        services.AddOptions<DesktopWallpaperOptions>();
 
         var compositionOptions = services.AddOptions<WallpaperCompositionOptions>();
         if (configureComposition is not null)
