@@ -63,6 +63,25 @@ public class ApplicationHostedServiceTests
     }
 
     [Fact]
+    public async Task 設定ファイルを読めず既定値で起動した場合は理由を通知する()
+    {
+        var settings = new InMemorySettingsService { LoadWarning = "設定ファイルを読み込めなかったため" };
+
+        await Create(settings).StartAsync(TestContext.Current.CancellationToken);
+
+        _tray.Received(1).ShowNotification(Arg.Any<string>(), "設定ファイルを読み込めなかったため");
+        _scheduler.Received(1).Start();
+    }
+
+    [Fact]
+    public async Task 設定ファイルに問題が無ければ通知しない()
+    {
+        await StartAsync(new AppSettings());
+
+        _tray.DidNotReceive().ShowNotification(Arg.Any<string>(), Arg.Any<string>());
+    }
+
+    [Fact]
     public async Task 終了処理は何度呼ばれても1回だけ実行する()
     {
         ApplicationHostedService sut = Create(new AppSettings());
@@ -79,8 +98,10 @@ public class ApplicationHostedServiceTests
 
     private Task StartAsync(AppSettings settings) => Create(settings).StartAsync(TestContext.Current.CancellationToken);
 
-    private ApplicationHostedService Create(AppSettings settings) => new(
-        new InMemorySettingsService(settings),
+    private ApplicationHostedService Create(AppSettings settings) => Create(new InMemorySettingsService(settings));
+
+    private ApplicationHostedService Create(InMemorySettingsService settings) => new(
+        settings,
         _scheduler,
         _tray,
         _settingsWindow,

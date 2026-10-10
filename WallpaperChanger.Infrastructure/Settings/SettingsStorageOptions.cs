@@ -11,4 +11,13 @@ public sealed class SettingsStorageOptions
         "settings.json");
 
     public string FilePath { get; set; } = DefaultFilePath;
+
+    /// <summary>
+    /// 読み込みに失敗したときに試す回数（初回を含む）。
+    /// ウイルス対策ソフトのスキャンなどで一時的にロックされている場合に備える。
+    /// </summary>
+    public int ReadAttempts { get; set; } = 3;
+
+    /// <summary>読み込みを再試行するまでの待ち時間。</summary>
+    public TimeSpan ReadRetryDelay { get; set; } = TimeSpan.FromMilliseconds(200);
 }

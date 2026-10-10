@@ -8,7 +8,8 @@ namespace WallpaperChanger.UI.Services;
 
 /// <summary>
 /// アプリケーションの起動・終了手順をまとめる。
-/// 起動: 設定読み込み → 自動起動の登録パス更新 → トレイ表示 → 自動切り替え・モニター構成の監視開始（フォルダ未登録なら設定画面を表示）
+/// 起動: 設定読み込み → 自動起動の登録パス更新 → トレイ表示（設定ファイルを読めなかった場合は通知）
+///       → 自動切り替え・モニター構成の監視開始（フォルダ未登録なら設定画面を表示）
 /// 終了: モニター構成の監視・自動切り替え停止 → 設定画面とトレイアイコンの破棄
 /// </summary>
 internal sealed partial class ApplicationHostedService(
@@ -21,6 +22,8 @@ internal sealed partial class ApplicationHostedService(
     IUiDispatcher uiDispatcher,
     ILogger<ApplicationHostedService> logger) : IHostedService
 {
+    private const string AppName = "壁紙チェンジャー";
+
     private readonly ISettingsService _settingsService = settingsService ?? throw new ArgumentNullException(nameof(settingsService));
     private readonly IWallpaperScheduler _scheduler = scheduler ?? throw new ArgumentNullException(nameof(scheduler));
     private readonly ITrayIconService _trayIconService = trayIconService ?? throw new ArgumentNullException(nameof(trayIconService));
@@ -37,6 +40,13 @@ internal sealed partial class ApplicationHostedService(
         await _settingsService.LoadAsync(cancellationToken).ConfigureAwait(false);
         UpdateStartupRegistration();
         await _uiDispatcher.InvokeAsync(_trayIconService.Show).ConfigureAwait(false);
+
+        // 既定値で起動した理由を伝える（フォルダ未登録として設定画面が開いても、設定が消えたと誤解されないように）
+        if (_settingsService.LoadWarning is { } warning)
+        {
+            await _uiDispatcher.InvokeAsync(() => _trayIconService.ShowNotification(AppName, warning)).ConfigureAwait(false);
+        }
+
         _scheduler.Start();
         await _monitorWatcher.StartAsync(cancellationToken).ConfigureAwait(false);
 

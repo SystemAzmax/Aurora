@@ -12,6 +12,8 @@ internal sealed class InMemorySettingsService(AppSettings? initial = null) : ISe
 
     public int UpdateCount { get; private set; }
 
+    public string? LoadWarning { get; set; }
+
     public event EventHandler<AppSettings>? SettingsChanged;
 
     public Task LoadAsync(CancellationToken cancellationToken = default) => Task.CompletedTask;
