@@ -66,7 +66,11 @@ public sealed class GridSelectionIntegrationTests : IDisposable
         return new WallpaperRotationService(
             monitors,
             Substitute.For<IWallpaperService>(),
-            new FileSystemImageProvider(Options.Create(new ImageSourceLimits()), NullLogger<FileSystemImageProvider>.Instance),
+            new FileSystemImageProvider(
+                Options.Create(new ImageSourceLimits()),
+                Options.Create(new ImageProviderOptions { WatchForChanges = false }),
+                TimeProvider.System,
+                NullLogger<FileSystemImageProvider>.Instance),
             _composer,
             new InMemorySettingsService(settings),
             [new RandomImageSelector(), new SequentialImageSelector()],

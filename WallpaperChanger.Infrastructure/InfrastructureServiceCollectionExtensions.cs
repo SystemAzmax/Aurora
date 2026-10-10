@@ -13,7 +13,8 @@ public static class InfrastructureServiceCollectionExtensions
 {
     /// <summary>
     /// Infrastructure 層のサービスを登録する。
-    /// STA スレッドを所有する COM ホストと、現在の設定を保持する設定サービスのみ Singleton とする。
+    /// STA スレッドを所有する COM ホスト、現在の設定を保持する設定サービス、
+    /// 列挙結果をキャッシュする画像の取得元のみ Singleton とする。
     /// </summary>
     public static IServiceCollection AddWallpaperChangerInfrastructure(
         this IServiceCollection services,
@@ -31,6 +32,7 @@ public static class InfrastructureServiceCollectionExtensions
         services.AddOptions<StartupRegistrationOptions>();
         services.AddOptions<ImageSourceLimits>();
         services.AddOptions<DesktopWallpaperOptions>();
+        services.AddOptions<ImageProviderOptions>();
 
         var compositionOptions = services.AddOptions<WallpaperCompositionOptions>();
         if (configureComposition is not null)
@@ -41,12 +43,12 @@ public static class InfrastructureServiceCollectionExtensions
         services.TryAddSingleton(TimeProvider.System);
         services.AddSingleton<DesktopWallpaperComHost>();
         services.AddSingleton<ISettingsService, JsonSettingsService>();
+        services.AddSingleton<IImageProvider, FileSystemImageProvider>(); // 列挙結果のキャッシュとフォルダの監視を保持する
 
         services.AddTransient<IDisplayDeviceInfoProvider, DisplayConfigDeviceInfoProvider>();
         services.AddTransient<IMonitorService, DesktopWallpaperMonitorService>();
         services.AddTransient<IDisplayChangeNotifier, SystemEventsDisplayChangeNotifier>();
         services.AddTransient<IWallpaperService, DesktopWallpaperService>();
-        services.AddTransient<IImageProvider, FileSystemImageProvider>();
         services.AddTransient<IWallpaperComposer, WicWallpaperComposer>();
         services.AddTransient<IStartupRegistrationService, RegistryStartupRegistrationService>();
 

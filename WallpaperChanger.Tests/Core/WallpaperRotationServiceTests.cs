@@ -153,6 +153,31 @@ public sealed class WallpaperRotationServiceTests : IDisposable
         await _composer.DidNotReceive().ComposeAsync(Arg.Any<WallpaperCompositionRequest>(), Arg.Any<CancellationToken>());
     }
 
+    [Fact]
+    public async Task 選んだ画像が削除されていたら列挙し直して選び直す()
+    {
+        // キャッシュには 1.jpg が残っているが、実際には削除済み
+        string[] stale = [@"C:\w\1.jpg"];
+        string[] fresh = [@"C:\w\2.jpg"];
+        _images.GetImagesAsync(Arg.Any<IEnumerable<string>>(), Arg.Any<bool>(), Arg.Any<CancellationToken>())
+            .Returns(stale, fresh);
+        _images.Exists(@"C:\w\1.jpg").Returns(false);
+
+        await _sut.NextAsync("MON1", TestContext.Current.CancellationToken);
+
+        _images.Received(1).Invalidate();
+        await _wallpaper.Received(1).SetWallpaperAsync("MON1", @"C:\w\2.jpg", Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task 選んだ画像が存在すれば列挙し直さない()
+    {
+        await _sut.NextAsync("MON1", TestContext.Current.CancellationToken);
+
+        _images.DidNotReceive().Invalidate();
+        await _images.Received(1).GetImagesAsync(Arg.Any<IEnumerable<string>>(), Arg.Any<bool>(), Arg.Any<CancellationToken>());
+    }
+
     // ---- 4 分割表示 ----
 
     [Fact]

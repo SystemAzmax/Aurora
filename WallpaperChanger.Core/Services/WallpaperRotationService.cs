@@ -133,6 +133,15 @@ public sealed partial class WallpaperRotationService : IWallpaperRotationService
 
         IReadOnlyList<string?> current = history.Current?.Images ?? [];
         IReadOnlyList<string?>? next = await SelectImagesAsync(settings, current, cancellationToken).ConfigureAwait(false);
+
+        // キャッシュされた候補が、その後に削除・移動されていた場合は列挙し直して選び直す
+        if (next is not null && !next.OfType<string>().All(_imageProvider.Exists))
+        {
+            LogStaleImageList(monitor.DisplayName);
+            _imageProvider.Invalidate();
+            next = await SelectImagesAsync(settings, current, cancellationToken).ConfigureAwait(false);
+        }
+
         if (next is null)
         {
             LogNoImages(monitor.DisplayName);
@@ -300,6 +309,9 @@ public sealed partial class WallpaperRotationService : IWallpaperRotationService
 
     [LoggerMessage(Level = LogLevel.Warning, Message = "壁紙フォルダに対応画像がありません: {Monitor}")]
     private partial void LogNoImages(string monitor);
+
+    [LoggerMessage(Level = LogLevel.Information, Message = "選んだ画像が見つからないため、壁紙フォルダを列挙し直して選び直します: {Monitor}")]
+    private partial void LogStaleImageList(string monitor);
 
     [LoggerMessage(Level = LogLevel.Information, Message = "これ以上前の壁紙はありません: {Monitor}")]
     private partial void LogNoPreviousWallpaper(string monitor);
