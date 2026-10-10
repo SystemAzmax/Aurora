@@ -78,6 +78,46 @@ public sealed class WallpaperRotationServiceTests : IDisposable
     }
 
     [Fact]
+    public async Task 結果としてモニターごとに変更したかと変更しなかった理由を返す()
+    {
+        await _settings.UpdateAsync(s => s.WithMonitor(MonitorSettings.CreateDefault("MON2")), TestContext.Current.CancellationToken);
+
+        WallpaperChangeResult result = await _sut.NextAsync(cancellationToken: TestContext.Current.CancellationToken);
+
+        Assert.Equal(
+            [("MON1", WallpaperChangeStatus.Changed), ("MON2", WallpaperChangeStatus.NoFolders)],
+            result.Monitors.Select(m => (m.Monitor.Id, m.Status)));
+        Assert.True(result.AnyChanged);
+    }
+
+    [Fact]
+    public async Task 画像が無ければ変更せず理由を返す()
+    {
+        _images.GetImagesAsync(Arg.Any<IEnumerable<string>>(), Arg.Any<bool>(), Arg.Any<CancellationToken>()).Returns([]);
+
+        WallpaperChangeResult result = await _sut.NextAsync("MON1", TestContext.Current.CancellationToken);
+
+        Assert.Equal(WallpaperChangeStatus.NoImages, Assert.Single(result.Monitors).Status);
+        Assert.False(result.AnyChanged);
+    }
+
+    [Fact]
+    public async Task 戻れる履歴が無ければ理由を返す()
+    {
+        WallpaperChangeResult result = await _sut.PreviousAsync("MON1", TestContext.Current.CancellationToken);
+
+        Assert.Equal(WallpaperChangeStatus.NoPreviousWallpaper, Assert.Single(result.Monitors).Status);
+    }
+
+    [Fact]
+    public async Task 対象のモニターが無ければ空の結果を返す()
+    {
+        WallpaperChangeResult result = await _sut.NextAsync("MISSING", TestContext.Current.CancellationToken);
+
+        Assert.Empty(result.Monitors);
+    }
+
+    [Fact]
     public async Task 一枚表示ではマス専用フォルダを使わない()
     {
         await _settings.UpdateAsync(

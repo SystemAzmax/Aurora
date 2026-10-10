@@ -129,10 +129,10 @@ public sealed partial class WallpaperScheduler : IWallpaperScheduler, IDisposabl
     public Task ResumeAsync(CancellationToken cancellationToken = default) =>
         _settingsService.UpdateAsync(s => s with { IsPaused = false }, cancellationToken);
 
-    public async Task ChangeNowAsync(CancellationToken cancellationToken = default)
+    public Task<WallpaperChangeResult> ChangeNowAsync(CancellationToken cancellationToken = default)
     {
         ResetTimer();
-        await _rotationService.NextAsync(cancellationToken: cancellationToken).ConfigureAwait(false);
+        return _rotationService.NextAsync(cancellationToken: cancellationToken);
     }
 
     public async ValueTask DisposeAsync()

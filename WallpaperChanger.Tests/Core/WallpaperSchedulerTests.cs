@@ -25,7 +25,7 @@ public sealed class WallpaperSchedulerTests : IAsyncDisposable
         {
             Interlocked.Increment(ref _nextCount);
             _changed.TrySetResult();
-            return Task.CompletedTask;
+            return Task.FromResult(WallpaperChangeResult.Empty);
         });
 
         _sut = new WallpaperScheduler(_rotation, _settings, _time, NullLogger<WallpaperScheduler>.Instance);
@@ -118,11 +118,11 @@ public sealed class WallpaperSchedulerTests : IAsyncDisposable
         {
             if (Interlocked.Increment(ref calls) == 1)
             {
-                return Task.FromException(new InvalidOperationException("boom"));
+                return Task.FromException<WallpaperChangeResult>(new InvalidOperationException("boom"));
             }
 
             _changed.TrySetResult();
-            return Task.CompletedTask;
+            return Task.FromResult(WallpaperChangeResult.Empty);
         });
 
         _sut.Start();

@@ -32,6 +32,11 @@ public sealed class SettingsViewModelTests : IDisposable
         _monitors.GetMonitorsAsync(Arg.Any<CancellationToken>()).Returns([Left, Primary]);
         _scheduler.Interval.Returns(TimeSpan.FromMinutes(120));
 
+        // 既定では、対象のモニターの壁紙を変更できたものとする
+        _rotation.NextAsync(Arg.Any<string?>(), Arg.Any<CancellationToken>()).Returns(Changed(Primary));
+        _rotation.PreviousAsync(Arg.Any<string?>(), Arg.Any<CancellationToken>()).Returns(Changed(Primary));
+        _scheduler.ChangeNowAsync(Arg.Any<CancellationToken>()).Returns(Changed(Left, Primary));
+
         _settings = new InMemorySettingsService(new AppSettings { IntervalMinutes = 120 }
             .WithMonitor(MonitorSettings.CreateDefault("MON-P").AddFolder(@"C:\Wallpapers") with
             {
@@ -46,6 +51,90 @@ public sealed class SettingsViewModelTests : IDisposable
     }
 
     public void Dispose() => _sut.Dispose();
+
+    // ---- 切り替え結果の表示 ----
+
+    [Fact]
+    public async Task 全モニターを変更できれば成功を表示する()
+    {
+        await _sut.InitializeCommand.ExecuteAsync(null);
+
+        await _sut.ChangeAllNowCommand.ExecuteAsync(null);
+
+        Assert.False(_sut.IsStatusError);
+        Assert.Equal("全モニターの壁紙を変更しました。", _sut.StatusMessage);
+    }
+
+    [Fact]
+    public async Task 画像が無く変更されなかったモニターがあれば成功ではなく理由を表示する()
+    {
+        await _sut.InitializeCommand.ExecuteAsync(null);
+        _scheduler.ChangeNowAsync(Arg.Any<CancellationToken>()).Returns(new WallpaperChangeResult(
+            [new(Left, WallpaperChangeStatus.Changed), new(Primary, WallpaperChangeStatus.NoImages)]));
+
+        await _sut.ChangeAllNowCommand.ExecuteAsync(null);
+
+        Assert.True(_sut.IsStatusError);
+        Assert.Contains("一部のモニターの壁紙は変更されませんでした", _sut.StatusMessage, StringComparison.Ordinal);
+        Assert.Contains("対応する画像がありません（Primary）", _sut.StatusMessage, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task フォルダ未登録のモニターは他のモニターが変わっていれば伝えない()
+    {
+        await _sut.InitializeCommand.ExecuteAsync(null);
+        _scheduler.ChangeNowAsync(Arg.Any<CancellationToken>()).Returns(new WallpaperChangeResult(
+            [new(Left, WallpaperChangeStatus.NoFolders), new(Primary, WallpaperChangeStatus.Changed)]));
+
+        await _sut.ChangeAllNowCommand.ExecuteAsync(null);
+
+        Assert.False(_sut.IsStatusError);
+        Assert.Equal("全モニターの壁紙を変更しました。", _sut.StatusMessage);
+    }
+
+    [Fact]
+    public async Task どのモニターも変わらなければフォルダ未登録も理由として表示する()
+    {
+        await _sut.InitializeCommand.ExecuteAsync(null);
+        _scheduler.ChangeNowAsync(Arg.Any<CancellationToken>()).Returns(Result(WallpaperChangeStatus.NoFolders, Left, Primary));
+
+        await _sut.ChangeAllNowCommand.ExecuteAsync(null);
+
+        Assert.True(_sut.IsStatusError);
+        Assert.Equal("壁紙は変更されませんでした。壁紙フォルダが登録されていません（Left、Primary）", _sut.StatusMessage);
+    }
+
+    [Fact]
+    public async Task 前の壁紙が無ければ理由を表示する()
+    {
+        await _sut.InitializeCommand.ExecuteAsync(null);
+        _rotation.PreviousAsync("MON-P", Arg.Any<CancellationToken>()).Returns(Result(WallpaperChangeStatus.NoPreviousWallpaper, Primary));
+
+        await _sut.PreviousSelectedMonitorCommand.ExecuteAsync(null);
+
+        Assert.True(_sut.IsStatusError);
+        Assert.Contains("これ以上前の壁紙はありません", _sut.StatusMessage, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task 追加したフォルダに画像が無ければ追加の結果に続けて理由を表示する()
+    {
+        await _sut.InitializeCommand.ExecuteAsync(null);
+        _sut.SelectedMonitor = _sut.Monitors[0]; // フォルダ未登録の Left
+        _folderPicker.PickFolders(Arg.Any<string>()).Returns([@"D:\Empty"]);
+        _rotation.NextAsync("MON-L", Arg.Any<CancellationToken>()).Returns(Result(WallpaperChangeStatus.NoImages, Left));
+
+        await _sut.AddFolderCommand.ExecuteAsync(null);
+
+        Assert.True(_sut.IsStatusError);
+        Assert.StartsWith("1 件のフォルダを追加しました。壁紙は変更されませんでした。", _sut.StatusMessage, StringComparison.Ordinal);
+        Assert.Equal([@"D:\Empty"], _settings.Current.GetMonitor("MON-L").Folders);
+    }
+
+    private static WallpaperChangeResult Changed(params MonitorInfo[] monitors) => Result(WallpaperChangeStatus.Changed, monitors);
+
+    private static WallpaperChangeResult Result(WallpaperChangeStatus status, params MonitorInfo[] monitors) =>
+        new([.. monitors.Select(m => new MonitorChangeResult(m, status))]);
 
     [Fact]
     public async Task 初期化でモニター一覧と設定を読み込みメインモニターを選択する()
@@ -158,7 +247,7 @@ public sealed class SettingsViewModelTests : IDisposable
     {
         await _sut.InitializeCommand.ExecuteAsync(null);
         _rotation.NextAsync(Arg.Any<string?>(), Arg.Any<CancellationToken>())
-            .Returns(Task.FromException(new IOException("ファイルにアクセスできません")));
+            .Returns(Task.FromException<WallpaperChangeResult>(new IOException("ファイルにアクセスできません")));
 
         await _sut.ChangeSelectedMonitorNowCommand.ExecuteAsync(null);
 

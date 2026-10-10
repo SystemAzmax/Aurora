@@ -365,10 +365,11 @@ public sealed partial class SettingsViewModel : ObservableObject, IDisposable
             }
 
             await UpdateMonitorSettingsAsync(monitor, m => tileFolders.Aggregate(m, (current, folder) => current.AddTileFolder(tile.Index, folder)));
-            ShowInfo($"{tile.Position}の{TileUnit}に {tileFolders.Count} 件のフォルダを追加しました。");
+            string added = $"{tile.Position}の{TileUnit}に {tileFolders.Count} 件のフォルダを追加しました。";
+            ShowInfo(added);
 
             // 設定したフォルダの画像をすぐに確認できるよう表示し直す
-            await _rotationService.NextAsync(monitor.Id);
+            ReportProblems(await _rotationService.NextAsync(monitor.Id), added);
             return;
         }
 
@@ -380,12 +381,13 @@ public sealed partial class SettingsViewModel : ObservableObject, IDisposable
 
         bool wasEmpty = Folders.Count == 0;
         await UpdateMonitorSettingsAsync(monitor, m => folders.Aggregate(m, (current, folder) => current.AddFolder(folder)));
-        ShowInfo($"{folders.Count} 件のフォルダを追加しました。");
+        string addedFolders = $"{folders.Count} 件のフォルダを追加しました。";
+        ShowInfo(addedFolders);
 
         // 初めてフォルダを登録したモニターは、次の定期実行を待たずに壁紙を反映する
         if (wasEmpty)
         {
-            await _rotationService.NextAsync(monitor.Id);
+            ReportProblems(await _rotationService.NextAsync(monitor.Id), addedFolders);
         }
     });
 
@@ -408,17 +410,18 @@ public sealed partial class SettingsViewModel : ObservableObject, IDisposable
             }
 
             await UpdateMonitorSettingsAsync(monitor, m => m.RemoveTileFolder(tile.Index, folder));
-            ShowInfo((tile.HasOwnFolders, AnyTileHasFolders) switch
+            string removed = (tile.HasOwnFolders, AnyTileHasFolders) switch
             {
                 (true, _) => $"{tile.Position}の{TileUnit}からフォルダを削除しました。",
                 (false, true) => $"{tile.Position}の{TileUnit}は未設定になり、黒で表示します。",
                 _ => $"すべての{TileUnit}が未設定になったため、1 枚表示のフォルダから {Layout.GetTileCount()} 枚を選びます。",
-            });
+            };
+            ShowInfo(removed);
 
             // マスの表示内容が変わるため、すぐに表示し直す
             if (_settingsService.Current.GetMonitor(monitor.Id).HasAnyFolder())
             {
-                await _rotationService.NextAsync(monitor.Id);
+                ReportProblems(await _rotationService.NextAsync(monitor.Id), removed);
             }
 
             return;
@@ -435,7 +438,7 @@ public sealed partial class SettingsViewModel : ObservableObject, IDisposable
     {
         if (SelectedMonitor is { } monitor)
         {
-            await _rotationService.NextAsync(monitor.Id);
+            ReportProblems(await _rotationService.NextAsync(monitor.Id));
         }
     });
 
@@ -444,15 +447,18 @@ public sealed partial class SettingsViewModel : ObservableObject, IDisposable
     {
         if (SelectedMonitor is { } monitor)
         {
-            await _rotationService.PreviousAsync(monitor.Id);
+            ReportProblems(await _rotationService.PreviousAsync(monitor.Id));
         }
     });
 
     [RelayCommand]
     private Task ChangeAllNowAsync() => ExecuteSafelyAsync("全モニターの壁紙の変更", async () =>
     {
-        await _scheduler.ChangeNowAsync();
-        ShowInfo("全モニターの壁紙を変更しました。");
+        WallpaperChangeResult result = await _scheduler.ChangeNowAsync();
+        if (!ReportProblems(result))
+        {
+            ShowInfo("全モニターの壁紙を変更しました。");
+        }
     });
 
     [RelayCommand]
@@ -511,19 +517,19 @@ public sealed partial class SettingsViewModel : ObservableObject, IDisposable
         _ = ExecuteSafelyAsync("表示レイアウトの変更", async () =>
         {
             await UpdateMonitorSettingsAsync(monitor, m => m with { Layout = value });
-
-            // 次の定期実行を待たず、新しいレイアウトで表示し直す
-            if (_settingsService.Current.GetMonitor(monitor.Id).HasAnyFolder())
-            {
-                await _rotationService.NextAsync(monitor.Id);
-            }
-
-            ShowInfo(value switch
+            string switched = value switch
             {
                 WallpaperLayout.Grid2x2 => "4 分割表示に切り替えました。",
                 WallpaperLayout.Grid4x4 => "16 分割表示に切り替えました。",
                 _ => "1 枚表示に切り替えました。",
-            });
+            };
+            ShowInfo(switched);
+
+            // 次の定期実行を待たず、新しいレイアウトで表示し直す
+            if (_settingsService.Current.GetMonitor(monitor.Id).HasAnyFolder())
+            {
+                ReportProblems(await _rotationService.NextAsync(monitor.Id), switched);
+            }
         });
     }
 
@@ -756,6 +762,22 @@ public sealed partial class SettingsViewModel : ObservableObject, IDisposable
             LogOperationFailed(ex, operation);
             ShowError($"{operation}に失敗しました。{ErrorMessages.Describe(ex)}");
         }
+    }
+
+    /// <summary>
+    /// 切り替えで期待どおりに変更されなかったモニターがあれば、その理由をエラーとして表示する。
+    /// </summary>
+    /// <param name="precedingMessage">直前に表示した操作結果（理由の前に続けて表示する）。</param>
+    /// <returns>理由を表示した場合は true。</returns>
+    private bool ReportProblems(WallpaperChangeResult result, string? precedingMessage = null)
+    {
+        if (WallpaperChangeMessages.DescribeProblems(result) is not { } problem)
+        {
+            return false;
+        }
+
+        ShowError(precedingMessage is null ? problem : $"{precedingMessage}{problem}");
+        return true;
     }
 
     private void ShowInfo(string message)

@@ -3,6 +3,7 @@ using CommunityToolkit.Mvvm.Input;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using WallpaperChanger.Core.Interfaces;
+using WallpaperChanger.Core.Models;
 using WallpaperChanger.UI.Services;
 
 namespace WallpaperChanger.UI.ViewModels;
@@ -58,11 +59,20 @@ public sealed partial class TrayIconViewModel : ObservableObject, IDisposable
 
     [RelayCommand]
     private Task NextWallpaperAsync() =>
-        ExecuteSafelyAsync("次の壁紙への切り替え", () => _scheduler.ChangeNowAsync());
+        ExecuteSafelyAsync("次の壁紙への切り替え", async () => NotifyProblems(await _scheduler.ChangeNowAsync()));
 
     [RelayCommand]
     private Task PreviousWallpaperAsync() =>
-        ExecuteSafelyAsync("前の壁紙への切り替え", () => _rotationService.PreviousAsync());
+        ExecuteSafelyAsync("前の壁紙への切り替え", async () => NotifyProblems(await _rotationService.PreviousAsync()));
+
+    /// <summary>メニューから切り替えても変わらなかったモニターがあれば、理由を通知する（何も起きないように見えないように）。</summary>
+    private void NotifyProblems(WallpaperChangeResult result)
+    {
+        if (WallpaperChangeMessages.DescribeProblems(result) is { } problem)
+        {
+            NotificationRequested?.Invoke(this, new TrayNotificationEventArgs(AppName, problem, isError: false));
+        }
+    }
 
     [RelayCommand]
     private Task TogglePauseAsync() =>

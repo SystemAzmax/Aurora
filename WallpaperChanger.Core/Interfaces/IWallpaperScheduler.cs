@@ -1,3 +1,5 @@
+using WallpaperChanger.Core.Models;
+
 namespace WallpaperChanger.Core.Interfaces;
 
 /// <summary>
@@ -29,6 +31,9 @@ public interface IWallpaperScheduler : IAsyncDisposable
     /// <summary>自動切り替えを再開する（状態は設定に保存される）。</summary>
     Task ResumeAsync(CancellationToken cancellationToken = default);
 
-    /// <summary>即時に次の壁紙へ切り替え、次回の自動切り替えまでの待ち時間をリセットする。</summary>
-    Task ChangeNowAsync(CancellationToken cancellationToken = default);
+    /// <summary>
+    /// 即時に次の壁紙へ切り替え、次回の自動切り替えまでの待ち時間をリセットする。
+    /// 戻り値は <see cref="IWallpaperRotationService.NextAsync"/> の結果。
+    /// </summary>
+    Task<WallpaperChangeResult> ChangeNowAsync(CancellationToken cancellationToken = default);
 }

@@ -42,13 +42,13 @@ public sealed partial class WallpaperRotationService : IWallpaperRotationService
 
     public event EventHandler<WallpaperChangedEventArgs>? WallpaperChanged;
 
-    public Task NextAsync(string? monitorId = null, CancellationToken cancellationToken = default) =>
+    public Task<WallpaperChangeResult> NextAsync(string? monitorId = null, CancellationToken cancellationToken = default) =>
         ExecuteForMonitorsAsync(monitorId, NextForMonitorAsync, cancellationToken);
 
-    public Task PreviousAsync(string? monitorId = null, CancellationToken cancellationToken = default) =>
+    public Task<WallpaperChangeResult> PreviousAsync(string? monitorId = null, CancellationToken cancellationToken = default) =>
         ExecuteForMonitorsAsync(monitorId, PreviousForMonitorAsync, cancellationToken);
 
-    public Task ReapplyAsync(string monitorId, CancellationToken cancellationToken = default)
+    public Task<WallpaperChangeResult> ReapplyAsync(string monitorId, CancellationToken cancellationToken = default)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(monitorId);
         return ExecuteForMonitorsAsync(monitorId, ReapplyForMonitorAsync, cancellationToken);
@@ -56,9 +56,9 @@ public sealed partial class WallpaperRotationService : IWallpaperRotationService
 
     public void Dispose() => _gate.Dispose();
 
-    private async Task ExecuteForMonitorsAsync(
+    private async Task<WallpaperChangeResult> ExecuteForMonitorsAsync(
         string? monitorId,
-        Func<MonitorInfo, CancellationToken, Task> action,
+        Func<MonitorInfo, CancellationToken, Task<WallpaperChangeStatus>> action,
         CancellationToken cancellationToken)
     {
         await _gate.WaitAsync(cancellationToken).ConfigureAwait(false);
@@ -72,17 +72,19 @@ public sealed partial class WallpaperRotationService : IWallpaperRotationService
             if (targets.Count == 0)
             {
                 LogNoTargetMonitor(monitorId ?? "(all)");
-                return;
+                return WallpaperChangeResult.Empty;
             }
 
             // 1 台の失敗で他のモニターの切り替えを止めないよう、例外は集約して最後に送出する
             List<Exception> errors = [];
+            List<MonitorChangeResult> results = [];
             foreach (MonitorInfo monitor in targets)
             {
                 cancellationToken.ThrowIfCancellationRequested();
                 try
                 {
-                    await action(monitor, cancellationToken).ConfigureAwait(false);
+                    WallpaperChangeStatus status = await action(monitor, cancellationToken).ConfigureAwait(false);
+                    results.Add(new MonitorChangeResult(monitor, status));
                 }
                 catch (Exception ex) when (ex is not OperationCanceledException)
                 {
@@ -95,6 +97,8 @@ public sealed partial class WallpaperRotationService : IWallpaperRotationService
             {
                 throw new AggregateException("一部のモニターで壁紙の変更に失敗しました。", errors);
             }
+
+            return new WallpaperChangeResult(results);
         }
         finally
         {
@@ -102,13 +106,13 @@ public sealed partial class WallpaperRotationService : IWallpaperRotationService
         }
     }
 
-    private async Task NextForMonitorAsync(MonitorInfo monitor, CancellationToken cancellationToken)
+    private async Task<WallpaperChangeStatus> NextForMonitorAsync(MonitorInfo monitor, CancellationToken cancellationToken)
     {
         MonitorSettings settings = _settingsService.Current.GetMonitor(monitor.Id);
         if (!settings.HasAnyFolder())
         {
             LogNoFolders(monitor.DisplayName);
-            return;
+            return WallpaperChangeStatus.NoFolders;
         }
 
         WallpaperHistory history = GetHistory(monitor.Id);
@@ -118,7 +122,7 @@ public sealed partial class WallpaperRotationService : IWallpaperRotationService
         {
             history.TryMoveForward(out _);
             await ApplyAsync(monitor, forward, cancellationToken).ConfigureAwait(false);
-            return;
+            return WallpaperChangeStatus.Changed;
         }
 
         // 起動時の壁紙にも「前へ」で戻れるよう、最初の 1 件として記録する
@@ -145,12 +149,13 @@ public sealed partial class WallpaperRotationService : IWallpaperRotationService
         if (next is null)
         {
             LogNoImages(monitor.DisplayName);
-            return;
+            return WallpaperChangeStatus.NoImages;
         }
 
         var selection = new WallpaperSelection(settings.Layout, next);
         await ApplyAsync(monitor, selection, cancellationToken).ConfigureAwait(false);
         history.Push(selection);
+        return WallpaperChangeStatus.Changed;
     }
 
     /// <summary>
@@ -222,14 +227,14 @@ public sealed partial class WallpaperRotationService : IWallpaperRotationService
 
     private static string GetPoolKey(IReadOnlyList<string> folders) => string.Join('|', folders);
 
-    private async Task ReapplyForMonitorAsync(MonitorInfo monitor, CancellationToken cancellationToken)
+    private async Task<WallpaperChangeStatus> ReapplyForMonitorAsync(MonitorInfo monitor, CancellationToken cancellationToken)
     {
         MonitorSettings settings = _settingsService.Current.GetMonitor(monitor.Id);
 
         // 1 枚表示は OS が新しい解像度に合わせて拡大縮小するため、作り直す必要がない
         if (settings.Layout == WallpaperLayout.SingleImage)
         {
-            return;
+            return WallpaperChangeStatus.NotRequired;
         }
 
         WallpaperHistory history = GetHistory(monitor.Id);
@@ -237,13 +242,13 @@ public sealed partial class WallpaperRotationService : IWallpaperRotationService
         {
             // 同じ画像の組を、新しい解像度で合成し直す（履歴は進めない）
             await ApplyAsync(monitor, current, cancellationToken).ConfigureAwait(false);
-            return;
+            return WallpaperChangeStatus.Changed;
         }
 
-        await NextForMonitorAsync(monitor, cancellationToken).ConfigureAwait(false);
+        return await NextForMonitorAsync(monitor, cancellationToken).ConfigureAwait(false);
     }
 
-    private async Task PreviousForMonitorAsync(MonitorInfo monitor, CancellationToken cancellationToken)
+    private async Task<WallpaperChangeStatus> PreviousForMonitorAsync(MonitorInfo monitor, CancellationToken cancellationToken)
     {
         WallpaperHistory history = GetHistory(monitor.Id);
 
@@ -252,13 +257,14 @@ public sealed partial class WallpaperRotationService : IWallpaperRotationService
             if (AllImagesExist(previous))
             {
                 await ApplyAsync(monitor, previous, cancellationToken).ConfigureAwait(false);
-                return;
+                return WallpaperChangeStatus.Changed;
             }
 
             LogHistoryImageMissing(previous.Images);
         }
 
         LogNoPreviousWallpaper(monitor.DisplayName);
+        return WallpaperChangeStatus.NoPreviousWallpaper;
     }
 
     private async Task ApplyAsync(MonitorInfo monitor, WallpaperSelection selection, CancellationToken cancellationToken)

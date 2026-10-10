@@ -3,6 +3,7 @@ using Microsoft.Extensions.Logging.Abstractions;
 using NSubstitute;
 using NSubstitute.ExceptionExtensions;
 using WallpaperChanger.Core.Interfaces;
+using WallpaperChanger.Core.Models;
 using WallpaperChanger.Tests.Fakes;
 using WallpaperChanger.UI.Services;
 using WallpaperChanger.UI.ViewModels;
@@ -20,6 +21,8 @@ public sealed class TrayIconViewModelTests : IDisposable
     public TrayIconViewModelTests()
     {
         _scheduler.Interval.Returns(TimeSpan.FromMinutes(90));
+        _scheduler.ChangeNowAsync(Arg.Any<CancellationToken>()).Returns(Result(WallpaperChangeStatus.Changed));
+        _rotation.PreviousAsync(Arg.Any<string?>(), Arg.Any<CancellationToken>()).Returns(Result(WallpaperChangeStatus.Changed));
         _sut = new TrayIconViewModel(
             _rotation, _scheduler, _settingsWindow, _lifetime, new InlineUiDispatcher(), NullLogger<TrayIconViewModel>.Instance);
     }
@@ -76,6 +79,45 @@ public sealed class TrayIconViewModelTests : IDisposable
     }
 
     [Fact]
+    public async Task 切り替えできれば通知しない()
+    {
+        TrayNotificationEventArgs? notification = null;
+        _sut.NotificationRequested += (_, e) => notification = e;
+
+        await _sut.NextWallpaperCommand.ExecuteAsync(null);
+        await _sut.PreviousWallpaperCommand.ExecuteAsync(null);
+
+        Assert.Null(notification);
+    }
+
+    [Fact]
+    public async Task 次の壁紙で何も変わらなければ理由を通知する()
+    {
+        _scheduler.ChangeNowAsync(Arg.Any<CancellationToken>()).Returns(Result(WallpaperChangeStatus.NoImages));
+        TrayNotificationEventArgs? notification = null;
+        _sut.NotificationRequested += (_, e) => notification = e;
+
+        await _sut.NextWallpaperCommand.ExecuteAsync(null);
+
+        Assert.NotNull(notification);
+        Assert.False(notification.IsError);
+        Assert.Contains("対応する画像がありません（Monitor）", notification.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task 前の壁紙が無ければ理由を通知する()
+    {
+        _rotation.PreviousAsync(Arg.Any<string?>(), Arg.Any<CancellationToken>()).Returns(Result(WallpaperChangeStatus.NoPreviousWallpaper));
+        TrayNotificationEventArgs? notification = null;
+        _sut.NotificationRequested += (_, e) => notification = e;
+
+        await _sut.PreviousWallpaperCommand.ExecuteAsync(null);
+
+        Assert.NotNull(notification);
+        Assert.Contains("これ以上前の壁紙はありません", notification.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public async Task 失敗時はエラー通知を要求する()
     {
         _scheduler.ChangeNowAsync(Arg.Any<CancellationToken>()).ThrowsAsync(new InvalidOperationException("壊れた画像"));
@@ -88,4 +130,7 @@ public sealed class TrayIconViewModelTests : IDisposable
         Assert.True(notification.IsError);
         Assert.Contains("壊れた画像", notification.Message, StringComparison.Ordinal);
     }
+
+    private static WallpaperChangeResult Result(WallpaperChangeStatus status) =>
+        new([new MonitorChangeResult(new MonitorInfo("MON", 0, "Monitor", new MonitorBounds(0, 0, 1920, 1080), 1920, 1080), status)]);
 }
