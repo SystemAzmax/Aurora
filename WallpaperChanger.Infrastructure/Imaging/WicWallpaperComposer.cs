@@ -1,4 +1,5 @@
-﻿using System.Security.Cryptography;
+﻿using System.Runtime.ExceptionServices;
+using System.Security.Cryptography;
 using System.Text;
 using System.Windows;
 using System.Windows.Media;
@@ -63,25 +64,7 @@ internal sealed partial class WicWallpaperComposer : IWallpaperComposer
         int stride = request.Width * BytesPerPixel;
         byte[] pixels = new byte[stride * request.Height];
         FillBackground(pixels, _options.BackgroundColor);
-
-        for (int i = 0; i < tiles.Count; i++)
-        {
-            cancellationToken.ThrowIfCancellationRequested();
-
-            PixelRect tile = tiles[i];
-            string? imagePath = request.ImagePaths[i % request.ImagePaths.Count];
-            if (imagePath is null)
-            {
-                // 画像を置かないマスは塗りつぶす（間隔部分と見分けられるよう別の色にする）
-                FillRect(pixels, stride, tile, _options.EmptyTileColor);
-                continue;
-            }
-
-            FormatConvertedBitmap tileImage = LoadTileImage(imagePath, tile.Width, tile.Height);
-
-            int offset = (tile.Y * stride) + (tile.X * BytesPerPixel);
-            tileImage.CopyPixels(Int32Rect.Empty, pixels, stride, offset);
-        }
+        DrawTiles(request, tiles, pixels, stride, cancellationToken);
 
         var composite = BitmapSource.Create(
             request.Width, request.Height, 96, 96, PixelFormats.Bgr32, null, pixels, stride);
@@ -91,6 +74,44 @@ internal sealed partial class WicWallpaperComposer : IWallpaperComposer
         LogComposed(request.ImagePaths.Count, request.Width, request.Height, outputPath);
         DeleteOldFiles(request.MonitorId, outputPath);
         return outputPath;
+    }
+
+    /// <summary>
+    /// 各マスの画像を並行して読み込み、合成用のバッファに書き込む。
+    /// マス同士は重ならず、バッファの別々の範囲に書き込むため、並行して書き込んでよい。
+    /// </summary>
+    private void DrawTiles(
+        WallpaperCompositionRequest request, IReadOnlyList<PixelRect> tiles, byte[] pixels, int stride, CancellationToken cancellationToken)
+    {
+        var parallelOptions = new ParallelOptions
+        {
+            CancellationToken = cancellationToken,
+            MaxDegreeOfParallelism = Math.Max(1, _options.MaxParallelTileLoads),
+        };
+
+        try
+        {
+            Parallel.For(0, tiles.Count, parallelOptions, i =>
+            {
+                PixelRect tile = tiles[i];
+                string? imagePath = request.ImagePaths[i % request.ImagePaths.Count];
+                if (imagePath is null)
+                {
+                    // 画像を置かないマスは塗りつぶす（間隔部分と見分けられるよう別の色にする）
+                    FillRect(pixels, stride, tile, _options.EmptyTileColor);
+                    return;
+                }
+
+                FormatConvertedBitmap tileImage = LoadTileImage(imagePath, tile.Width, tile.Height);
+                int offset = (tile.Y * stride) + (tile.X * BytesPerPixel);
+                tileImage.CopyPixels(Int32Rect.Empty, pixels, stride, offset);
+            });
+        }
+        catch (AggregateException ex)
+        {
+            // 1 枚ずつ読んでいたときと同じく、原因の画像のパスを含む例外をそのまま送出する（複数あれば、そのうちの 1 つ）
+            ExceptionDispatchInfo.Throw(ex.InnerExceptions[0]);
+        }
     }
 
     /// <summary>画像を読み込み、タイルと同じサイズ（Bgr32）に拡大縮小・切り抜きする。</summary>

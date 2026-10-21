@@ -10,7 +10,8 @@ namespace WallpaperChanger.UI.Services;
 /// アプリケーションの起動・終了手順をまとめる。
 /// 起動: 設定読み込み → 自動起動の登録パス更新 → トレイ表示（設定ファイルを読めなかった場合は通知）
 ///       → 自動切り替え・モニター構成の監視開始（フォルダ未登録なら設定画面を表示）
-/// 終了: モニター構成の監視・自動切り替え停止 → 設定画面とトレイアイコンの破棄
+///       → 2 つ目に起動されたときの要求の受け付け開始（設定画面を前面に出す）
+/// 終了: 要求の受け付け停止 → モニター構成の監視・自動切り替え停止 → 設定画面とトレイアイコンの破棄
 /// </summary>
 internal sealed partial class ApplicationHostedService(
     ISettingsService settingsService,
@@ -19,6 +20,7 @@ internal sealed partial class ApplicationHostedService(
     ISettingsWindowService settingsWindowService,
     IStartupRegistrationService startupRegistration,
     IMonitorConfigurationWatcher monitorWatcher,
+    IActivationRequestListener activationRequestListener,
     IUiDispatcher uiDispatcher,
     ILogger<ApplicationHostedService> logger) : IHostedService
 {
@@ -30,10 +32,12 @@ internal sealed partial class ApplicationHostedService(
     private readonly ISettingsWindowService _settingsWindowService = settingsWindowService ?? throw new ArgumentNullException(nameof(settingsWindowService));
     private readonly IStartupRegistrationService _startupRegistration = startupRegistration ?? throw new ArgumentNullException(nameof(startupRegistration));
     private readonly IMonitorConfigurationWatcher _monitorWatcher = monitorWatcher ?? throw new ArgumentNullException(nameof(monitorWatcher));
+    private readonly IActivationRequestListener _activationRequestListener = activationRequestListener ?? throw new ArgumentNullException(nameof(activationRequestListener));
     private readonly IUiDispatcher _uiDispatcher = uiDispatcher ?? throw new ArgumentNullException(nameof(uiDispatcher));
     private readonly ILogger<ApplicationHostedService> _logger = logger ?? throw new ArgumentNullException(nameof(logger));
     private readonly Lock _stopGate = new();
     private Task? _stopTask;
+    private volatile bool _isStopping;
 
     public async Task StartAsync(CancellationToken cancellationToken)
     {
@@ -58,6 +62,9 @@ internal sealed partial class ApplicationHostedService(
             await _uiDispatcher.InvokeAsync(_settingsWindowService.Show).ConfigureAwait(false);
         }
 
+        // 起動処理の途中に届いた要求も、ここで受け付ける（設定の読み込み前に設定画面を開かないように）
+        _activationRequestListener.StartListening(OnActivationRequested);
+
         LogStarted();
     }
 
@@ -69,12 +76,14 @@ internal sealed partial class ApplicationHostedService(
     {
         lock (_stopGate)
         {
+            _isStopping = true;
             return _stopTask ??= StopCoreAsync();
         }
     }
 
     private async Task StopCoreAsync()
     {
+        _activationRequestListener.StopListening();
         await _monitorWatcher.StopAsync().ConfigureAwait(false);
         await _scheduler.StopAsync().ConfigureAwait(false);
         await _uiDispatcher.InvokeAsync(() =>
@@ -84,6 +93,26 @@ internal sealed partial class ApplicationHostedService(
         }).ConfigureAwait(false);
 
         LogStopped();
+    }
+
+    /// <summary>2 つ目に起動されたときは、起動中のこちらの設定画面を前面に出す（トレイアイコンを探さなくて済むように）。</summary>
+    private async void OnActivationRequested()
+    {
+        try
+        {
+            await _uiDispatcher.InvokeAsync(() =>
+            {
+                // 受け付けを止める前に届いた要求で、終了処理が閉じた後の設定画面を開き直さない
+                if (!_isStopping)
+                {
+                    _settingsWindowService.Show();
+                }
+            }).ConfigureAwait(false);
+        }
+        catch (Exception ex)
+        {
+            LogActivationFailed(ex);
+        }
     }
 
     /// <summary>アプリを移動・更新した後も自動起動が働くよう、登録済みのパスを現在の実行ファイルに合わせる。</summary>
@@ -108,4 +137,7 @@ internal sealed partial class ApplicationHostedService(
 
     [LoggerMessage(Level = LogLevel.Warning, Message = "自動起動の登録パスを更新できませんでした")]
     private partial void LogStartupRegistrationUpdateFailed(Exception exception);
+
+    [LoggerMessage(Level = LogLevel.Error, Message = "2 つ目の起動に合わせて設定画面を表示できませんでした")]
+    private partial void LogActivationFailed(Exception exception);
 }

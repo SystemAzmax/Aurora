@@ -42,8 +42,18 @@ public sealed partial class WallpaperRotationService : IWallpaperRotationService
 
     public event EventHandler<WallpaperChangedEventArgs>? WallpaperChanged;
 
+    public event EventHandler<WallpaperChangeProgressEventArgs>? ProgressChanged;
+
     public Task<WallpaperChangeResult> NextAsync(string? monitorId = null, CancellationToken cancellationToken = default) =>
         ExecuteForMonitorsAsync(monitorId, NextForMonitorAsync, cancellationToken);
+
+    public Task<WallpaperChangeResult> RefreshAsync(string? monitorId = null, CancellationToken cancellationToken = default)
+    {
+        // キャッシュに入っていない追加直後の画像も候補にする
+        _imageProvider.Invalidate();
+        return ExecuteForMonitorsAsync(
+            monitorId, (monitor, ct) => NextForMonitorAsync(monitor, replayForward: false, ct), cancellationToken);
+    }
 
     public Task<WallpaperChangeResult> PreviousAsync(string? monitorId = null, CancellationToken cancellationToken = default) =>
         ExecuteForMonitorsAsync(monitorId, PreviousForMonitorAsync, cancellationToken);
@@ -78,19 +88,29 @@ public sealed partial class WallpaperRotationService : IWallpaperRotationService
             // 1 台の失敗で他のモニターの切り替えを止めないよう、例外は集約して最後に送出する
             List<Exception> errors = [];
             List<MonitorChangeResult> results = [];
-            foreach (MonitorInfo monitor in targets)
+            try
             {
-                cancellationToken.ThrowIfCancellationRequested();
-                try
+                for (int i = 0; i < targets.Count; i++)
                 {
-                    WallpaperChangeStatus status = await action(monitor, cancellationToken).ConfigureAwait(false);
-                    results.Add(new MonitorChangeResult(monitor, status));
+                    MonitorInfo monitor = targets[i];
+                    cancellationToken.ThrowIfCancellationRequested();
+                    ProgressChanged?.Invoke(this, new WallpaperChangeProgressEventArgs(i, targets.Count, monitor));
+                    try
+                    {
+                        WallpaperChangeStatus status = await action(monitor, cancellationToken).ConfigureAwait(false);
+                        results.Add(new MonitorChangeResult(monitor, status));
+                    }
+                    catch (Exception ex) when (ex is not OperationCanceledException)
+                    {
+                        LogMonitorChangeFailed(ex, monitor.DisplayName);
+                        errors.Add(ex);
+                    }
                 }
-                catch (Exception ex) when (ex is not OperationCanceledException)
-                {
-                    LogMonitorChangeFailed(ex, monitor.DisplayName);
-                    errors.Add(ex);
-                }
+            }
+            finally
+            {
+                // 失敗・キャンセルでも、進み具合の表示を終わらせる
+                ProgressChanged?.Invoke(this, new WallpaperChangeProgressEventArgs(targets.Count, targets.Count, null));
             }
 
             // 接続されなくなったモニターの合成画像は、そのモニターでは合成されないため、ここで後片付けする
@@ -109,7 +129,11 @@ public sealed partial class WallpaperRotationService : IWallpaperRotationService
         }
     }
 
-    private async Task<WallpaperChangeStatus> NextForMonitorAsync(MonitorInfo monitor, CancellationToken cancellationToken)
+    private Task<WallpaperChangeStatus> NextForMonitorAsync(MonitorInfo monitor, CancellationToken cancellationToken) =>
+        NextForMonitorAsync(monitor, replayForward: true, cancellationToken);
+
+    /// <param name="replayForward">「前へ」で戻った後に、進む履歴を表示するか。false なら新しく選び直す（進む履歴は破棄される）。</param>
+    private async Task<WallpaperChangeStatus> NextForMonitorAsync(MonitorInfo monitor, bool replayForward, CancellationToken cancellationToken)
     {
         MonitorSettings settings = _settingsService.Current.GetMonitor(monitor.Id);
         if (!settings.HasAnyFolder())
@@ -121,7 +145,7 @@ public sealed partial class WallpaperRotationService : IWallpaperRotationService
         WallpaperHistory history = GetHistory(monitor.Id);
 
         // 「前へ」で戻った後は、まず履歴を進める（レイアウトを変えた後は新しく選び直す）
-        if (history.Forward is { } forward && forward.Layout == settings.Layout && AllImagesExist(forward))
+        if (replayForward && history.Forward is { } forward && forward.Layout == settings.Layout && AllImagesExist(forward))
         {
             history.TryMoveForward(out _);
             await ApplyAsync(monitor, forward, cancellationToken).ConfigureAwait(false);

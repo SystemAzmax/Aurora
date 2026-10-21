@@ -77,6 +77,7 @@ public sealed partial class SettingsViewModel : ObservableObject, IDisposable
         _isLoading = false;
 
         _rotationService.WallpaperChanged += OnWallpaperChanged;
+        _rotationService.ProgressChanged += OnProgressChanged;
         _scheduler.StateChanged += OnSchedulerStateChanged;
         _monitorWatcher.ConfigurationChanged += OnMonitorConfigurationChanged;
     }
@@ -281,6 +282,15 @@ public sealed partial class SettingsViewModel : ObservableObject, IDisposable
     [ObservableProperty]
     public partial bool IsStatusError { get; set; }
 
+    /// <summary>切り替え中（自動切り替えを含む）の進み具合。切り替え中でなければ null。</summary>
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(IsChangingWallpaper))]
+    [NotifyCanExecuteChangedFor(nameof(ChangeSelectedMonitorNowCommand), nameof(PreviousSelectedMonitorCommand), nameof(ChangeAllNowCommand))]
+    public partial string? ChangeProgressText { get; set; }
+
+    /// <summary>切り替え中か。切り替え中は切り替えのボタンを押せない（順番待ちになり、さらに待たされないように）。</summary>
+    public bool IsChangingWallpaper => ChangeProgressText is not null;
+
     public void Dispose()
     {
         if (_disposed)
@@ -290,6 +300,7 @@ public sealed partial class SettingsViewModel : ObservableObject, IDisposable
 
         _disposed = true;
         _rotationService.WallpaperChanged -= OnWallpaperChanged;
+        _rotationService.ProgressChanged -= OnProgressChanged;
         _scheduler.StateChanged -= OnSchedulerStateChanged;
         _monitorWatcher.ConfigurationChanged -= OnMonitorConfigurationChanged;
         _previewCts?.Cancel();
@@ -433,25 +444,29 @@ public sealed partial class SettingsViewModel : ObservableObject, IDisposable
 
     private bool CanRemoveFolder() => SelectedMonitor is not null && SelectedFolder is not null;
 
-    [RelayCommand(CanExecute = nameof(HasSelectedMonitor))]
+    [RelayCommand(CanExecute = nameof(CanChangeSelectedMonitor))]
     private Task ChangeSelectedMonitorNowAsync() => ExecuteSafelyAsync("壁紙の変更", async () =>
     {
-        if (SelectedMonitor is { } monitor)
+        if (SelectedMonitor is { } monitor && !ReportProblems(await _rotationService.NextAsync(monitor.Id)))
         {
-            ReportProblems(await _rotationService.NextAsync(monitor.Id));
+            ShowInfo($"{monitor.DisplayName} の壁紙を変更しました。");
         }
     });
 
-    [RelayCommand(CanExecute = nameof(HasSelectedMonitor))]
+    [RelayCommand(CanExecute = nameof(CanChangeSelectedMonitor))]
     private Task PreviousSelectedMonitorAsync() => ExecuteSafelyAsync("前の壁紙への切り替え", async () =>
     {
-        if (SelectedMonitor is { } monitor)
+        if (SelectedMonitor is { } monitor && !ReportProblems(await _rotationService.PreviousAsync(monitor.Id)))
         {
-            ReportProblems(await _rotationService.PreviousAsync(monitor.Id));
+            ShowInfo($"{monitor.DisplayName} の壁紙を前の壁紙に戻しました。");
         }
     });
 
-    [RelayCommand]
+    private bool CanChangeSelectedMonitor() => HasSelectedMonitor && !IsChangingWallpaper;
+
+    private bool CanChangeWallpaper() => !IsChangingWallpaper;
+
+    [RelayCommand(CanExecute = nameof(CanChangeWallpaper))]
     private Task ChangeAllNowAsync() => ExecuteSafelyAsync("全モニターの壁紙の変更", async () =>
     {
         WallpaperChangeResult result = await _scheduler.ChangeNowAsync();
@@ -798,6 +813,15 @@ public sealed partial class SettingsViewModel : ObservableObject, IDisposable
             if (!_disposed && string.Equals(SelectedMonitor?.Id, e.MonitorId, StringComparison.OrdinalIgnoreCase))
             {
                 _ = ExecuteSafelyAsync("プレビューの更新", RefreshPreviewAsync);
+            }
+        });
+
+    private async void OnProgressChanged(object? sender, WallpaperChangeProgressEventArgs e) =>
+        await _uiDispatcher.InvokeAsync(() =>
+        {
+            if (!_disposed)
+            {
+                ChangeProgressText = WallpaperChangeMessages.DescribeProgress(e);
             }
         });
 

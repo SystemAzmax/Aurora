@@ -18,6 +18,10 @@
                     DoubleClickCommand="{Binding ShowSettingsCommand}" />
 
     <ContextMenu x:Key="TrayContextMenu">
+        <!-- 切り替え中は進み具合を表示する（切り替えの項目は、終わるまで押せない） -->
+        <MenuItem Header="{Binding ChangeProgressText, TargetNullValue=壁紙を切り替えています…}" IsEnabled="False"
+                  Visibility="{Binding IsChangingWallpaper, Converter={StaticResource BooleanToVisibilityConverter}}" />
+        <Separator Visibility="{Binding IsChangingWallpaper, Converter={StaticResource BooleanToVisibilityConverter}}" />
         <MenuItem Header="次の壁紙" Command="{Binding NextWallpaperCommand}">
             <MenuItem.Icon>
                 <TextBlock Style="{StaticResource SymbolTextStyle}" Text="&#xE893;" />
@@ -26,6 +30,12 @@
         <MenuItem Header="前の壁紙" Command="{Binding PreviousWallpaperCommand}">
             <MenuItem.Icon>
                 <TextBlock Style="{StaticResource SymbolTextStyle}" Text="&#xE892;" />
+            </MenuItem.Icon>
+        </MenuItem>
+        <MenuItem Header="全壁紙を更新" Command="{Binding RefreshAllWallpapersCommand}"
+                  ToolTip="壁紙フォルダを読み込み直して、全モニターの壁紙を選び直します">
+            <MenuItem.Icon>
+                <TextBlock Style="{StaticResource SymbolTextStyle}" Text="&#xE72C;" />
             </MenuItem.Icon>
         </MenuItem>
         <Separator />
@@ -58,5 +68,38 @@
             </MenuItem.Icon>
         </MenuItem>
     </ContextMenu>
+
+    <!--
+        メニューから切り替えたときに、トレイの近くに表示する進み具合。TrayIconService が表示するたびに作る。
+        メニューを閉じると何も見えず、モニターが多いと終わるまで時間がかかるため、切り替え中であることと終わったことを伝える。
+        ウィンドウの外に表示するため、文字色と背景はテーマの色を明示する。
+    -->
+    <Border x:Key="TrayProgressPopup" x:Shared="False"
+            Width="340" Margin="0,0,12,12" Padding="16,12" CornerRadius="8" BorderThickness="1"
+            Background="{DynamicResource ApplicationBackgroundBrush}"
+            BorderBrush="{DynamicResource CardStrokeColorDefaultBrush}"
+            TextElement.Foreground="{DynamicResource TextFillColorPrimaryBrush}">
+        <StackPanel>
+            <TextBlock Text="壁紙チェンジャー" Style="{StaticResource CaptionTextStyle}" />
+            <DockPanel Margin="0,6,0,0">
+                <TextBlock DockPanel.Dock="Left" Text="&#xE73E;" Margin="0,0,8,0"
+                           Foreground="{DynamicResource SystemFillColorSuccessBrush}">
+                    <TextBlock.Style>
+                        <Style TargetType="TextBlock" BasedOn="{StaticResource SymbolTextStyle}">
+                            <Setter Property="Visibility" Value="Collapsed" />
+                            <Style.Triggers>
+                                <DataTrigger Binding="{Binding IsMenuChangeRunning}" Value="False">
+                                    <Setter Property="Visibility" Value="Visible" />
+                                </DataTrigger>
+                            </Style.Triggers>
+                        </Style>
+                    </TextBlock.Style>
+                </TextBlock>
+                <TextBlock Text="{Binding ProgressPopupText}" TextWrapping="Wrap" VerticalAlignment="Center" />
+            </DockPanel>
+            <ProgressBar Margin="0,10,0,2" IsIndeterminate="{Binding IsMenuChangeRunning}"
+                         Visibility="{Binding IsMenuChangeRunning, Converter={StaticResource BooleanToVisibilityConverter}}" />
+        </StackPanel>
+    </Border>
 
 </ResourceDictionary>

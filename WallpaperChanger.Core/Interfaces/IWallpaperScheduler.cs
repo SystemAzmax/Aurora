@@ -36,4 +36,10 @@ public interface IWallpaperScheduler : IAsyncDisposable
     /// 戻り値は <see cref="IWallpaperRotationService.NextAsync"/> の結果。
     /// </summary>
     Task<WallpaperChangeResult> ChangeNowAsync(CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// 壁紙フォルダを列挙し直して全モニターの壁紙を新しく選び直し、次回の自動切り替えまでの待ち時間をリセットする。
+    /// 戻り値は <see cref="IWallpaperRotationService.RefreshAsync"/> の結果。
+    /// </summary>
+    Task<WallpaperChangeResult> RefreshNowAsync(CancellationToken cancellationToken = default);
 }

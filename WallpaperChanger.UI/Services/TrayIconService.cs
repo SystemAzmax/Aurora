@@ -1,5 +1,7 @@
+using System.ComponentModel;
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Controls.Primitives;
 using Hardcodet.Wpf.TaskbarNotification;
 using WallpaperChanger.Core.Interfaces;
 using WallpaperChanger.UI.ViewModels;
@@ -13,6 +15,7 @@ internal sealed class TrayIconService(TrayIconViewModel viewModel) : ITrayIconSe
 {
     private const string TrayIconResourceKey = "TrayIcon";
     private const string ContextMenuResourceKey = "TrayContextMenu";
+    private const string ProgressPopupResourceKey = "TrayProgressPopup";
 
     private readonly TrayIconViewModel _viewModel = viewModel ?? throw new ArgumentNullException(nameof(viewModel));
     private TaskbarIcon? _taskbarIcon;
@@ -36,6 +39,7 @@ internal sealed class TrayIconService(TrayIconViewModel viewModel) : ITrayIconSe
         icon.ContextMenu = menu;
 
         _viewModel.NotificationRequested += OnNotificationRequested;
+        _viewModel.PropertyChanged += OnViewModelPropertyChanged;
         _taskbarIcon = icon;
     }
 
@@ -51,10 +55,30 @@ internal sealed class TrayIconService(TrayIconViewModel viewModel) : ITrayIconSe
 
         _disposed = true;
         _viewModel.NotificationRequested -= OnNotificationRequested;
+        _viewModel.PropertyChanged -= OnViewModelPropertyChanged;
         _taskbarIcon?.Dispose();
         _taskbarIcon = null;
     }
 
     private void OnNotificationRequested(object? sender, TrayNotificationEventArgs e) =>
         _taskbarIcon?.ShowBalloonTip(e.Title, e.Message, e.IsError ? BalloonIcon.Error : BalloonIcon.Info);
+
+    private void OnViewModelPropertyChanged(object? sender, PropertyChangedEventArgs e)
+    {
+        if (e.PropertyName != nameof(TrayIconViewModel.IsProgressPopupOpen) || _taskbarIcon is not { } icon)
+        {
+            return;
+        }
+
+        if (!_viewModel.IsProgressPopupOpen)
+        {
+            icon.CloseBalloon();
+            return;
+        }
+
+        // 表示するたびに新しく作る（リソースは x:Shared="False"）
+        var popup = (FrameworkElement)Application.Current.FindResource(ProgressPopupResourceKey);
+        popup.DataContext = _viewModel;
+        icon.ShowCustomBalloon(popup, PopupAnimation.Fade, timeout: null);
+    }
 }

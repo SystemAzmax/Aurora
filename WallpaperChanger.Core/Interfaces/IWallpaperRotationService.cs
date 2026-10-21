@@ -11,10 +11,22 @@ public interface IWallpaperRotationService
     event EventHandler<WallpaperChangedEventArgs>? WallpaperChanged;
 
     /// <summary>
+    /// 切り替えの進み具合が変わったときに発生する（各モニターの処理を始めるときと、すべて終えたとき）。
+    /// 自動切り替えを含む、すべての切り替えで発生する。
+    /// </summary>
+    event EventHandler<WallpaperChangeProgressEventArgs>? ProgressChanged;
+
+    /// <summary>
     /// 次の壁紙へ切り替える。monitorId が null の場合は全モニターが対象。
     /// 戻り値はモニターごとの結果（変更しなかったモニターとその理由）。変更に失敗したモニターがある場合は例外になる。
     /// </summary>
     Task<WallpaperChangeResult> NextAsync(string? monitorId = null, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// 壁紙フォルダを列挙し直し（キャッシュを使わない）、新しく選んだ壁紙へ切り替える。
+    /// 「前へ」で戻った後でも進む履歴は辿らない。monitorId が null の場合は全モニターが対象。戻り値は <see cref="NextAsync"/> と同じ。
+    /// </summary>
+    Task<WallpaperChangeResult> RefreshAsync(string? monitorId = null, CancellationToken cancellationToken = default);
 
     /// <summary>履歴を遡って前の壁紙へ戻す。monitorId が null の場合は全モニターが対象。戻り値は <see cref="NextAsync"/> と同じ。</summary>
     Task<WallpaperChangeResult> PreviousAsync(string? monitorId = null, CancellationToken cancellationToken = default);

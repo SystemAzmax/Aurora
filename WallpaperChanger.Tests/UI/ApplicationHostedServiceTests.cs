@@ -14,6 +14,7 @@ public class ApplicationHostedServiceTests
     private readonly ISettingsWindowService _settingsWindow = Substitute.For<ISettingsWindowService>();
     private readonly IStartupRegistrationService _startup = Substitute.For<IStartupRegistrationService>();
     private readonly IMonitorConfigurationWatcher _watcher = Substitute.For<IMonitorConfigurationWatcher>();
+    private readonly IActivationRequestListener _activation = Substitute.For<IActivationRequestListener>();
 
     [Fact]
     public async Task フォルダが1つも無ければ起動時に設定画面を開く()
@@ -96,6 +97,36 @@ public class ApplicationHostedServiceTests
         _settingsWindow.Received(1).Close();
     }
 
+    [Fact]
+    public async Task 起動後に二つ目の起動の要求を受けると設定画面を前面に出す()
+    {
+        Action? onRequested = null;
+        _activation.StartListening(Arg.Do<Action>(a => onRequested = a));
+
+        await StartAsync(new AppSettings().WithMonitor(MonitorSettings.CreateDefault("M").AddFolder(@"C:\w")));
+        Assert.NotNull(onRequested);
+        onRequested();
+
+        _settingsWindow.Received(1).Show();
+    }
+
+    [Fact]
+    public async Task 終了処理では要求の受け付けを止め終了後の要求では設定画面を開かない()
+    {
+        Action? onRequested = null;
+        _activation.StartListening(Arg.Do<Action>(a => onRequested = a));
+        ApplicationHostedService sut = Create(new AppSettings().WithMonitor(MonitorSettings.CreateDefault("M").AddFolder(@"C:\w")));
+        CancellationToken ct = TestContext.Current.CancellationToken;
+        await sut.StartAsync(ct);
+
+        await sut.StopAsync(ct);
+        Assert.NotNull(onRequested);
+        onRequested();
+
+        _activation.Received(1).StopListening();
+        _settingsWindow.DidNotReceive().Show();
+    }
+
     private Task StartAsync(AppSettings settings) => Create(settings).StartAsync(TestContext.Current.CancellationToken);
 
     private ApplicationHostedService Create(AppSettings settings) => Create(new InMemorySettingsService(settings));
@@ -107,6 +138,7 @@ public class ApplicationHostedServiceTests
         _settingsWindow,
         _startup,
         _watcher,
+        _activation,
         new InlineUiDispatcher(),
         NullLogger<ApplicationHostedService>.Instance);
 }

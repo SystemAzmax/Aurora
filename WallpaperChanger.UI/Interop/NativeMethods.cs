@@ -9,7 +9,14 @@ internal static class NativeMethods
     public const uint SwpNoSize = 0x0001;
     public const uint SwpNoActivate = 0x0010;
 
+    /// <summary>ASFW_ANY: すべてのプロセスに前面に出ることを許す。</summary>
+    public const uint AsfwAny = uint.MaxValue;
+
     [DllImport("user32.dll", ExactSpelling = true, SetLastError = true)]
     [return: MarshalAs(UnmanagedType.Bool)]
     public static extern bool SetWindowPos(IntPtr hWnd, IntPtr hWndInsertAfter, int x, int y, int cx, int cy, uint flags);
+
+    [DllImport("user32.dll", ExactSpelling = true, SetLastError = true)]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    public static extern bool AllowSetForegroundWindow(uint processId);
 }

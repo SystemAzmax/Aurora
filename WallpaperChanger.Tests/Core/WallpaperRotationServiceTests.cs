@@ -162,6 +162,35 @@ public sealed class WallpaperRotationServiceTests : IDisposable
     }
 
     [Fact]
+    public async Task 更新はフォルダを列挙し直して全モニターを変更する()
+    {
+        WallpaperChangeResult result = await _sut.RefreshAsync(cancellationToken: TestContext.Current.CancellationToken);
+
+        _images.Received(1).Invalidate();
+        Assert.All(result.Monitors, m => Assert.Equal(WallpaperChangeStatus.Changed, m.Status));
+        await _wallpaper.Received(1).SetWallpaperAsync("MON1", Arg.Any<string>(), Arg.Any<CancellationToken>());
+        await _wallpaper.Received(1).SetWallpaperAsync("MON2", Arg.Any<string>(), Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task 更新は前へで戻った後も進む履歴を使わずフォルダから選び直す()
+    {
+        CancellationToken ct = TestContext.Current.CancellationToken;
+        _wallpaper.GetWallpaperAsync("MON1", Arg.Any<CancellationToken>()).Returns(Images[0]);
+        await _sut.NextAsync("MON1", ct); // 1 -> 2
+        await _sut.PreviousAsync("MON1", ct); // 2 -> 1
+
+        // 戻っている間に画像が追加された
+        string[] added = [Images[0], @"C:\w\1a.jpg", Images[1], Images[2]];
+        _images.GetImagesAsync(Arg.Any<IEnumerable<string>>(), Arg.Any<bool>(), Arg.Any<CancellationToken>()).Returns(added);
+        _wallpaper.ClearReceivedCalls();
+
+        await _sut.RefreshAsync("MON1", ct);
+
+        await _wallpaper.Received(1).SetWallpaperAsync("MON1", @"C:\w\1a.jpg", Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
     public async Task 履歴が無ければ前へは何もしない()
     {
         await _sut.PreviousAsync("MON1", TestContext.Current.CancellationToken);
@@ -193,6 +222,32 @@ public sealed class WallpaperRotationServiceTests : IDisposable
 
         Assert.IsType<InvalidOperationException>(Assert.Single(ex.InnerExceptions));
         await _wallpaper.Received(1).SetWallpaperAsync("MON2", Arg.Any<string>(), Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task 各モニターの処理を始めるときとすべて終えたときに進み具合を通知する()
+    {
+        var progress = new List<(int Completed, int Total, string? Current)>();
+        _sut.ProgressChanged += (_, e) => progress.Add((e.CompletedCount, e.TotalCount, e.CurrentMonitor?.Id));
+
+        await _sut.NextAsync(cancellationToken: TestContext.Current.CancellationToken);
+
+        Assert.Equal([(0, 2, "MON1"), (1, 2, "MON2"), (2, 2, null)], progress);
+    }
+
+    [Fact]
+    public async Task 失敗しても進み具合の通知を終わらせる()
+    {
+        _wallpaper.SetWallpaperAsync("MON2", Arg.Any<string>(), Arg.Any<CancellationToken>())
+            .ThrowsAsync(new InvalidOperationException("boom"));
+        WallpaperChangeProgressEventArgs? last = null;
+        _sut.ProgressChanged += (_, e) => last = e;
+
+        await Assert.ThrowsAsync<AggregateException>(
+            () => _sut.NextAsync(cancellationToken: TestContext.Current.CancellationToken));
+
+        Assert.NotNull(last);
+        Assert.True(last.IsFinished);
     }
 
     [Fact]

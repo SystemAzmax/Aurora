@@ -22,6 +22,12 @@ public sealed class WallpaperCompositionOptions
     /// <summary>フォルダ未設定のマスの色（0xRRGGBB）。既定は真っ黒（0x000000）。</summary>
     public int EmptyTileColor { get; set; }
 
+    /// <summary>
+    /// マスの画像を同時に読み込む数。16 分割では 1 枚ずつ読むと時間がかかるため、並行して読み込む。
+    /// 大きな画像はデコード中に多くのメモリを使うため、上げすぎない。
+    /// </summary>
+    public int MaxParallelTileLoads { get; set; } = Math.Clamp(Environment.ProcessorCount, 1, 4);
+
     /// <summary>JPEG の品質 (1～100)。</summary>
     public int JpegQuality { get; set; } = 92;
 

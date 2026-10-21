@@ -15,12 +15,19 @@ public sealed partial class TrayIconViewModel : ObservableObject, IDisposable
 {
     private const string AppName = "壁紙チェンジャー";
 
+    /// <summary>メニューから始めた切り替えが終わった後、終わったことを伝える表示を残す時間。</summary>
+    internal static readonly TimeSpan CompletedPopupDuration = TimeSpan.FromSeconds(2);
+
     private readonly IWallpaperRotationService _rotationService;
     private readonly IWallpaperScheduler _scheduler;
     private readonly ISettingsWindowService _settingsWindowService;
     private readonly IHostApplicationLifetime _applicationLifetime;
     private readonly IUiDispatcher _uiDispatcher;
+    private readonly TimeProvider _timeProvider;
     private readonly ILogger<TrayIconViewModel> _logger;
+
+    /// <summary>進み具合の表示を開いた回数。閉じる予約が、その後に開き直した表示を閉じないようにする。</summary>
+    private int _progressPopupVersion;
 
     public TrayIconViewModel(
         IWallpaperRotationService rotationService,
@@ -28,6 +35,7 @@ public sealed partial class TrayIconViewModel : ObservableObject, IDisposable
         ISettingsWindowService settingsWindowService,
         IHostApplicationLifetime applicationLifetime,
         IUiDispatcher uiDispatcher,
+        TimeProvider timeProvider,
         ILogger<TrayIconViewModel> logger)
     {
         _rotationService = rotationService ?? throw new ArgumentNullException(nameof(rotationService));
@@ -35,10 +43,12 @@ public sealed partial class TrayIconViewModel : ObservableObject, IDisposable
         _settingsWindowService = settingsWindowService ?? throw new ArgumentNullException(nameof(settingsWindowService));
         _applicationLifetime = applicationLifetime ?? throw new ArgumentNullException(nameof(applicationLifetime));
         _uiDispatcher = uiDispatcher ?? throw new ArgumentNullException(nameof(uiDispatcher));
+        _timeProvider = timeProvider ?? throw new ArgumentNullException(nameof(timeProvider));
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
 
         IsPaused = _scheduler.IsPaused;
         _scheduler.StateChanged += OnSchedulerStateChanged;
+        _rotationService.ProgressChanged += OnProgressChanged;
     }
 
     /// <summary>バルーン通知の表示要求。</summary>
@@ -51,27 +61,109 @@ public sealed partial class TrayIconViewModel : ObservableObject, IDisposable
 
     public string PauseMenuHeader => IsPaused ? "再開" : "一時停止";
 
-    public string ToolTipText => IsPaused
-        ? $"{AppName}（一時停止中）"
-        : $"{AppName}（{IntervalUnitOption.Format(_scheduler.Interval)}ごとに切り替え）";
+    public string ToolTipText => ChangeProgressText is { } progress
+        ? $"{AppName}\n{progress}"
+        : IsPaused
+            ? $"{AppName}（一時停止中）"
+            : $"{AppName}（{IntervalUnitOption.Format(_scheduler.Interval)}ごとに切り替え）";
 
-    public void Dispose() => _scheduler.StateChanged -= OnSchedulerStateChanged;
+    // ---- 切り替えの進み具合 ----
 
-    [RelayCommand]
-    private Task NextWallpaperAsync() =>
-        ExecuteSafelyAsync("次の壁紙への切り替え", async () => NotifyProblems(await _scheduler.ChangeNowAsync()));
+    /// <summary>切り替え中（自動切り替えを含む）の進み具合。切り替え中でなければ null。</summary>
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(IsChangingWallpaper))]
+    [NotifyPropertyChangedFor(nameof(ToolTipText))]
+    [NotifyPropertyChangedFor(nameof(ProgressPopupText))]
+    [NotifyCanExecuteChangedFor(nameof(NextWallpaperCommand), nameof(PreviousWallpaperCommand), nameof(RefreshAllWallpapersCommand))]
+    public partial string? ChangeProgressText { get; set; }
 
-    [RelayCommand]
-    private Task PreviousWallpaperAsync() =>
-        ExecuteSafelyAsync("前の壁紙への切り替え", async () => NotifyProblems(await _rotationService.PreviousAsync()));
+    /// <summary>メニューから始めた切り替えを実行中か。</summary>
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(IsChangingWallpaper))]
+    [NotifyPropertyChangedFor(nameof(ProgressPopupText))]
+    [NotifyCanExecuteChangedFor(nameof(NextWallpaperCommand), nameof(PreviousWallpaperCommand), nameof(RefreshAllWallpapersCommand))]
+    public partial bool IsMenuChangeRunning { get; set; }
+
+    /// <summary>切り替え中か。切り替え中はメニューから切り替えられない（順番待ちになり、さらに待たされないように）。</summary>
+    public bool IsChangingWallpaper => IsMenuChangeRunning || ChangeProgressText is not null;
+
+    /// <summary>メニューから始めた切り替えの進み具合を、トレイの近くに表示するか。</summary>
+    [ObservableProperty]
+    public partial bool IsProgressPopupOpen { get; set; }
+
+    public string ProgressPopupText => IsMenuChangeRunning
+        ? ChangeProgressText ?? "壁紙を切り替えています…"
+        : "壁紙を切り替えました";
+
+    public void Dispose()
+    {
+        _scheduler.StateChanged -= OnSchedulerStateChanged;
+        _rotationService.ProgressChanged -= OnProgressChanged;
+    }
+
+    [RelayCommand(CanExecute = nameof(CanChangeWallpaper))]
+    private Task NextWallpaperAsync() => ChangeFromMenuAsync("次の壁紙への切り替え", () => _scheduler.ChangeNowAsync());
+
+    [RelayCommand(CanExecute = nameof(CanChangeWallpaper))]
+    private Task PreviousWallpaperAsync() => ChangeFromMenuAsync("前の壁紙への切り替え", () => _rotationService.PreviousAsync());
+
+    [RelayCommand(CanExecute = nameof(CanChangeWallpaper))]
+    private Task RefreshAllWallpapersAsync() => ChangeFromMenuAsync("全壁紙の更新", () => _scheduler.RefreshNowAsync());
+
+    private bool CanChangeWallpaper() => !IsChangingWallpaper;
+
+    /// <summary>
+    /// メニューから切り替える。メニューを閉じると何も見えなくなるため、終わるまで進み具合をトレイの近くに表示し、
+    /// 終わったこともしばらく表示する。変わらなかったモニターがあれば、表示を閉じて理由を通知する。
+    /// </summary>
+    private async Task ChangeFromMenuAsync(string operation, Func<Task<WallpaperChangeResult>> change)
+    {
+        int popupVersion = ++_progressPopupVersion;
+        IsMenuChangeRunning = true;
+        IsProgressPopupOpen = true;
+
+        bool succeeded = false;
+        await ExecuteSafelyAsync(operation, async () =>
+        {
+            succeeded = !NotifyProblems(await change());
+        });
+
+        IsMenuChangeRunning = false;
+        if (succeeded)
+        {
+            _ = CloseProgressPopupLaterAsync(popupVersion);
+        }
+        else
+        {
+            // 理由はバルーン通知で伝える
+            IsProgressPopupOpen = false;
+        }
+    }
+
+    private async Task CloseProgressPopupLaterAsync(int popupVersion)
+    {
+        await Task.Delay(CompletedPopupDuration, _timeProvider);
+        await _uiDispatcher.InvokeAsync(() =>
+        {
+            // 表示している間に次の切り替えを始めていれば、その表示は閉じない
+            if (popupVersion == _progressPopupVersion)
+            {
+                IsProgressPopupOpen = false;
+            }
+        });
+    }
 
     /// <summary>メニューから切り替えても変わらなかったモニターがあれば、理由を通知する（何も起きないように見えないように）。</summary>
-    private void NotifyProblems(WallpaperChangeResult result)
+    /// <returns>通知した場合は true。</returns>
+    private bool NotifyProblems(WallpaperChangeResult result)
     {
-        if (WallpaperChangeMessages.DescribeProblems(result) is { } problem)
+        if (WallpaperChangeMessages.DescribeProblems(result) is not { } problem)
         {
-            NotificationRequested?.Invoke(this, new TrayNotificationEventArgs(AppName, problem, isError: false));
+            return false;
         }
+
+        NotificationRequested?.Invoke(this, new TrayNotificationEventArgs(AppName, problem, isError: false));
+        return true;
     }
 
     [RelayCommand]
@@ -108,6 +200,9 @@ public sealed partial class TrayIconViewModel : ObservableObject, IDisposable
             IsPaused = _scheduler.IsPaused;
             OnPropertyChanged(nameof(ToolTipText));
         });
+
+    private async void OnProgressChanged(object? sender, WallpaperChangeProgressEventArgs e) =>
+        await _uiDispatcher.InvokeAsync(() => ChangeProgressText = WallpaperChangeMessages.DescribeProgress(e));
 
     [LoggerMessage(Level = LogLevel.Error, Message = "{Operation}に失敗しました")]
     private partial void LogOperationFailed(Exception exception, string operation);

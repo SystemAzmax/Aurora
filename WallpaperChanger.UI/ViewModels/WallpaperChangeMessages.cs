@@ -38,6 +38,21 @@ internal static class WallpaperChangeMessages
         return $"{summary}{string.Join(" / ", reasons)}";
     }
 
+    /// <summary>切り替え中の進み具合の説明。切り替えが終わっていれば null。</summary>
+    public static string? DescribeProgress(WallpaperChangeProgressEventArgs progress)
+    {
+        ArgumentNullException.ThrowIfNull(progress);
+
+        if (progress.CurrentMonitor is not { } monitor)
+        {
+            return null;
+        }
+
+        return progress.TotalCount == 1
+            ? $"{monitor.DisplayName} の壁紙を切り替えています…"
+            : $"壁紙を切り替えています…（{progress.TotalCount} 台中 {progress.CompletedCount + 1} 台目: {monitor.DisplayName}）";
+    }
+
     private static void AddReason(List<string> reasons, WallpaperChangeResult result, WallpaperChangeStatus status, string reason)
     {
         IReadOnlyList<MonitorInfo> monitors = result.MonitorsWith(status);

@@ -66,6 +66,51 @@ public sealed class SettingsViewModelTests : IDisposable
     }
 
     [Fact]
+    public async Task 選択中のモニターを変更できれば成功を表示する()
+    {
+        await _sut.InitializeCommand.ExecuteAsync(null);
+
+        await _sut.ChangeSelectedMonitorNowCommand.ExecuteAsync(null);
+        Assert.Equal("Primary の壁紙を変更しました。", _sut.StatusMessage);
+
+        await _sut.PreviousSelectedMonitorCommand.ExecuteAsync(null);
+        Assert.Equal("Primary の壁紙を前の壁紙に戻しました。", _sut.StatusMessage);
+        Assert.False(_sut.IsStatusError);
+    }
+
+    [Fact]
+    public async Task 切り替え中は進み具合を表示し切り替えのボタンを押せない()
+    {
+        await _sut.InitializeCommand.ExecuteAsync(null);
+
+        _rotation.ProgressChanged += Raise.EventWith(new WallpaperChangeProgressEventArgs(0, 2, Left));
+
+        Assert.True(_sut.IsChangingWallpaper);
+        Assert.Equal("壁紙を切り替えています…（2 台中 1 台目: Left）", _sut.ChangeProgressText);
+        Assert.False(_sut.ChangeAllNowCommand.CanExecute(null));
+        Assert.False(_sut.ChangeSelectedMonitorNowCommand.CanExecute(null));
+        Assert.False(_sut.PreviousSelectedMonitorCommand.CanExecute(null));
+
+        _rotation.ProgressChanged += Raise.EventWith(new WallpaperChangeProgressEventArgs(2, 2, null));
+
+        Assert.False(_sut.IsChangingWallpaper);
+        Assert.Null(_sut.ChangeProgressText);
+        Assert.True(_sut.ChangeAllNowCommand.CanExecute(null));
+        Assert.True(_sut.ChangeSelectedMonitorNowCommand.CanExecute(null));
+        Assert.True(_sut.PreviousSelectedMonitorCommand.CanExecute(null));
+    }
+
+    [Fact]
+    public async Task 一台だけの切り替えはモニター名で進み具合を表示する()
+    {
+        await _sut.InitializeCommand.ExecuteAsync(null);
+
+        _rotation.ProgressChanged += Raise.EventWith(new WallpaperChangeProgressEventArgs(0, 1, Primary));
+
+        Assert.Equal("Primary の壁紙を切り替えています…", _sut.ChangeProgressText);
+    }
+
+    [Fact]
     public async Task 画像が無く変更されなかったモニターがあれば成功ではなく理由を表示する()
     {
         await _sut.InitializeCommand.ExecuteAsync(null);

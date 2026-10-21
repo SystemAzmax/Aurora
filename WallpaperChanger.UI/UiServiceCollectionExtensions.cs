@@ -12,12 +12,16 @@ public static class UiServiceCollectionExtensions
     /// UI 層のサービスと ViewModel を登録する。
     /// アプリ常駐中に 1 つだけ存在する UI 資源（トレイアイコン・設定画面の管理）のみ Singleton とする。
     /// </summary>
-    public static IServiceCollection AddWallpaperChangerUI(this IServiceCollection services, Dispatcher dispatcher)
+    /// <param name="activationRequestListener">多重起動の防止と合わせて作るため、呼び出し側が所有して破棄する。</param>
+    public static IServiceCollection AddWallpaperChangerUI(
+        this IServiceCollection services, Dispatcher dispatcher, IActivationRequestListener activationRequestListener)
     {
         ArgumentNullException.ThrowIfNull(services);
         ArgumentNullException.ThrowIfNull(dispatcher);
+        ArgumentNullException.ThrowIfNull(activationRequestListener);
 
         services.AddSingleton<IUiDispatcher>(new WpfUiDispatcher(dispatcher));
+        services.AddSingleton(activationRequestListener);
         services.AddSingleton<ITrayIconService, TrayIconService>();
         services.AddSingleton<ISettingsWindowService, SettingsWindowService>();
 

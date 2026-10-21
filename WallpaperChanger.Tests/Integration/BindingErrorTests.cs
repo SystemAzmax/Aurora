@@ -41,13 +41,22 @@ public sealed class BindingErrorTests
         using var collector = BindingErrorCollector.Start();
         var scheduler = Substitute.For<IWallpaperScheduler>();
         scheduler.Interval.Returns(TimeSpan.FromMinutes(30));
+        var rotation = Substitute.For<IWallpaperRotationService>();
         using var viewModel = new TrayIconViewModel(
-            Substitute.For<IWallpaperRotationService>(), scheduler, Substitute.For<ISettingsWindowService>(),
-            Substitute.For<IHostApplicationLifetime>(), new InlineUiDispatcher(), NullLogger<TrayIconViewModel>.Instance);
+            rotation, scheduler, Substitute.For<ISettingsWindowService>(), Substitute.For<IHostApplicationLifetime>(),
+            new InlineUiDispatcher(), TimeProvider.System, NullLogger<TrayIconViewModel>.Instance);
 
         using (var tray = new TrayIconService(viewModel))
         {
             tray.Show();
+            await WpfTestApplication.FlushAsync();
+
+            // 切り替え中と切り替え後の表示（メニューの進み具合と、トレイの近くに出す進み具合）も確かめる
+            var popup = (FrameworkElement)Application.Current.FindResource("TrayProgressPopup");
+            popup.DataContext = viewModel;
+            rotation.ProgressChanged += Raise.EventWith(new WallpaperChangeProgressEventArgs(0, 2, Primary));
+            await WpfTestApplication.FlushAsync();
+            rotation.ProgressChanged += Raise.EventWith(new WallpaperChangeProgressEventArgs(2, 2, null));
             await WpfTestApplication.FlushAsync();
         }
 

@@ -6,6 +6,7 @@ using Microsoft.Extensions.Logging;
 using WallpaperChanger.Core;
 using WallpaperChanger.Infrastructure;
 using WallpaperChanger.Infrastructure.Logging;
+using WallpaperChanger.UI.Services;
 
 namespace WallpaperChanger.UI;
 
@@ -16,25 +17,23 @@ namespace WallpaperChanger.UI;
 internal static partial class Program
 {
     private const string AppName = "壁紙チェンジャー";
-    private const string SingleInstanceMutexName = @"Local\WallpaperChanger.SingleInstance.7B0E3C4A";
+    private const string SingleInstanceName = "WallpaperChanger.SingleInstance.7B0E3C4A";
     private static readonly TimeSpan HostStopTimeout = TimeSpan.FromSeconds(5);
 
     [STAThread]
     public static int Main(string[] args)
     {
-        using var mutex = new Mutex(initiallyOwned: true, SingleInstanceMutexName, out bool createdNew);
-        if (!createdNew)
+        using SingleInstance? singleInstance = SingleInstance.TryAcquire(SingleInstanceName);
+        if (singleInstance is null)
         {
-            MessageBox.Show(
-                "壁紙チェンジャーは既に起動しています。\nタスクトレイのアイコンから操作してください。",
-                AppName, MessageBoxButton.OK, MessageBoxImage.Information);
+            // 既に起動中。起動中のほうが設定画面を前面に出す
             return 0;
         }
 
         var app = new App();
         app.InitializeComponent();
 
-        using IHost host = CreateHost(args, app.Dispatcher);
+        using IHost host = CreateHost(args, app.Dispatcher, singleInstance);
         ILogger logger = host.Services.GetRequiredService<ILoggerFactory>().CreateLogger(typeof(Program).FullName!);
         RegisterGlobalExceptionHandlers(app, logger);
 
@@ -67,7 +66,7 @@ internal static partial class Program
         }
     }
 
-    private static IHost CreateHost(string[] args, Dispatcher dispatcher)
+    private static IHost CreateHost(string[] args, Dispatcher dispatcher, IActivationRequestListener activationRequestListener)
     {
         HostApplicationBuilder builder = Host.CreateApplicationBuilder(new HostApplicationBuilderSettings
         {
@@ -90,7 +89,7 @@ internal static partial class Program
         builder.Services
             .AddWallpaperChangerCore()
             .AddWallpaperChangerInfrastructure()
-            .AddWallpaperChangerUI(dispatcher);
+            .AddWallpaperChangerUI(dispatcher, activationRequestListener);
 
         return builder.Build();
     }

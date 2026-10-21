@@ -116,6 +116,52 @@ public sealed class WicWallpaperComposerTests : IDisposable
     }
 
     [Fact]
+    public async Task 十六分割では並行して読み込んだ画像をそれぞれのマスに配置する()
+    {
+        string[] images = [.. Enumerable.Range(0, 16).Select(i => CreateImage($"tile{i}.png", 64, 64, TileColor(i), new PngBitmapEncoder()))];
+        WicWallpaperComposer sut = CreateSut(gap: 0);
+
+        string output = await sut.ComposeAsync(
+            new WallpaperCompositionRequest("MON1", images, 4, 4, 400, 400), TestContext.Current.CancellationToken);
+
+        BitmapSource result = Load(output);
+        for (int i = 0; i < 16; i++)
+        {
+            AssertColor(result, 50 + (i % 4 * 100), 50 + (i / 4 * 100), TileColor(i));
+        }
+    }
+
+    [Fact]
+    public async Task 並行して読み込んでも一枚ずつ読み込んだときと同じ画像になる()
+    {
+        CancellationToken ct = TestContext.Current.CancellationToken;
+        string?[] images =
+        [
+            .. Enumerable.Range(0, 16).Select(i => i == 5 ? null : CreateImage($"tile{i}.jpg", 300 + (i * 37), 200 + (i * 23), TileColor(i), new JpegBitmapEncoder())),
+        ];
+        var request = new WallpaperCompositionRequest("MON1", images, 4, 4, 1280, 720);
+
+        string sequential = await CreateSut(gap: 4, maxParallelTileLoads: 1).ComposeAsync(request, ct);
+        _time.Advance(TimeSpan.FromSeconds(1));
+        string parallel = await CreateSut(gap: 4, maxParallelTileLoads: 4).ComposeAsync(request, ct);
+
+        Assert.Equal(await File.ReadAllBytesAsync(sequential, ct), await File.ReadAllBytesAsync(parallel, ct));
+    }
+
+    [Fact]
+    public async Task 並行して読み込む中に読めない画像があればパス付きの例外になる()
+    {
+        string broken = _temp.CreateFile("broken.jpg", "not an image");
+        string[] images = [.. Enumerable.Range(0, 16).Select(i => i == 9 ? broken : CreateImage($"tile{i}.png", 64, 64, TileColor(i), new PngBitmapEncoder()))];
+        WicWallpaperComposer sut = CreateSut(gap: 0);
+
+        var ex = await Assert.ThrowsAsync<InvalidOperationException>(() => sut.ComposeAsync(
+            new WallpaperCompositionRequest("MON1", images, 4, 4, 400, 400), TestContext.Current.CancellationToken));
+
+        Assert.Contains(broken, ex.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public async Task 読み込めない画像はパス付きの例外になる()
     {
         string broken = _temp.CreateFile("broken.jpg", "not an image");
@@ -235,11 +281,19 @@ public sealed class WicWallpaperComposerTests : IDisposable
         Assert.False(Directory.Exists(_outputDirectory));
     }
 
-    private WicWallpaperComposer CreateSut(int gap, ImageSourceLimits? limits = null) => new(
-        Options.Create(new WallpaperCompositionOptions { OutputDirectory = _outputDirectory, TileGap = gap }),
+    private WicWallpaperComposer CreateSut(int gap, ImageSourceLimits? limits = null, int maxParallelTileLoads = 4) => new(
+        Options.Create(new WallpaperCompositionOptions
+        {
+            OutputDirectory = _outputDirectory,
+            TileGap = gap,
+            MaxParallelTileLoads = maxParallelTileLoads,
+        }),
         Options.Create(limits ?? new ImageSourceLimits()),
         _time,
         NullLogger<WicWallpaperComposer>.Instance);
+
+    /// <summary>16 マスを見分けられる色（隣どうしで、JPEG の誤差の許容範囲より大きく異なる）。</summary>
+    private static Color TileColor(int index) => Color.FromRgb((byte)(index % 4 * 85), (byte)(index / 4 * 85), 128);
 
     private string CreateImage(string name, int width, int height, Color color, BitmapEncoder encoder)
     {

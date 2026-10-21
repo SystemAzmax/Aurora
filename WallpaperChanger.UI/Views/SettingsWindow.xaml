@@ -326,17 +326,29 @@
         <!-- ===== ステータスバー ===== -->
         <Border Grid.Row="1" Grid.ColumnSpan="2" Padding="24,8"
                 BorderThickness="0,1,0,0" BorderBrush="{DynamicResource CardStrokeColorDefaultBrush}">
-            <TextBlock Text="{Binding StatusMessage}" TextWrapping="Wrap">
-                <TextBlock.Style>
-                    <Style TargetType="TextBlock" BasedOn="{StaticResource CaptionTextStyle}">
-                        <Style.Triggers>
-                            <DataTrigger Binding="{Binding IsStatusError}" Value="True">
-                                <Setter Property="Foreground" Value="{DynamicResource SystemFillColorCriticalBrush}" />
-                            </DataTrigger>
-                        </Style.Triggers>
-                    </Style>
-                </TextBlock.Style>
-            </TextBlock>
+            <DockPanel>
+                <!-- 切り替え中は進み具合を表示する（モニターが多いと終わるまで時間がかかるため） -->
+                <ProgressBar DockPanel.Dock="Left" Width="96" Margin="0,0,12,0" VerticalAlignment="Center"
+                             IsIndeterminate="{Binding IsChangingWallpaper}"
+                             Visibility="{Binding IsChangingWallpaper, Converter={StaticResource BooleanToVisibilityConverter}}" />
+                <TextBlock VerticalAlignment="Center">
+                    <TextBlock.Style>
+                        <Style TargetType="TextBlock" BasedOn="{StaticResource CaptionTextStyle}">
+                            <Setter Property="Text" Value="{Binding StatusMessage}" />
+                            <Style.Triggers>
+                                <DataTrigger Binding="{Binding IsStatusError}" Value="True">
+                                    <Setter Property="Foreground" Value="{DynamicResource SystemFillColorCriticalBrush}" />
+                                </DataTrigger>
+                                <!-- 後に書いたトリガーが優先される。切り替え中は、直前のエラーの色を引き継がない -->
+                                <DataTrigger Binding="{Binding IsChangingWallpaper}" Value="True">
+                                    <Setter Property="Text" Value="{Binding ChangeProgressText}" />
+                                    <Setter Property="Foreground" Value="{DynamicResource TextFillColorSecondaryBrush}" />
+                                </DataTrigger>
+                            </Style.Triggers>
+                        </Style>
+                    </TextBlock.Style>
+                </TextBlock>
+            </DockPanel>
         </Border>
     </Grid>
 </Window>

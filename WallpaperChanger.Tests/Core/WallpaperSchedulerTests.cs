@@ -130,6 +130,28 @@ public sealed class WallpaperSchedulerTests : IAsyncDisposable
     }
 
     [Fact]
+    public async Task 全壁紙の更新はフォルダを読み直して変更し待ち時間をリセットする()
+    {
+        CancellationToken ct = TestContext.Current.CancellationToken;
+        _rotation.RefreshAsync(Arg.Any<string?>(), Arg.Any<CancellationToken>()).Returns(WallpaperChangeResult.Empty);
+        _sut.Start();
+        await WaitForTimerAsync();
+        _time.Advance(TimeSpan.FromMinutes(9));
+
+        await _sut.RefreshNowAsync(ct);
+        await WaitForTimerAsync();
+        _time.Advance(TimeSpan.FromMinutes(9));
+        await Task.Delay(100, ct);
+
+        await _rotation.Received(1).RefreshAsync(null, Arg.Any<CancellationToken>());
+        Assert.Equal(0, _nextCount);
+
+        _time.Advance(TimeSpan.FromMinutes(1));
+        await _changed.Task.WaitAsync(WaitTimeout, ct);
+        Assert.Equal(1, _nextCount);
+    }
+
+    [Fact]
     public async Task 変更が失敗しても定期実行は継続する()
     {
         int calls = 0;
