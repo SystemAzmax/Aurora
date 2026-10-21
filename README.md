@@ -27,6 +27,8 @@ dotnet test --project WallpaperChanger.Tests
 dotnet test --project WallpaperChanger.Tests -- --filter-not-trait "Category=Integration"
 ```
 
+master への push と pull request のたびに、GitHub Actions（`.github/workflows/ci.yml`）がクリーンな状態から Release でビルドし、統合テストを除いたテストを実行する。
+
 ## 配布 (Self-contained)
 
 ```powershell

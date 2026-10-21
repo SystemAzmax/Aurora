@@ -1,0 +1,43 @@
+# push と pull request のたびに、クリーンな状態からビルドしてテストを実行する。
+# 新規ファイルのコミット漏れ（09c033e、bcbc748）のように、手元では通るのに origin ではビルドできない状態にすぐ気付くため。
+name: CI
+
+on:
+  push:
+    branches: [master]
+  pull_request:
+    branches: [master]
+  workflow_dispatch:
+
+# 同じ PR に続けて push したときは、古い実行を取り消す（master への push は 1 件ずつ最後まで確かめる）
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+permissions:
+  contents: read
+
+env:
+  DOTNET_NOLOGO: true
+  DOTNET_CLI_TELEMETRY_OPTOUT: true
+
+jobs:
+  build-and-test:
+    # WPF と Windows 向けのターゲットフレームワークを使うため、Windows で実行する
+    runs-on: windows-latest
+    timeout-minutes: 20
+
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: .NET SDK のセットアップ
+        uses: actions/setup-dotnet@v5
+        with:
+          global-json-file: global.json
+
+      - name: ビルド
+        run: dotnet build Aurora.slnx --configuration Release
+
+      # 実機の COM（IDesktopWallpaper）や WPF の画面を使う統合テストは対話セッションが必要なため除外する（README と同じ手順）
+      - name: テスト
+        run: dotnet test --project WallpaperChanger.Tests --configuration Release --no-build -- --filter-not-trait "Category=Integration"
