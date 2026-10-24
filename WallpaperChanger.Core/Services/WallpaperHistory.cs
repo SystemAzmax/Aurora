@@ -30,6 +30,55 @@ internal sealed class WallpaperHistory
 
     public int Count => _items.Count;
 
+    /// <summary>内容または位置が変わるたびに増える番号。保存が必要かの判定に使う。</summary>
+    public int Version { get; private set; }
+
+    /// <summary>
+    /// 保存した履歴から復元する。表示できない組（レイアウトと画像の枚数が合わないもの）は除き、
+    /// 容量を超える分は古いものから除く。位置は除いた組の分だけずらし、範囲内に収める。
+    /// </summary>
+    public static WallpaperHistory Restore(WallpaperHistorySnapshot snapshot, int capacity = DefaultCapacity)
+    {
+        ArgumentNullException.ThrowIfNull(snapshot);
+
+        var history = new WallpaperHistory(capacity);
+        IReadOnlyList<WallpaperSelection?> items = snapshot.Items ?? [];
+        for (int i = 0; i < items.Count; i++)
+        {
+            if (items[i] is not { } selection || !IsRestorable(selection))
+            {
+                continue;
+            }
+
+            history._items.Add(selection);
+            if (i <= snapshot.Position)
+            {
+                history._position = history._items.Count - 1;
+            }
+        }
+
+        int excess = history._items.Count - capacity;
+        if (excess > 0)
+        {
+            history._items.RemoveRange(0, excess);
+            history._position -= excess;
+        }
+
+        if (history._items.Count > 0)
+        {
+            history._position = Math.Clamp(history._position, 0, history._items.Count - 1);
+        }
+
+        return history;
+    }
+
+    /// <summary>保存用に、今の内容と位置を写し取る。</summary>
+    public WallpaperHistorySnapshot ToSnapshot(string monitorId)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(monitorId);
+        return new WallpaperHistorySnapshot(monitorId, [.. _items], _position);
+    }
+
     /// <summary>新しく表示した組を記録する。現在位置より先の履歴は破棄される。</summary>
     public void Push(WallpaperSelection selection)
     {
@@ -53,6 +102,7 @@ internal sealed class WallpaperHistory
         }
 
         _position = _items.Count - 1;
+        Version++;
     }
 
     public bool TryMoveBack([NotNullWhen(true)] out WallpaperSelection? selection)
@@ -64,6 +114,7 @@ internal sealed class WallpaperHistory
         }
 
         _position--;
+        Version++;
         selection = _items[_position];
         return true;
     }
@@ -77,7 +128,12 @@ internal sealed class WallpaperHistory
         }
 
         _position++;
+        Version++;
         selection = _items[_position];
         return true;
     }
+
+    // 手で編集されたファイルや別の版で保存したファイルでも、表示できない組で切り替えが失敗しないようにする
+    private static bool IsRestorable(WallpaperSelection selection) =>
+        Enum.IsDefined(selection.Layout) && selection.Images.Count == selection.Layout.GetTileCount();
 }

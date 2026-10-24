@@ -20,6 +20,7 @@ public sealed class WallpaperRotationServiceTests : IDisposable
     private readonly IWallpaperService _wallpaper = Substitute.For<IWallpaperService>();
     private readonly IImageProvider _images = Substitute.For<IImageProvider>();
     private readonly IWallpaperComposer _composer = Substitute.For<IWallpaperComposer>();
+    private readonly InMemoryWallpaperHistoryStore _historyStore = new();
     private readonly InMemorySettingsService _settings;
     private readonly WallpaperRotationService _sut;
 
@@ -34,14 +35,7 @@ public sealed class WallpaperRotationServiceTests : IDisposable
             .WithMonitor(MonitorSettings.CreateDefault("MON1").AddFolder(@"C:\w") with { SelectionMode = ImageSelectionMode.Sequential })
             .WithMonitor(MonitorSettings.CreateDefault("MON2").AddFolder(@"C:\w") with { SelectionMode = ImageSelectionMode.Sequential }));
 
-        _sut = new WallpaperRotationService(
-            _monitors,
-            _wallpaper,
-            _images,
-            _composer,
-            _settings,
-            [new SequentialImageSelector(), new RandomImageSelector()],
-            NullLogger<WallpaperRotationService>.Instance);
+        _sut = CreateSut();
     }
 
     public void Dispose() => _sut.Dispose();
@@ -524,6 +518,120 @@ public sealed class WallpaperRotationServiceTests : IDisposable
         // 右上・左下の区画は未設定なので、1 枚表示のフォルダ（C:\w）は使わずに黒（null）にする
         Assert.All(Enumerable.Range(0, 16).Except(upperLeftTiles).Except(lowerRightTiles), i => Assert.Null(composed[i]));
     }
+
+    // ---- 履歴の保存（再起動後） ----
+
+    [Fact]
+    public async Task 切り替えた履歴を保存する()
+    {
+        await _sut.NextAsync("MON1", TestContext.Current.CancellationToken);
+
+        WallpaperHistorySnapshot saved = Assert.Single(_historyStore.Saved);
+        Assert.Equal("MON1", saved.MonitorId);
+        Assert.Equal(Images[0], Assert.Single(saved.Items).Images[0]);
+        Assert.Equal(0, saved.Position);
+    }
+
+    [Fact]
+    public async Task 再起動後も前へで保存した履歴の壁紙に戻れる()
+    {
+        CancellationToken ct = TestContext.Current.CancellationToken;
+        _wallpaper.GetWallpaperAsync("MON1", Arg.Any<CancellationToken>()).Returns(Images[0]);
+        await _sut.NextAsync("MON1", ct); // 1 -> 2
+        await _sut.NextAsync("MON1", ct); // 2 -> 3
+
+        using WallpaperRotationService restarted = CreateSut();
+        _wallpaper.ClearReceivedCalls();
+
+        await restarted.PreviousAsync("MON1", ct);
+        await _wallpaper.Received(1).SetWallpaperAsync("MON1", Images[1], Arg.Any<CancellationToken>());
+
+        await restarted.PreviousAsync("MON1", ct);
+        await _wallpaper.Received(1).SetWallpaperAsync("MON1", Images[0], Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task 再起動後の分割表示の順送りは保存した履歴の続きから選ぶ()
+    {
+        CancellationToken ct = TestContext.Current.CancellationToken;
+        await UseGridLayoutAsync("MON1");
+
+        // 起動時の壁紙は合成画像で、候補の一覧に無い
+        _wallpaper.GetWallpaperAsync("MON1", Arg.Any<CancellationToken>()).Returns(@"C:\composite\grid.jpg");
+        await _sut.NextAsync("MON1", ct);
+        Assert.Equal([Images[0], Images[1], Images[2], Images[0]], ComposedImages());
+        _composer.ClearReceivedCalls();
+
+        using WallpaperRotationService restarted = CreateSut();
+        await restarted.NextAsync("MON1", ct);
+
+        Assert.Equal([Images[1], Images[2], Images[0], Images[1]], ComposedImages());
+    }
+
+    [Fact]
+    public async Task 再起動後の表示し直しは保存した組を合成し直す()
+    {
+        CancellationToken ct = TestContext.Current.CancellationToken;
+        await UseGridLayoutAsync("MON1");
+        await _sut.NextAsync("MON1", ct);
+        await _sut.NextAsync("MON1", ct);
+        IReadOnlyList<string?> shown = _composer.ReceivedCalls()
+            .Where(c => c.GetMethodInfo().Name == nameof(IWallpaperComposer.ComposeAsync))
+            .Select(c => ((WallpaperCompositionRequest)c.GetArguments()[0]!).ImagePaths)
+            .Last();
+        _composer.ClearReceivedCalls();
+
+        using WallpaperRotationService restarted = CreateSut();
+        await restarted.ReapplyAsync("MON1", ct);
+
+        Assert.Equal(shown, ComposedImages());
+    }
+
+    [Fact]
+    public async Task 保存した履歴は最初の切り替えのときに1回だけ読み込む()
+    {
+        CancellationToken ct = TestContext.Current.CancellationToken;
+
+        await _sut.NextAsync("MON1", ct);
+        await _sut.PreviousAsync("MON1", ct);
+
+        Assert.Equal(1, _historyStore.LoadCount);
+    }
+
+    [Fact]
+    public async Task 履歴が変わらなければ保存しない()
+    {
+        CancellationToken ct = TestContext.Current.CancellationToken;
+        await _sut.NextAsync("MON1", ct);
+
+        await _sut.ReapplyAsync("MON1", ct); // 1 枚表示は何もしない
+        await _sut.PreviousAsync("MON1", ct); // 戻れる履歴が無い
+
+        Assert.Equal(1, _historyStore.SaveCount);
+    }
+
+    [Fact]
+    public async Task 一部のモニターで失敗しても変わった履歴は保存する()
+    {
+        _wallpaper.SetWallpaperAsync("MON2", Arg.Any<string>(), Arg.Any<CancellationToken>())
+            .ThrowsAsync(new InvalidOperationException("boom"));
+
+        await Assert.ThrowsAsync<AggregateException>(
+            () => _sut.NextAsync(cancellationToken: TestContext.Current.CancellationToken));
+
+        Assert.Equal("MON1", Assert.Single(_historyStore.Saved).MonitorId);
+    }
+
+    /// <summary>同じ履歴の保存先を使う新しいインスタンス。2 つ目を作るとアプリの再起動に当たる。</summary>
+    private WallpaperRotationService CreateSut() => new(
+        _monitors,
+        _wallpaper,
+        _images,
+        _composer,
+        _settings,
+        _historyStore,
+        [new SequentialImageSelector(), new RandomImageSelector()],
+        NullLogger<WallpaperRotationService>.Instance);
 
     private void SetupFolder(string folder, string[] images) =>
         _images.GetImagesAsync(

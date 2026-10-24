@@ -1,7 +1,10 @@
+using System.Text.Json.Serialization;
+
 namespace WallpaperChanger.Core.Models;
 
 /// <summary>
 /// 1 回の切り替えで 1 モニターに表示した画像の組（履歴の 1 件）。
+/// 履歴ファイルにはレイアウトと画像だけを保存する。
 /// </summary>
 public sealed record WallpaperSelection
 {
@@ -26,9 +29,11 @@ public sealed record WallpaperSelection
     public IReadOnlyList<string?> Images { get; }
 
     /// <summary>実際に表示している画像（空きマスを除く）。</summary>
+    [JsonIgnore]
     public IEnumerable<string> ShownImages => Images.OfType<string>();
 
     /// <summary>合成せずに 1 枚の画像をそのまま壁紙にできるか。</summary>
+    [JsonIgnore]
     public bool IsSingleImage => Layout == WallpaperLayout.SingleImage && Images is [not null];
 
     public static WallpaperSelection ForSingleImage(string imagePath)

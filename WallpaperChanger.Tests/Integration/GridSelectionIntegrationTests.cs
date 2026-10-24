@@ -73,6 +73,7 @@ public sealed class GridSelectionIntegrationTests : IDisposable
                 NullLogger<FileSystemImageProvider>.Instance),
             _composer,
             new InMemorySettingsService(settings),
+            new InMemoryWallpaperHistoryStore(),
             [new RandomImageSelector(), new SequentialImageSelector()],
             NullLogger<WallpaperRotationService>.Instance);
     }

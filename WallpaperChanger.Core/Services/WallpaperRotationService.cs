@@ -7,6 +7,7 @@ namespace WallpaperChanger.Core.Services;
 /// <summary>
 /// モニターごとの設定と履歴に基づいて壁紙を切り替える。
 /// 履歴を保持するため、アプリケーション内で 1 インスタンスとして登録する。
+/// 履歴は最初の切り替えのときに <see cref="IWallpaperHistoryStore"/> から読み込み、切り替えで変わるたびに保存する。
 /// </summary>
 public sealed partial class WallpaperRotationService : IWallpaperRotationService, IDisposable
 {
@@ -15,10 +16,15 @@ public sealed partial class WallpaperRotationService : IWallpaperRotationService
     private readonly IImageProvider _imageProvider;
     private readonly IWallpaperComposer _composer;
     private readonly ISettingsService _settingsService;
+    private readonly IWallpaperHistoryStore _historyStore;
     private readonly Dictionary<ImageSelectionMode, IImageSelector> _selectors;
     private readonly ILogger<WallpaperRotationService> _logger;
     private readonly SemaphoreSlim _gate = new(1, 1);
     private readonly Dictionary<string, WallpaperHistory> _histories = new(StringComparer.OrdinalIgnoreCase);
+
+    // 以下は _gate の内側でのみ読み書きする
+    private bool _historiesLoaded;
+    private int _savedHistoryVersion;
 
     public WallpaperRotationService(
         IMonitorService monitorService,
@@ -26,6 +32,7 @@ public sealed partial class WallpaperRotationService : IWallpaperRotationService
         IImageProvider imageProvider,
         IWallpaperComposer composer,
         ISettingsService settingsService,
+        IWallpaperHistoryStore historyStore,
         IEnumerable<IImageSelector> selectors,
         ILogger<WallpaperRotationService> logger)
     {
@@ -36,6 +43,7 @@ public sealed partial class WallpaperRotationService : IWallpaperRotationService
         _imageProvider = imageProvider ?? throw new ArgumentNullException(nameof(imageProvider));
         _composer = composer ?? throw new ArgumentNullException(nameof(composer));
         _settingsService = settingsService ?? throw new ArgumentNullException(nameof(settingsService));
+        _historyStore = historyStore ?? throw new ArgumentNullException(nameof(historyStore));
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
         _selectors = selectors.ToDictionary(s => s.Mode);
     }
@@ -74,59 +82,77 @@ public sealed partial class WallpaperRotationService : IWallpaperRotationService
         await _gate.WaitAsync(cancellationToken).ConfigureAwait(false);
         try
         {
-            IReadOnlyList<MonitorInfo> monitors = await _monitorService.GetMonitorsAsync(cancellationToken).ConfigureAwait(false);
-            List<MonitorInfo> targets = monitorId is null
-                ? [.. monitors]
-                : [.. monitors.Where(m => string.Equals(m.Id, monitorId, StringComparison.OrdinalIgnoreCase))];
-
-            if (targets.Count == 0)
-            {
-                LogNoTargetMonitor(monitorId ?? "(all)");
-                return WallpaperChangeResult.Empty;
-            }
-
-            // 1 台の失敗で他のモニターの切り替えを止めないよう、例外は集約して最後に送出する
-            List<Exception> errors = [];
-            List<MonitorChangeResult> results = [];
+            await LoadHistoriesAsync(cancellationToken).ConfigureAwait(false);
             try
             {
-                for (int i = 0; i < targets.Count; i++)
-                {
-                    MonitorInfo monitor = targets[i];
-                    cancellationToken.ThrowIfCancellationRequested();
-                    ProgressChanged?.Invoke(this, new WallpaperChangeProgressEventArgs(i, targets.Count, monitor));
-                    try
-                    {
-                        WallpaperChangeStatus status = await action(monitor, cancellationToken).ConfigureAwait(false);
-                        results.Add(new MonitorChangeResult(monitor, status));
-                    }
-                    catch (Exception ex) when (ex is not OperationCanceledException)
-                    {
-                        LogMonitorChangeFailed(ex, monitor.DisplayName);
-                        errors.Add(ex);
-                    }
-                }
+                return await ExecuteForMonitorsCoreAsync(monitorId, action, cancellationToken).ConfigureAwait(false);
             }
             finally
             {
-                // 失敗・キャンセルでも、進み具合の表示を終わらせる
-                ProgressChanged?.Invoke(this, new WallpaperChangeProgressEventArgs(targets.Count, targets.Count, null));
+                // 一部のモニターで失敗した場合やキャンセルされた場合も、それまでに変わった履歴は保存する
+                await SaveHistoriesIfChangedAsync().ConfigureAwait(false);
             }
-
-            // 接続されなくなったモニターの合成画像は、そのモニターでは合成されないため、ここで後片付けする
-            _composer.DeleteDisconnectedMonitorFiles([.. monitors.Select(m => m.Id)]);
-
-            if (errors.Count > 0)
-            {
-                throw new AggregateException("一部のモニターで壁紙の変更に失敗しました。", errors);
-            }
-
-            return new WallpaperChangeResult(results);
         }
         finally
         {
             _gate.Release();
         }
+    }
+
+    /// <summary><see cref="ExecuteForMonitorsAsync"/> の本体。_gate の内側で呼ぶ。</summary>
+    private async Task<WallpaperChangeResult> ExecuteForMonitorsCoreAsync(
+        string? monitorId,
+        Func<MonitorInfo, CancellationToken, Task<WallpaperChangeStatus>> action,
+        CancellationToken cancellationToken)
+    {
+        IReadOnlyList<MonitorInfo> monitors = await _monitorService.GetMonitorsAsync(cancellationToken).ConfigureAwait(false);
+        List<MonitorInfo> targets = monitorId is null
+            ? [.. monitors]
+            : [.. monitors.Where(m => string.Equals(m.Id, monitorId, StringComparison.OrdinalIgnoreCase))];
+
+        if (targets.Count == 0)
+        {
+            LogNoTargetMonitor(monitorId ?? "(all)");
+            return WallpaperChangeResult.Empty;
+        }
+
+        // 1 台の失敗で他のモニターの切り替えを止めないよう、例外は集約して最後に送出する
+        List<Exception> errors = [];
+        List<MonitorChangeResult> results = [];
+        try
+        {
+            for (int i = 0; i < targets.Count; i++)
+            {
+                MonitorInfo monitor = targets[i];
+                cancellationToken.ThrowIfCancellationRequested();
+                ProgressChanged?.Invoke(this, new WallpaperChangeProgressEventArgs(i, targets.Count, monitor));
+                try
+                {
+                    WallpaperChangeStatus status = await action(monitor, cancellationToken).ConfigureAwait(false);
+                    results.Add(new MonitorChangeResult(monitor, status));
+                }
+                catch (Exception ex) when (ex is not OperationCanceledException)
+                {
+                    LogMonitorChangeFailed(ex, monitor.DisplayName);
+                    errors.Add(ex);
+                }
+            }
+        }
+        finally
+        {
+            // 失敗・キャンセルでも、進み具合の表示を終わらせる
+            ProgressChanged?.Invoke(this, new WallpaperChangeProgressEventArgs(targets.Count, targets.Count, null));
+        }
+
+        // 接続されなくなったモニターの合成画像は、そのモニターでは合成されないため、ここで後片付けする
+        _composer.DeleteDisconnectedMonitorFiles([.. monitors.Select(m => m.Id)]);
+
+        if (errors.Count > 0)
+        {
+            throw new AggregateException("一部のモニターで壁紙の変更に失敗しました。", errors);
+        }
+
+        return new WallpaperChangeResult(results);
     }
 
     private Task<WallpaperChangeStatus> NextForMonitorAsync(MonitorInfo monitor, CancellationToken cancellationToken) =>
@@ -325,6 +351,54 @@ public sealed partial class WallpaperRotationService : IWallpaperRotationService
 
         return history;
     }
+
+    /// <summary>保存した履歴を、最初の切り替えのときに 1 回だけ読み込む。_gate の内側で呼ぶ。</summary>
+    private async Task LoadHistoriesAsync(CancellationToken cancellationToken)
+    {
+        if (_historiesLoaded)
+        {
+            return;
+        }
+
+        IReadOnlyList<WallpaperHistorySnapshot> snapshots = await _historyStore.LoadAsync(cancellationToken).ConfigureAwait(false);
+        foreach (WallpaperHistorySnapshot snapshot in snapshots)
+        {
+            if (string.IsNullOrWhiteSpace(snapshot?.MonitorId))
+            {
+                continue;
+            }
+
+            WallpaperHistory history = WallpaperHistory.Restore(snapshot);
+            if (!history.IsEmpty)
+            {
+                _histories[snapshot.MonitorId] = history;
+            }
+        }
+
+        _historiesLoaded = true;
+        _savedHistoryVersion = GetHistoryVersion();
+    }
+
+    /// <summary>前回の読み込み・保存から履歴が変わっていれば保存する。_gate の内側で呼ぶ。</summary>
+    private async Task SaveHistoriesIfChangedAsync()
+    {
+        int version = GetHistoryVersion();
+        if (version == _savedHistoryVersion)
+        {
+            return;
+        }
+
+        WallpaperHistorySnapshot[] snapshots = [.. _histories
+            .Where(pair => !pair.Value.IsEmpty)
+            .Select(pair => pair.Value.ToSnapshot(pair.Key))];
+
+        // アプリの終了でキャンセルされた切り替えでも、そこまでの履歴は残す
+        await _historyStore.SaveAsync(snapshots, CancellationToken.None).ConfigureAwait(false);
+        _savedHistoryVersion = version;
+    }
+
+    /// <summary>全モニターの履歴の変更番号の合計。どれかの履歴が変わると増える（番号は減らないため）。</summary>
+    private int GetHistoryVersion() => _histories.Values.Sum(h => h.Version);
 
     private IImageSelector GetSelector(ImageSelectionMode mode) =>
         _selectors.TryGetValue(mode, out IImageSelector? selector)

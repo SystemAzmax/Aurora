@@ -3,6 +3,7 @@ using Microsoft.Extensions.DependencyInjection.Extensions;
 using WallpaperChanger.Core.Interfaces;
 using WallpaperChanger.Infrastructure.DesktopWallpaper;
 using WallpaperChanger.Infrastructure.FileSystem;
+using WallpaperChanger.Infrastructure.History;
 using WallpaperChanger.Infrastructure.Imaging;
 using WallpaperChanger.Infrastructure.Settings;
 using WallpaperChanger.Infrastructure.Startup;
@@ -29,6 +30,7 @@ public static class InfrastructureServiceCollectionExtensions
             optionsBuilder.Configure(configureSettingsStorage);
         }
 
+        services.AddOptions<HistoryStorageOptions>();
         services.AddOptions<StartupRegistrationOptions>();
         services.AddOptions<ImageSourceLimits>();
         services.AddOptions<DesktopWallpaperOptions>();
@@ -51,6 +53,7 @@ public static class InfrastructureServiceCollectionExtensions
         services.AddTransient<IWallpaperService, DesktopWallpaperService>();
         services.AddTransient<IWallpaperComposer, WicWallpaperComposer>();
         services.AddTransient<IStartupRegistrationService, RegistryStartupRegistrationService>();
+        services.AddTransient<IWallpaperHistoryStore, JsonWallpaperHistoryStore>();
 
         return services;
     }
