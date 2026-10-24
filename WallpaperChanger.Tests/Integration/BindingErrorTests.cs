@@ -42,9 +42,14 @@ public sealed class BindingErrorTests
         var scheduler = Substitute.For<IWallpaperScheduler>();
         scheduler.Interval.Returns(TimeSpan.FromMinutes(30));
         var rotation = Substitute.For<IWallpaperRotationService>();
+        rotation.GetCurrentWallpapersAsync(Arg.Any<CancellationToken>()).Returns(
+        [
+            new CurrentWallpaper(Left, WallpaperSelection.ForSingleImage(@"C:\w\sunset_01.jpg")),
+            new CurrentWallpaper(Primary, new WallpaperSelection(WallpaperLayout.Grid2x2, [@"C:\a\1.jpg", null, null, @"C:\d\4.jpg"])),
+        ]);
         using var viewModel = new TrayIconViewModel(
-            rotation, scheduler, Substitute.For<ISettingsWindowService>(), Substitute.For<IHostApplicationLifetime>(),
-            new InlineUiDispatcher(), TimeProvider.System, NullLogger<TrayIconViewModel>.Instance);
+            rotation, scheduler, new InMemorySettingsService(), Substitute.For<ISettingsWindowService>(), Substitute.For<IFolderLauncher>(),
+            Substitute.For<IHostApplicationLifetime>(), new InlineUiDispatcher(), TimeProvider.System, NullLogger<TrayIconViewModel>.Instance);
 
         using (var tray = new TrayIconService(viewModel))
         {
@@ -58,6 +63,26 @@ public sealed class BindingErrorTests
             await WpfTestApplication.FlushAsync();
             rotation.ProgressChanged += Raise.EventWith(new WallpaperChangeProgressEventArgs(2, 2, null));
             await WpfTestApplication.FlushAsync();
+
+            // 表示中の画像の子メニュー（モニター → マスの 2 段）を開き、項目を実際に作らせる
+            await viewModel.RefreshShownImagesCommand.ExecuteAsync(null);
+            var menu = (System.Windows.Controls.ContextMenu)Application.Current.FindResource("TrayContextMenu");
+            menu.IsOpen = true;
+            await WpfTestApplication.FlushAsync();
+            var leaves = new List<System.Windows.Controls.MenuItem>();
+            foreach (System.Windows.Controls.MenuItem item in menu.Items.OfType<System.Windows.Controls.MenuItem>().Where(i => i.ItemsSource is not null))
+            {
+                await OpenSubmenuAsync(item, leaves);
+            }
+
+            menu.IsOpen = false;
+            await WpfTestApplication.FlushAsync();
+
+            // 2 つのメニューそれぞれに、1 枚表示の 1 枚と 4 分割の 2 マス分の画像の項目ができる
+            Assert.Equal(6, leaves.Count);
+            Assert.Equal(3, leaves.Count(l => ReferenceEquals(l.Command, viewModel.ExcludeImageCommand)));
+            Assert.Equal(3, leaves.Count(l => ReferenceEquals(l.Command, viewModel.ShowImageInFolderCommand)));
+            Assert.Contains(leaves, l => Equals(l.CommandParameter, @"C:\d\4.jpg"));
         }
 
         Assert.Empty(collector.Errors);
@@ -122,6 +147,28 @@ public sealed class BindingErrorTests
         Assert.Empty(collector.Errors);
     });
 
+    /// <summary>子メニューを開いて項目を作らせ、子を持たない項目（画像の項目）を集める。</summary>
+    private static async Task OpenSubmenuAsync(System.Windows.Controls.MenuItem item, List<System.Windows.Controls.MenuItem> leaves)
+    {
+        item.IsSubmenuOpen = true;
+        await WpfTestApplication.FlushAsync();
+        foreach (System.Windows.Controls.MenuItem child in item.Items.Cast<object>()
+                     .Select(i => item.ItemContainerGenerator.ContainerFromItem(i))
+                     .OfType<System.Windows.Controls.MenuItem>())
+        {
+            if (child.HasItems)
+            {
+                await OpenSubmenuAsync(child, leaves);
+            }
+            else
+            {
+                leaves.Add(child);
+            }
+        }
+
+        item.IsSubmenuOpen = false;
+    }
+
     private static ILogDirectoryProvider LogDirectory()
     {
         var provider = Substitute.For<ILogDirectoryProvider>();
@@ -137,7 +184,8 @@ public sealed class BindingErrorTests
         scheduler.Interval.Returns(TimeSpan.FromMinutes(30));
 
         var settings = new InMemorySettingsService(new AppSettings()
-            .WithMonitor(MonitorSettings.CreateDefault("MON-P").AddFolder(@"C:\Wallpapers").AddTileFolder(3, @"C:\Tile")));
+            .WithMonitor(MonitorSettings.CreateDefault("MON-P").AddFolder(@"C:\Wallpapers").AddTileFolder(3, @"C:\Tile"))
+            .AddExcludedImage(@"C:\Wallpapers\hidden.jpg"));
 
         return new SettingsViewModel(
             monitors,

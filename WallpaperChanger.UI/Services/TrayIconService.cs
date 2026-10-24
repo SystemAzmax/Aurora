@@ -36,6 +36,7 @@ internal sealed class TrayIconService(TrayIconViewModel viewModel) : ITrayIconSe
         // バインディングが一度も TaskbarIcon を参照しないようにする。
         var menu = (ContextMenu)Application.Current.FindResource(ContextMenuResourceKey);
         menu.DataContext = _viewModel;
+        menu.Opened += OnContextMenuOpened;
         icon.ContextMenu = menu;
 
         _viewModel.NotificationRequested += OnNotificationRequested;
@@ -56,9 +57,17 @@ internal sealed class TrayIconService(TrayIconViewModel viewModel) : ITrayIconSe
         _disposed = true;
         _viewModel.NotificationRequested -= OnNotificationRequested;
         _viewModel.PropertyChanged -= OnViewModelPropertyChanged;
+        if (_taskbarIcon?.ContextMenu is { } menu)
+        {
+            menu.Opened -= OnContextMenuOpened;
+        }
+
         _taskbarIcon?.Dispose();
         _taskbarIcon = null;
     }
+
+    /// <summary>表示中の画像は自動切り替えでも変わるため、メニューを開くたびに一覧を作り直す。</summary>
+    private void OnContextMenuOpened(object sender, RoutedEventArgs e) => _viewModel.RefreshShownImagesCommand.Execute(null);
 
     private void OnNotificationRequested(object? sender, TrayNotificationEventArgs e) =>
         _taskbarIcon?.ShowBalloonTip(e.Title, e.Message, e.IsError ? BalloonIcon.Error : BalloonIcon.Info);

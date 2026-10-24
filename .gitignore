@@ -4,3 +4,4 @@ artifacts/
 TestResults/
 .vs/
 *.user
+/.vscode/settings.json

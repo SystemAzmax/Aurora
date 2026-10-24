@@ -519,6 +519,133 @@ public sealed class WallpaperRotationServiceTests : IDisposable
         Assert.All(Enumerable.Range(0, 16).Except(upperLeftTiles).Except(lowerRightTiles), i => Assert.Null(composed[i]));
     }
 
+    // ---- 表示しない画像 ----
+
+    [Fact]
+    public async Task 表示しない画像は選ばない()
+    {
+        CancellationToken ct = TestContext.Current.CancellationToken;
+        _wallpaper.GetWallpaperAsync("MON1", Arg.Any<CancellationToken>()).Returns(Images[0]);
+        await _settings.UpdateAsync(s => s.AddExcludedImage(Images[1]), ct);
+
+        await _sut.NextAsync("MON1", ct);
+
+        await _wallpaper.Received(1).SetWallpaperAsync("MON1", Images[2], Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task 前へは表示しない画像の組を飛ばす()
+    {
+        CancellationToken ct = TestContext.Current.CancellationToken;
+        _wallpaper.GetWallpaperAsync("MON1", Arg.Any<CancellationToken>()).Returns(Images[0]);
+        await _sut.NextAsync("MON1", ct); // 1 -> 2
+        await _sut.NextAsync("MON1", ct); // 2 -> 3
+        await _settings.UpdateAsync(s => s.AddExcludedImage(Images[1]), ct);
+        _wallpaper.ClearReceivedCalls();
+
+        await _sut.PreviousAsync("MON1", ct);
+
+        await _wallpaper.Received(1).SetWallpaperAsync("MON1", Images[0], Arg.Any<CancellationToken>());
+        await _wallpaper.DidNotReceive().SetWallpaperAsync("MON1", Images[1], Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task 差し替えは表示しない画像のマスだけを選び直す()
+    {
+        CancellationToken ct = TestContext.Current.CancellationToken;
+        string[] many = [.. Enumerable.Range(1, 6).Select(i => $@"C:\w\{i}.jpg")];
+        SetupFolder(@"C:\w", many);
+        await UseGridLayoutAsync("MON1");
+        await _sut.NextAsync("MON1", ct);
+        Assert.Equal(many[..4], ComposedImages());
+        _composer.ClearReceivedCalls();
+        await _settings.UpdateAsync(s => s.AddExcludedImage(many[1]), ct);
+
+        WallpaperChangeResult result = await _sut.ReplaceExcludedImagesAsync(ct);
+
+        // 残るマスと重ならないよう、順送りでは残るマスの続きから選ぶ
+        Assert.Equal([many[0], many[4], many[2], many[3]], ComposedImages());
+        Assert.Equal(
+            [("MON1", WallpaperChangeStatus.Changed), ("MON2", WallpaperChangeStatus.NotRequired)],
+            result.Monitors.Select(m => (m.Monitor.Id, m.Status)));
+    }
+
+    [Fact]
+    public async Task 差し替えは一枚表示なら別の画像にして履歴に記録する()
+    {
+        CancellationToken ct = TestContext.Current.CancellationToken;
+        _wallpaper.GetWallpaperAsync("MON1", Arg.Any<CancellationToken>()).Returns(Images[0]);
+        await _sut.NextAsync("MON1", ct); // 1 -> 2
+        await _settings.UpdateAsync(s => s.AddExcludedImage(Images[1]), ct);
+        _wallpaper.ClearReceivedCalls();
+
+        await _sut.ReplaceExcludedImagesAsync(ct);
+        await _sut.PreviousAsync("MON1", ct);
+
+        // 前へで戻るのは表示しない画像の組ではなく、その前の壁紙
+        Received.InOrder(() =>
+        {
+            _wallpaper.SetWallpaperAsync("MON1", Images[2], Arg.Any<CancellationToken>());
+            _wallpaper.SetWallpaperAsync("MON1", Images[0], Arg.Any<CancellationToken>());
+        });
+    }
+
+    [Fact]
+    public async Task 差し替えで選び直せる画像が無ければ今の表示を残す()
+    {
+        CancellationToken ct = TestContext.Current.CancellationToken;
+        SetupFolder(@"C:\w", [Images[0]]);
+        await _sut.NextAsync("MON1", ct);
+        await _settings.UpdateAsync(s => s.AddExcludedImage(Images[0]), ct);
+        _wallpaper.ClearReceivedCalls();
+
+        WallpaperChangeResult result = await _sut.ReplaceExcludedImagesAsync(ct);
+
+        Assert.Equal(WallpaperChangeStatus.NoImages, result.Monitors.Single(m => m.Monitor.Id == "MON1").Status);
+        await _wallpaper.DidNotReceive().SetWallpaperAsync("MON1", Arg.Any<string>(), Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task 表示しない画像を表示していなければ差し替えない()
+    {
+        CancellationToken ct = TestContext.Current.CancellationToken;
+        await _sut.NextAsync(cancellationToken: ct);
+        await _settings.UpdateAsync(s => s.AddExcludedImage(Images[2]), ct);
+        _wallpaper.ClearReceivedCalls();
+
+        WallpaperChangeResult result = await _sut.ReplaceExcludedImagesAsync(ct);
+
+        Assert.All(result.Monitors, m => Assert.Equal(WallpaperChangeStatus.NotRequired, m.Status));
+        await _wallpaper.DidNotReceive().SetWallpaperAsync(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<CancellationToken>());
+    }
+
+    // ---- 表示中の組 ----
+
+    [Fact]
+    public async Task 表示中の組を接続中のモニターごとに返す()
+    {
+        CancellationToken ct = TestContext.Current.CancellationToken;
+        await _sut.NextAsync("MON1", ct);
+
+        IReadOnlyList<CurrentWallpaper> current = await _sut.GetCurrentWallpapersAsync(ct);
+
+        Assert.Equal(AllMonitorIds, current.Select(c => c.Monitor.Id));
+        Assert.Equal(Images[0], current[0].Selection?.Images[0]);
+        Assert.Null(current[1].Selection);
+    }
+
+    [Fact]
+    public async Task 再起動後も保存した履歴から表示中の組を返す()
+    {
+        CancellationToken ct = TestContext.Current.CancellationToken;
+        await _sut.NextAsync("MON1", ct);
+
+        using WallpaperRotationService restarted = CreateSut();
+        IReadOnlyList<CurrentWallpaper> current = await restarted.GetCurrentWallpapersAsync(ct);
+
+        Assert.Equal(Images[0], current[0].Selection?.Images[0]);
+    }
+
     // ---- 履歴の保存（再起動後） ----
 
     [Fact]

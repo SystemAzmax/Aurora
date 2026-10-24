@@ -52,6 +52,50 @@ public sealed class SettingsViewModelTests : IDisposable
 
     public void Dispose() => _sut.Dispose();
 
+    // ---- 表示しない画像 ----
+
+    [Fact]
+    public async Task 表示しない画像を一覧に表示し表示に戻せる()
+    {
+        await _settings.UpdateAsync(s => s.AddExcludedImage(@"C:\w\a.jpg").AddExcludedImage(@"C:\w\b.jpg"), TestContext.Current.CancellationToken);
+        await _sut.InitializeCommand.ExecuteAsync(null);
+        Assert.Equal([@"C:\w\a.jpg", @"C:\w\b.jpg"], _sut.ExcludedImages);
+        Assert.False(_sut.RestoreExcludedImageCommand.CanExecute(null));
+
+        _sut.SelectedExcludedImage = @"C:\w\a.jpg";
+        await _sut.RestoreExcludedImageCommand.ExecuteAsync(null);
+
+        Assert.Equal([@"C:\w\b.jpg"], _settings.Current.ExcludedImages);
+        Assert.Equal([@"C:\w\b.jpg"], _sut.ExcludedImages);
+        Assert.Null(_sut.SelectedExcludedImage);
+        Assert.Equal("a.jpg を再び表示するようにしました。", _sut.StatusMessage);
+    }
+
+    [Fact]
+    public async Task トレイから表示しない画像を加えると一覧に反映し選択は保つ()
+    {
+        await _settings.UpdateAsync(s => s.AddExcludedImage(@"C:\w\a.jpg"), TestContext.Current.CancellationToken);
+        await _sut.InitializeCommand.ExecuteAsync(null);
+        _sut.SelectedExcludedImage = @"C:\w\a.jpg";
+
+        await _settings.UpdateAsync(s => s.AddExcludedImage(@"C:\w\b.jpg"), TestContext.Current.CancellationToken);
+
+        Assert.Equal([@"C:\w\a.jpg", @"C:\w\b.jpg"], _sut.ExcludedImages);
+        Assert.Equal(@"C:\w\a.jpg", _sut.SelectedExcludedImage);
+    }
+
+    [Fact]
+    public async Task 表示しない画像の場所を開く()
+    {
+        await _settings.UpdateAsync(s => s.AddExcludedImage(@"C:\w\a.jpg"), TestContext.Current.CancellationToken);
+        await _sut.InitializeCommand.ExecuteAsync(null);
+        _sut.SelectedExcludedImage = @"C:\w\a.jpg";
+
+        await _sut.ShowExcludedImageInFolderCommand.ExecuteAsync(null);
+
+        _folderLauncher.Received(1).ShowFileInFolder(@"C:\w\a.jpg");
+    }
+
     // ---- 切り替え結果の表示 ----
 
     [Fact]

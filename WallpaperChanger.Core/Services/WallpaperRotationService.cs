@@ -72,6 +72,24 @@ public sealed partial class WallpaperRotationService : IWallpaperRotationService
         return ExecuteForMonitorsAsync(monitorId, ReapplyForMonitorAsync, cancellationToken);
     }
 
+    public Task<WallpaperChangeResult> ReplaceExcludedImagesAsync(CancellationToken cancellationToken = default) =>
+        ExecuteForMonitorsAsync(monitorId: null, ReplaceExcludedForMonitorAsync, cancellationToken);
+
+    public async Task<IReadOnlyList<CurrentWallpaper>> GetCurrentWallpapersAsync(CancellationToken cancellationToken = default)
+    {
+        await _gate.WaitAsync(cancellationToken).ConfigureAwait(false);
+        try
+        {
+            await LoadHistoriesAsync(cancellationToken).ConfigureAwait(false);
+            IReadOnlyList<MonitorInfo> monitors = await _monitorService.GetMonitorsAsync(cancellationToken).ConfigureAwait(false);
+            return [.. monitors.Select(m => new CurrentWallpaper(m, _histories.GetValueOrDefault(m.Id)?.Current))];
+        }
+        finally
+        {
+            _gate.Release();
+        }
+    }
+
     public void Dispose() => _gate.Dispose();
 
     private async Task<WallpaperChangeResult> ExecuteForMonitorsAsync(
@@ -171,7 +189,7 @@ public sealed partial class WallpaperRotationService : IWallpaperRotationService
         WallpaperHistory history = GetHistory(monitor.Id);
 
         // 「前へ」で戻った後は、まず履歴を進める（レイアウトを変えた後は新しく選び直す）
-        if (replayForward && history.Forward is { } forward && forward.Layout == settings.Layout && AllImagesExist(forward))
+        if (replayForward && history.Forward is { } forward && forward.Layout == settings.Layout && CanShow(forward))
         {
             history.TryMoveForward(out _);
             await ApplyAsync(monitor, forward, cancellationToken).ConfigureAwait(false);
@@ -189,15 +207,8 @@ public sealed partial class WallpaperRotationService : IWallpaperRotationService
         }
 
         IReadOnlyList<string?> current = history.Current?.Images ?? [];
-        IReadOnlyList<string?>? next = await SelectImagesAsync(settings, current, cancellationToken).ConfigureAwait(false);
-
-        // キャッシュされた候補が、その後に削除・移動されていた場合は列挙し直して選び直す
-        if (next is not null && !next.OfType<string>().All(_imageProvider.Exists))
-        {
-            LogStaleImageList(monitor.DisplayName);
-            _imageProvider.Invalidate();
-            next = await SelectImagesAsync(settings, current, cancellationToken).ConfigureAwait(false);
-        }
+        IReadOnlyList<string?>? next = await SelectAvailableImagesAsync(monitor, settings, current, _ => true, cancellationToken)
+            .ConfigureAwait(false);
 
         if (next is null)
         {
@@ -211,10 +222,76 @@ public sealed partial class WallpaperRotationService : IWallpaperRotationService
         return WallpaperChangeStatus.Changed;
     }
 
+    /// <summary>表示中の組のうち、表示しない画像に指定されたマスだけを選び直す。</summary>
+    private async Task<WallpaperChangeStatus> ReplaceExcludedForMonitorAsync(MonitorInfo monitor, CancellationToken cancellationToken)
+    {
+        AppSettings appSettings = _settingsService.Current;
+        WallpaperHistory history = GetHistory(monitor.Id);
+        if (history.Current is not { } current || !current.ShownImages.Any(appSettings.IsExcluded))
+        {
+            return WallpaperChangeStatus.NotRequired;
+        }
+
+        MonitorSettings settings = appSettings.GetMonitor(monitor.Id);
+        if (!settings.HasAnyFolder())
+        {
+            LogNoFolders(monitor.DisplayName);
+            return WallpaperChangeStatus.NoFolders;
+        }
+
+        // レイアウトを変えた後の組は、マスの並びが今の設定と合わないため、すべて選び直す
+        if (current.Layout != settings.Layout)
+        {
+            return await NextForMonitorAsync(monitor, replayForward: false, cancellationToken).ConfigureAwait(false);
+        }
+
+        IReadOnlyList<string?> images = current.Images;
+        IReadOnlyList<string?>? next = await SelectAvailableImagesAsync(
+                monitor, settings, images, i => i < images.Count && images[i] is { } image && appSettings.IsExcluded(image), cancellationToken)
+            .ConfigureAwait(false);
+
+        if (next is null)
+        {
+            // 選び直せる画像が無ければ、黒にせず今の表示を残す
+            LogNoImages(monitor.DisplayName);
+            return WallpaperChangeStatus.NoImages;
+        }
+
+        var selection = new WallpaperSelection(settings.Layout, next);
+        await ApplyAsync(monitor, selection, cancellationToken).ConfigureAwait(false);
+        history.Push(selection);
+        return WallpaperChangeStatus.Changed;
+    }
+
     /// <summary>
-    /// 次に表示する画像を選ぶ。null の要素は画像を置かないマス（黒）を表す。
+    /// <see cref="SelectImagesAsync"/> で選ぶ。キャッシュされた候補が、その後に削除・移動されていた場合は列挙し直して選び直す。
+    /// </summary>
+    private async Task<IReadOnlyList<string?>?> SelectAvailableImagesAsync(
+        MonitorInfo monitor,
+        MonitorSettings settings,
+        IReadOnlyList<string?> current,
+        Func<int, bool> shouldSelect,
+        CancellationToken cancellationToken)
+    {
+        IReadOnlyList<string?>? next = await SelectImagesAsync(settings, current, shouldSelect, cancellationToken).ConfigureAwait(false);
+
+        // 選び直したマスの画像だけを確かめる（選び直さなかったマスは、ここでは差し替えないため）
+        if (next is not null && !Enumerable.Range(0, next.Count).Where(shouldSelect).Select(i => next[i]).OfType<string>().All(_imageProvider.Exists))
+        {
+            LogStaleImageList(monitor.DisplayName);
+            _imageProvider.Invalidate();
+            next = await SelectImagesAsync(settings, current, shouldSelect, cancellationToken).ConfigureAwait(false);
+        }
+
+        return next;
+    }
+
+    /// <summary>
+    /// 表示する画像を選ぶ。null の要素は画像を置かないマス（黒）を表す。表示しない画像に指定された画像は選ばない。
     /// 設定済みのフォルダに対応画像が 1 枚も無い場合は null を返し、今の表示を残す。
     /// </summary>
+    /// <param name="current">今表示している組の画像。</param>
+    /// <param name="shouldSelect">マス（の番号）を選び直すか。選び直さないマスは <paramref name="current"/> の画像のままにする。</param>
     /// <remarks>
     /// 分割表示では、どの区画にも専用フォルダが無ければ全マスを 1 枚表示のフォルダから選ぶ。
     /// 1 つでも専用フォルダがあれば、専用フォルダの無い区画のマスは黒にする。
@@ -223,40 +300,49 @@ public sealed partial class WallpaperRotationService : IWallpaperRotationService
     private async Task<IReadOnlyList<string?>?> SelectImagesAsync(
         MonitorSettings settings,
         IReadOnlyList<string?> current,
+        Func<int, bool> shouldSelect,
         CancellationToken cancellationToken)
     {
         IImageSelector selector = GetSelector(settings.SelectionMode);
         IReadOnlyList<string>[] tileFolders = GetTileFolders(settings);
+        var excluded = new HashSet<string>(_settingsService.Current.ExcludedImages, StringComparer.OrdinalIgnoreCase);
 
-        // 1. 取得元（フォルダの組）ごとに画像を列挙する
+        // 1. 選び直すマスの取得元（フォルダの組）ごとに、表示しない画像を除いて列挙する
         var pools = new Dictionary<string, IReadOnlyList<string>>(StringComparer.OrdinalIgnoreCase);
-        foreach (IReadOnlyList<string> folders in tileFolders.Where(f => f.Count > 0))
+        foreach (IReadOnlyList<string> folders in Enumerable.Range(0, tileFolders.Length)
+                     .Where(shouldSelect).Select(i => tileFolders[i]).Where(f => f.Count > 0))
         {
             string key = GetPoolKey(folders);
             if (!pools.ContainsKey(key))
             {
-                pools[key] = await _imageProvider
+                IReadOnlyList<string> images = await _imageProvider
                     .GetImagesAsync(folders, settings.IncludeSubfolders, cancellationToken)
                     .ConfigureAwait(false);
+                pools[key] = excluded.Count == 0 ? images : [.. images.Where(i => !excluded.Contains(i))];
             }
         }
 
         // フォルダの移動・ドライブの切断などで画像が見つからない場合は、黒にせず今の表示を残す
-        if (pools.Count == 0 || pools.Values.Any(p => p.Count == 0))
+        if (pools.Values.Any(p => p.Count == 0))
         {
             return null;
         }
 
         // 2. 同じ取得元のマスをまとめて選ぶ（フォルダの無いマスは null = 黒のまま）
-        string?[] result = new string?[tileFolders.Length];
+        string?[] result =
+        [
+            .. Enumerable.Range(0, tileFolders.Length).Select(i => shouldSelect(i) || i >= current.Count ? null : current[i]),
+        ];
         IEnumerable<IGrouping<string, int>> groups = Enumerable.Range(0, tileFolders.Length)
             .Where(i => tileFolders[i].Count > 0)
-            .GroupBy(i => GetPoolKey(tileFolders[i]), StringComparer.OrdinalIgnoreCase);
+            .GroupBy(i => GetPoolKey(tileFolders[i]), StringComparer.OrdinalIgnoreCase)
+            .Where(g => pools.ContainsKey(g.Key));
 
         foreach (IGrouping<string, int> group in groups)
         {
-            int[] tiles = [.. group];
-            string[] groupCurrent = [.. tiles.Where(i => i < current.Count).Select(i => current[i]).OfType<string>()];
+            // 選び直さないマスの画像も今の表示として渡し、残るマスと同じ画像を選ばない（順送りでは続きから選ぶ）ようにする
+            int[] tiles = [.. group.Where(shouldSelect)];
+            string[] groupCurrent = [.. group.Where(i => i < current.Count).Select(i => current[i]).OfType<string>()];
             IReadOnlyList<string> picked = selector.SelectNext(pools[group.Key], groupCurrent, tiles.Length);
             for (int j = 0; j < tiles.Length; j++)
             {
@@ -264,7 +350,8 @@ public sealed partial class WallpaperRotationService : IWallpaperRotationService
             }
         }
 
-        return result;
+        // 1 枚も置けない組は表示できない（設定を変えて、選び直すマスのフォルダが無くなった場合など）
+        return result.Any(r => r is not null) ? result : null;
     }
 
     /// <summary>マスごとの画像の取得元。空のリストはそのマスに画像を置かないことを表す。</summary>
@@ -291,7 +378,7 @@ public sealed partial class WallpaperRotationService : IWallpaperRotationService
         }
 
         WallpaperHistory history = GetHistory(monitor.Id);
-        if (history.Current is { } current && current.Layout == settings.Layout && AllImagesExist(current))
+        if (history.Current is { } current && current.Layout == settings.Layout && CanShow(current))
         {
             // 同じ画像の組を、新しい解像度で合成し直す（履歴は進めない）
             await ApplyAsync(monitor, current, cancellationToken).ConfigureAwait(false);
@@ -307,13 +394,13 @@ public sealed partial class WallpaperRotationService : IWallpaperRotationService
 
         while (history.TryMoveBack(out WallpaperSelection? previous))
         {
-            if (AllImagesExist(previous))
+            if (CanShow(previous))
             {
                 await ApplyAsync(monitor, previous, cancellationToken).ConfigureAwait(false);
                 return WallpaperChangeStatus.Changed;
             }
 
-            LogHistoryImageMissing(previous.Images);
+            LogHistoryImageUnavailable(previous.Images);
         }
 
         LogNoPreviousWallpaper(monitor.DisplayName);
@@ -339,7 +426,12 @@ public sealed partial class WallpaperRotationService : IWallpaperRotationService
         return _composer.ComposeAsync(request, cancellationToken);
     }
 
-    private bool AllImagesExist(WallpaperSelection selection) => selection.ShownImages.All(_imageProvider.Exists);
+    /// <summary>組の画像がすべて存在し、どれも表示しない画像に指定されていないか。</summary>
+    private bool CanShow(WallpaperSelection selection)
+    {
+        AppSettings settings = _settingsService.Current;
+        return selection.ShownImages.All(i => _imageProvider.Exists(i) && !settings.IsExcluded(i));
+    }
 
     private WallpaperHistory GetHistory(string monitorId)
     {
@@ -423,8 +515,8 @@ public sealed partial class WallpaperRotationService : IWallpaperRotationService
     [LoggerMessage(Level = LogLevel.Information, Message = "これ以上前の壁紙はありません: {Monitor}")]
     private partial void LogNoPreviousWallpaper(string monitor);
 
-    [LoggerMessage(Level = LogLevel.Debug, Message = "履歴の画像が見つからないためスキップします: {Images}")]
-    private partial void LogHistoryImageMissing(IReadOnlyList<string?> images);
+    [LoggerMessage(Level = LogLevel.Debug, Message = "履歴の画像が見つからない、または表示しない画像に指定されたためスキップします: {Images}")]
+    private partial void LogHistoryImageUnavailable(IReadOnlyList<string?> images);
 
     [LoggerMessage(Level = LogLevel.Error, Message = "壁紙の変更に失敗しました: {Monitor}")]
     private partial void LogMonitorChangeFailed(Exception exception, string monitor);

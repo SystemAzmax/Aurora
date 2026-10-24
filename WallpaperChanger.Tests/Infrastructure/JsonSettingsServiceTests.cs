@@ -56,6 +56,21 @@ public sealed class JsonSettingsServiceTests : IDisposable
     }
 
     [Fact]
+    public async Task 表示しない画像を保存して再読み込みできる()
+    {
+        CancellationToken ct = TestContext.Current.CancellationToken;
+        using (JsonSettingsService writer = CreateSut())
+        {
+            await writer.UpdateAsync(s => s.AddExcludedImage(@"C:\w\a.jpg").AddExcludedImage(@"C:\w\b.jpg"), ct);
+        }
+
+        using JsonSettingsService reader = CreateSut();
+        await reader.LoadAsync(ct);
+
+        Assert.Equal([@"C:\w\a.jpg", @"C:\w\b.jpg"], reader.Current.ExcludedImages);
+    }
+
+    [Fact]
     public async Task マスごとのフォルダとレイアウトを保存して再読み込みできる()
     {
         CancellationToken ct = TestContext.Current.CancellationToken;

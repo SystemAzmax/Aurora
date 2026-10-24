@@ -17,6 +17,8 @@ public sealed class TrayIconViewModelTests : IDisposable
     private readonly IWallpaperScheduler _scheduler = Substitute.For<IWallpaperScheduler>();
     private readonly ISettingsWindowService _settingsWindow = Substitute.For<ISettingsWindowService>();
     private readonly IHostApplicationLifetime _lifetime = Substitute.For<IHostApplicationLifetime>();
+    private readonly IFolderLauncher _folderLauncher = Substitute.For<IFolderLauncher>();
+    private readonly InMemorySettingsService _settings = new();
     private readonly FakeTimeProvider _time = new();
     private readonly TrayIconViewModel _sut;
 
@@ -26,8 +28,10 @@ public sealed class TrayIconViewModelTests : IDisposable
         _scheduler.ChangeNowAsync(Arg.Any<CancellationToken>()).Returns(Result(WallpaperChangeStatus.Changed));
         _scheduler.RefreshNowAsync(Arg.Any<CancellationToken>()).Returns(Result(WallpaperChangeStatus.Changed));
         _rotation.PreviousAsync(Arg.Any<string?>(), Arg.Any<CancellationToken>()).Returns(Result(WallpaperChangeStatus.Changed));
+        _rotation.ReplaceExcludedImagesAsync(Arg.Any<CancellationToken>()).Returns(Result(WallpaperChangeStatus.Changed));
         _sut = new TrayIconViewModel(
-            _rotation, _scheduler, _settingsWindow, _lifetime, new InlineUiDispatcher(), _time, NullLogger<TrayIconViewModel>.Instance);
+            _rotation, _scheduler, _settings, _settingsWindow, _folderLauncher, _lifetime, new InlineUiDispatcher(), _time,
+            NullLogger<TrayIconViewModel>.Instance);
     }
 
     public void Dispose() => _sut.Dispose();
@@ -167,6 +171,7 @@ public sealed class TrayIconViewModelTests : IDisposable
         Assert.False(_sut.NextWallpaperCommand.CanExecute(null));
         Assert.False(_sut.PreviousWallpaperCommand.CanExecute(null));
         Assert.False(_sut.RefreshAllWallpapersCommand.CanExecute(null));
+        Assert.False(_sut.ExcludeImageCommand.CanExecute(null));
 
         _rotation.ProgressChanged += Raise.EventWith(new WallpaperChangeProgressEventArgs(4, 4, null));
 
@@ -238,6 +243,122 @@ public sealed class TrayIconViewModelTests : IDisposable
         await running;
         _time.Advance(TrayIconViewModel.CompletedPopupDuration);
         await WaitUntilAsync(() => !_sut.IsProgressPopupOpen);
+    }
+
+    // ---- 表示中の画像 ----
+
+    [Fact]
+    public async Task 表示中の画像をモニターごとに並べ分割表示はマスごとに並べる()
+    {
+        _rotation.GetCurrentWallpapersAsync(Arg.Any<CancellationToken>()).Returns(
+        [
+            new CurrentWallpaper(Monitor("Left"), WallpaperSelection.ForSingleImage(@"C:\w\sunset_01.jpg")),
+            new CurrentWallpaper(Monitor("Center"), null),
+            new CurrentWallpaper(Monitor("Right"), new WallpaperSelection(WallpaperLayout.Grid2x2, [@"C:\a\1.jpg", null, null, @"C:\d\4.jpg"])),
+        ]);
+
+        await _sut.RefreshShownImagesCommand.ExecuteAsync(null);
+
+        // 番号は設定画面と同じく、まだ表示していないモニターも数える
+        Assert.True(_sut.HasShownImages);
+        Assert.Equal(["1. Left: sunset_01.jpg", "3. Right"], _sut.ShownImages.Select(i => i.Header));
+        Assert.Equal(@"C:\w\sunset_01.jpg", _sut.ShownImages[0].ImagePath);
+        Assert.Null(_sut.ShownImages[1].ImagePath);
+        Assert.Equal(["左上: 1.jpg", "右下: 4.jpg"], _sut.ShownImages[1].Children.Select(i => i.Header));
+        Assert.Equal(@"C:\d\4.jpg", _sut.ShownImages[1].Children[1].ImagePath);
+    }
+
+    [Fact]
+    public async Task モニターが1台ならモニターの階層を省き十六分割のマスは行と列で示す()
+    {
+        string[] images = [.. Enumerable.Range(1, 16).Select(i => $@"C:\w\{i}.jpg")];
+        _rotation.GetCurrentWallpapersAsync(Arg.Any<CancellationToken>()).Returns(
+            [new CurrentWallpaper(Monitor("Only"), new WallpaperSelection(WallpaperLayout.Grid4x4, images))]);
+
+        await _sut.RefreshShownImagesCommand.ExecuteAsync(null);
+
+        Assert.Equal(16, _sut.ShownImages.Count);
+        Assert.Equal("1 行 1 列: 1.jpg", _sut.ShownImages[0].Header);
+        Assert.Equal("2 行 3 列: 7.jpg", _sut.ShownImages[6].Header);
+    }
+
+    [Fact]
+    public async Task まだ表示していなければ表示中の画像は無い()
+    {
+        _rotation.GetCurrentWallpapersAsync(Arg.Any<CancellationToken>()).Returns([new CurrentWallpaper(Monitor("Only"), null)]);
+
+        await _sut.RefreshShownImagesCommand.ExecuteAsync(null);
+
+        Assert.False(_sut.HasShownImages);
+    }
+
+    [Fact]
+    public async Task 表示中の画像を取得できなければ前の一覧のままにする()
+    {
+        _rotation.GetCurrentWallpapersAsync(Arg.Any<CancellationToken>()).Returns(
+            [new CurrentWallpaper(Monitor("Only"), WallpaperSelection.ForSingleImage(@"C:\w\1.jpg"))]);
+        await _sut.RefreshShownImagesCommand.ExecuteAsync(null);
+        _rotation.GetCurrentWallpapersAsync(Arg.Any<CancellationToken>()).ThrowsAsync(new TimeoutException());
+        TrayNotificationEventArgs? notification = null;
+        _sut.NotificationRequested += (_, e) => notification = e;
+
+        await _sut.RefreshShownImagesCommand.ExecuteAsync(null);
+
+        Assert.Equal("1.jpg", Assert.Single(_sut.ShownImages).Header);
+        Assert.Null(notification);
+    }
+
+    [Fact]
+    public async Task 表示中の画像の項目から表示しないと場所を開くを実行できる()
+    {
+        _rotation.GetCurrentWallpapersAsync(Arg.Any<CancellationToken>()).Returns(
+            [new CurrentWallpaper(Monitor("Only"), WallpaperSelection.ForSingleImage(@"C:\w\1.jpg"))]);
+        await _sut.RefreshShownImagesCommand.ExecuteAsync(null);
+        ShownImageItemViewModel item = Assert.Single(_sut.ShownImages);
+
+        item.ShowInFolderCommand!.Execute(item.ImagePath);
+
+        _folderLauncher.Received(1).ShowFileInFolder(@"C:\w\1.jpg");
+        Assert.Same(_sut.ExcludeImageCommand, item.ExcludeCommand);
+    }
+
+    [Fact]
+    public async Task この画像を表示しないは表示しない画像に加えて表示中の画像を差し替える()
+    {
+        await _sut.ExcludeImageCommand.ExecuteAsync(@"C:\w\sunset.jpg");
+
+        Assert.Equal([@"C:\w\sunset.jpg"], _settings.Current.ExcludedImages);
+        await _rotation.Received(1).ReplaceExcludedImagesAsync(Arg.Any<CancellationToken>());
+        Assert.True(_sut.IsProgressPopupOpen);
+        Assert.Equal("sunset.jpg を表示しないようにしました（設定画面で戻せます）", _sut.ProgressPopupText);
+    }
+
+    [Fact]
+    public async Task 表示しない画像の代わりを選べなければ理由を通知する()
+    {
+        _rotation.ReplaceExcludedImagesAsync(Arg.Any<CancellationToken>()).Returns(Result(WallpaperChangeStatus.NoImages));
+        TrayNotificationEventArgs? notification = null;
+        _sut.NotificationRequested += (_, e) => notification = e;
+
+        await _sut.ExcludeImageCommand.ExecuteAsync(@"C:\w\last.jpg");
+
+        Assert.NotNull(notification);
+        Assert.Contains("対応する画像がありません", notification.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task 画像の場所を開けなければエラーを通知する()
+    {
+        _folderLauncher.When(l => l.ShowFileInFolder(Arg.Any<string>()))
+            .Do(_ => throw new FileNotFoundException(@"画像が見つかりません: C:\w\gone.jpg"));
+        TrayNotificationEventArgs? notification = null;
+        _sut.NotificationRequested += (_, e) => notification = e;
+
+        await _sut.ShowImageInFolderCommand.ExecuteAsync(@"C:\w\gone.jpg");
+
+        Assert.NotNull(notification);
+        Assert.True(notification.IsError);
+        Assert.Contains("画像が見つかりません", notification.Message, StringComparison.Ordinal);
     }
 
     private static async Task WaitUntilAsync(Func<bool> condition)

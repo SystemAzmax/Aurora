@@ -297,6 +297,37 @@
                     </StackPanel>
                 </Border>
 
+                <!-- 表示しない画像（アプリ全体の設定） -->
+                <Border Style="{StaticResource CardStyle}">
+                    <StackPanel>
+                        <TextBlock Text="表示しない画像（全モニター共通）" Style="{StaticResource SectionTitleStyle}" />
+                        <TextBlock Style="{StaticResource CaptionTextStyle}" Margin="0,0,0,10"
+                                   Text="トレイのメニューの「この画像を表示しない」で指定した画像です。壁紙フォルダにあっても表示しません。" />
+                        <Grid>
+                            <ListBox ItemsSource="{Binding ExcludedImages}" SelectedItem="{Binding SelectedExcludedImage}"
+                                     Height="112" ScrollViewer.HorizontalScrollBarVisibility="Disabled">
+                                <ListBox.ItemTemplate>
+                                    <DataTemplate>
+                                        <StackPanel Orientation="Horizontal">
+                                            <TextBlock Style="{StaticResource SymbolTextStyle}" Text="&#xE8B9;" FontSize="14" Margin="0,0,8,0" />
+                                            <TextBlock Text="{Binding}" TextTrimming="CharacterEllipsis" ToolTip="{Binding}" />
+                                        </StackPanel>
+                                    </DataTemplate>
+                                </ListBox.ItemTemplate>
+                            </ListBox>
+                            <TextBlock Text="表示しない画像はありません" Style="{StaticResource CaptionTextStyle}"
+                                       HorizontalAlignment="Center" VerticalAlignment="Center" IsHitTestVisible="False"
+                                       Visibility="{Binding ExcludedImages.Count, Converter={StaticResource ZeroToVisibleConverter}, FallbackValue=Visible}" />
+                        </Grid>
+                        <StackPanel Orientation="Horizontal" Margin="0,12,0,0">
+                            <Button Content="表示に戻す" Tag="&#xE7A7;" Style="{StaticResource IconButtonStyle}"
+                                    Command="{Binding RestoreExcludedImageCommand}" />
+                            <Button Content="場所を開く" Tag="&#xE838;" Style="{StaticResource IconButtonStyle}"
+                                    Command="{Binding ShowExcludedImageInFolderCommand}" />
+                        </StackPanel>
+                    </StackPanel>
+                </Border>
+
                 <!-- 起動・ログ（アプリ全体の設定） -->
                 <Border Style="{StaticResource CardStyle}">
                     <StackPanel>

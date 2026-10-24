@@ -8,7 +8,7 @@ public sealed record TileSettings
     /// <summary>この区画専用の壁紙フォルダ。空の場合の扱いは <see cref="MonitorSettings.GetEffectiveTileFolders"/> を参照。</summary>
     public IReadOnlyList<string> Folders { get; init; } = [];
 
-    public TileSettings AddFolder(string folder) => this with { Folders = FolderList.Add(Folders, folder) };
+    public TileSettings AddFolder(string folder) => this with { Folders = PathList.Add(Folders, folder) };
 
-    public TileSettings RemoveFolder(string folder) => this with { Folders = FolderList.Remove(Folders, folder) };
+    public TileSettings RemoveFolder(string folder) => this with { Folders = PathList.Remove(Folders, folder) };
 }

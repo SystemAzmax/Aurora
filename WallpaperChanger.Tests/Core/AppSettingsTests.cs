@@ -134,4 +134,36 @@ public class AppSettingsTests
 
         Assert.Equal(AppSettings.MaxIntervalMinutes, settings.IntervalMinutes);
     }
+
+    [Fact]
+    public void 表示しない画像は重複せずに追加され大文字小文字を区別せずに判定し削除できる()
+    {
+        AppSettings settings = new AppSettings()
+            .AddExcludedImage(@"C:\Pictures\a.jpg")
+            .AddExcludedImage(@"c:\pictures\A.JPG");
+
+        Assert.Equal([@"C:\Pictures\a.jpg"], settings.ExcludedImages);
+        Assert.True(settings.IsExcluded(@"C:\PICTURES\A.jpg"));
+        Assert.False(settings.IsExcluded(@"C:\Pictures\b.jpg"));
+
+        settings = settings.RemoveExcludedImage(@"C:\PICTURES\A.JPG");
+
+        Assert.Empty(settings.ExcludedImages);
+    }
+
+    [Fact]
+    public void Normalizeは表示しない画像の空の値を除く()
+    {
+        var settings = new AppSettings { ExcludedImages = [@"C:\a.jpg", " ", null!] }.Normalize();
+
+        Assert.Equal([@"C:\a.jpg"], settings.ExcludedImages);
+    }
+
+    [Fact]
+    public void Normalizeは表示しない画像が無い設定を空にする()
+    {
+        var settings = new AppSettings { ExcludedImages = null! }.Normalize();
+
+        Assert.Empty(settings.ExcludedImages);
+    }
 }

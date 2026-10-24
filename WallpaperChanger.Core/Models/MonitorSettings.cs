@@ -28,9 +28,9 @@ public sealed record MonitorSettings
 
     public static MonitorSettings CreateDefault(string monitorId) => new() { MonitorId = monitorId };
 
-    public MonitorSettings AddFolder(string folder) => this with { Folders = FolderList.Add(Folders, folder) };
+    public MonitorSettings AddFolder(string folder) => this with { Folders = PathList.Add(Folders, folder) };
 
-    public MonitorSettings RemoveFolder(string folder) => this with { Folders = FolderList.Remove(Folders, folder) };
+    public MonitorSettings RemoveFolder(string folder) => this with { Folders = PathList.Remove(Folders, folder) };
 
     /// <summary>指定したマスの設定を取得する。未設定の場合は既定値。</summary>
     public TileSettings GetTile(int index)

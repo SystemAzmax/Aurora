@@ -20,6 +20,17 @@ public class ImageSelectorTests
         Assert.Equal([expected], selector.SelectNext(Images, current is null ? [] : [current], 1));
     }
 
+    [Theory]
+    [InlineData(@"C:\w\1a.jpg", @"C:\w\2.png")]
+    [InlineData(@"C:\w\0.jpg", @"C:\w\1.jpg")]
+    [InlineData(@"C:\w\9.jpg", @"C:\w\1.jpg")]
+    public void 順送りで現在の画像が候補に無ければパス順でその次の画像を選ぶ(string current, string expected)
+    {
+        var selector = new SequentialImageSelector();
+
+        Assert.Equal([expected], selector.SelectNext(Images, [current], 1));
+    }
+
     [Fact]
     public void 順送りの4枚は現在の組の最後の次から連続して選ぶ()
     {

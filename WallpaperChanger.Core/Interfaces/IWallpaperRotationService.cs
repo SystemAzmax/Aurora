@@ -36,4 +36,17 @@ public interface IWallpaperRotationService
     /// 1 枚表示は OS が拡大縮小するため何もしない。表示中の組が無ければ次の壁紙を表示する。
     /// </summary>
     Task<WallpaperChangeResult> ReapplyAsync(string monitorId, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// 表示中の画像のうち、表示しない画像（<see cref="AppSettings.ExcludedImages"/>）に指定されたものを別の画像に差し替える。
+    /// 分割表示では、その画像のマスだけを選び直す。全モニターが対象で、該当する画像が無いモニターは何もしない。
+    /// 戻り値は <see cref="NextAsync"/> と同じ。
+    /// </summary>
+    Task<WallpaperChangeResult> ReplaceExcludedImagesAsync(CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// 接続中のモニター（画面配置の順）と、それぞれにこのアプリが表示している画像の組。
+    /// 切り替え中に呼んだ場合は、切り替えが終わってから返す。
+    /// </summary>
+    Task<IReadOnlyList<CurrentWallpaper>> GetCurrentWallpapersAsync(CancellationToken cancellationToken = default);
 }

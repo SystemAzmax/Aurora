@@ -80,6 +80,7 @@ public sealed partial class SettingsViewModel : ObservableObject, IDisposable
         _rotationService.ProgressChanged += OnProgressChanged;
         _scheduler.StateChanged += OnSchedulerStateChanged;
         _monitorWatcher.ConfigurationChanged += OnMonitorConfigurationChanged;
+        _settingsService.SettingsChanged += OnSettingsChanged;
     }
 
     public ObservableCollection<MonitorItemViewModel> Monitors { get; } = [];
@@ -274,6 +275,15 @@ public sealed partial class SettingsViewModel : ObservableObject, IDisposable
     [ObservableProperty]
     public partial bool StartWithWindows { get; set; }
 
+    // ---- 表示しない画像 ----
+
+    /// <summary>表示しない画像（全モニター共通）。トレイのメニューの「この画像を表示しない」で加える。</summary>
+    public ObservableCollection<string> ExcludedImages { get; } = [];
+
+    [ObservableProperty]
+    [NotifyCanExecuteChangedFor(nameof(RestoreExcludedImageCommand), nameof(ShowExcludedImageInFolderCommand))]
+    public partial string? SelectedExcludedImage { get; set; }
+
     // ---- ステータス ----
 
     [ObservableProperty]
@@ -303,6 +313,7 @@ public sealed partial class SettingsViewModel : ObservableObject, IDisposable
         _rotationService.ProgressChanged -= OnProgressChanged;
         _scheduler.StateChanged -= OnSchedulerStateChanged;
         _monitorWatcher.ConfigurationChanged -= OnMonitorConfigurationChanged;
+        _settingsService.SettingsChanged -= OnSettingsChanged;
         _previewCts?.Cancel();
         _previewCts?.Dispose();
         _previewCts = null;
@@ -333,6 +344,32 @@ public sealed partial class SettingsViewModel : ObservableObject, IDisposable
         _folderLauncher.OpenFolder(_logDirectory.LogDirectory);
         return Task.CompletedTask;
     });
+
+    /// <summary>選択中の画像を表示しない画像から外し、再び壁紙の候補にする。</summary>
+    [RelayCommand(CanExecute = nameof(HasSelectedExcludedImage))]
+    private Task RestoreExcludedImageAsync() => ExecuteSafelyAsync("表示しない画像の解除", async () =>
+    {
+        if (SelectedExcludedImage is not { } image)
+        {
+            return;
+        }
+
+        await _settingsService.UpdateAsync(s => s.RemoveExcludedImage(image));
+        ShowInfo($"{System.IO.Path.GetFileName(image)} を再び表示するようにしました。");
+    });
+
+    [RelayCommand(CanExecute = nameof(HasSelectedExcludedImage))]
+    private Task ShowExcludedImageInFolderAsync() => ExecuteSafelyAsync("画像の場所を開く処理", () =>
+    {
+        if (SelectedExcludedImage is { } image)
+        {
+            _folderLauncher.ShowFileInFolder(image);
+        }
+
+        return Task.CompletedTask;
+    });
+
+    private bool HasSelectedExcludedImage() => SelectedExcludedImage is not null;
 
     /// <summary>各モニターの画面に、一覧と同じ番号を一定時間表示する。</summary>
     [RelayCommand(AllowConcurrentExecutions = true)]
@@ -633,6 +670,7 @@ public sealed partial class SettingsViewModel : ObservableObject, IDisposable
         }
 
         LoadStartupState();
+        LoadExcludedImages();
     }
 
     private void LoadStartupState()
@@ -659,6 +697,25 @@ public sealed partial class SettingsViewModel : ObservableObject, IDisposable
         {
             _isLoading = false;
         }
+    }
+
+    private void LoadExcludedImages()
+    {
+        IReadOnlyList<string> images = _settingsService.Current.ExcludedImages;
+        if (ExcludedImages.SequenceEqual(images))
+        {
+            return;
+        }
+
+        string? selected = SelectedExcludedImage;
+        ExcludedImages.Clear();
+        foreach (string image in images)
+        {
+            ExcludedImages.Add(image);
+        }
+
+        // 外した画像の選択は解除し、残っている画像の選択は保つ
+        SelectedExcludedImage = selected is not null && ExcludedImages.Contains(selected) ? selected : null;
     }
 
     private async Task LoadMonitorsAsync()
@@ -863,6 +920,16 @@ public sealed partial class SettingsViewModel : ObservableObject, IDisposable
             ? $"モニター構成の変更を検出しました。{string.Join(" / ", parts)}"
             : "モニターの配置の変更を検出しました。";
     }
+
+    /// <summary>トレイのメニューから表示しない画像を加えた場合も、一覧に反映する。</summary>
+    private async void OnSettingsChanged(object? sender, AppSettings settings) =>
+        await _uiDispatcher.InvokeAsync(() =>
+        {
+            if (!_disposed)
+            {
+                LoadExcludedImages();
+            }
+        });
 
     private async void OnSchedulerStateChanged(object? sender, EventArgs e) =>
         await _uiDispatcher.InvokeAsync(() =>

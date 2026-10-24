@@ -20,6 +20,9 @@ public sealed record AppSettings
     /// <summary>モニターごとの設定。</summary>
     public IReadOnlyList<MonitorSettings> Monitors { get; init; } = [];
 
+    /// <summary>表示しない画像（全モニター共通）。壁紙フォルダにあっても候補にしない。</summary>
+    public IReadOnlyList<string> ExcludedImages { get; init; } = [];
+
     [JsonIgnore]
     public TimeSpan Interval => TimeSpan.FromMinutes(IntervalMinutes);
 
@@ -46,6 +49,18 @@ public sealed record AppSettings
         };
     }
 
+    /// <summary>画像を表示しない画像に加えた新しい設定を返す。</summary>
+    public AppSettings AddExcludedImage(string imagePath) =>
+        this with { ExcludedImages = PathList.Add(ExcludedImages, imagePath) };
+
+    /// <summary>画像を表示しない画像から外した新しい設定を返す。</summary>
+    public AppSettings RemoveExcludedImage(string imagePath) =>
+        this with { ExcludedImages = PathList.Remove(ExcludedImages, imagePath) };
+
+    /// <summary>表示しない画像か（大文字小文字無視）。</summary>
+    public bool IsExcluded(string imagePath) =>
+        ExcludedImages.Contains(imagePath, StringComparer.OrdinalIgnoreCase);
+
     public AppSettings WithInterval(int minutes)
     {
         if (!IsValidInterval(minutes))
@@ -63,6 +78,7 @@ public sealed record AppSettings
         IntervalMinutes = Math.Clamp(IntervalMinutes, MinIntervalMinutes, MaxIntervalMinutes),
         Monitors = [.. (Monitors ?? []).Where(m => !string.IsNullOrWhiteSpace(m.MonitorId))
             .Select(m => m.Normalize())],
+        ExcludedImages = [.. (ExcludedImages ?? []).Where(p => !string.IsNullOrWhiteSpace(p))],
     };
 
     private static bool IsSameMonitor(string a, string b) =>

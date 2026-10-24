@@ -17,6 +17,40 @@
                     NoLeftClickDelay="True"
                     DoubleClickCommand="{Binding ShowSettingsCommand}" />
 
+    <!--
+        「この画像を表示しない」「画像の場所を開く」の下に並べる、表示中の画像（ShownImageItemViewModel）の項目。
+        画像の項目はクリックでコマンドを実行し、分割表示のモニターの項目はマスの画像を子メニューに並べる（2 段まで）。
+        ファイル名の「_」がアクセスキーとして扱われないよう、見出しは TextBlock で表示する。
+    -->
+    <DataTemplate x:Key="PlainMenuHeaderTemplate">
+        <TextBlock Text="{Binding}" />
+    </DataTemplate>
+
+    <Style x:Key="ShownImageMenuItemBaseStyle" TargetType="MenuItem" BasedOn="{StaticResource {x:Type MenuItem}}">
+        <Setter Property="Header" Value="{Binding Header}" />
+        <Setter Property="HeaderTemplate" Value="{StaticResource PlainMenuHeaderTemplate}" />
+        <Setter Property="ToolTip" Value="{Binding ImagePath}" />
+        <Setter Property="CommandParameter" Value="{Binding ImagePath}" />
+    </Style>
+
+    <Style x:Key="ExcludeImageLeafStyle" TargetType="MenuItem" BasedOn="{StaticResource ShownImageMenuItemBaseStyle}">
+        <Setter Property="Command" Value="{Binding ExcludeCommand}" />
+    </Style>
+
+    <Style x:Key="ExcludeImageItemStyle" TargetType="MenuItem" BasedOn="{StaticResource ExcludeImageLeafStyle}">
+        <Setter Property="ItemsSource" Value="{Binding Children}" />
+        <Setter Property="ItemContainerStyle" Value="{StaticResource ExcludeImageLeafStyle}" />
+    </Style>
+
+    <Style x:Key="ShowImageInFolderLeafStyle" TargetType="MenuItem" BasedOn="{StaticResource ShownImageMenuItemBaseStyle}">
+        <Setter Property="Command" Value="{Binding ShowInFolderCommand}" />
+    </Style>
+
+    <Style x:Key="ShowImageInFolderItemStyle" TargetType="MenuItem" BasedOn="{StaticResource ShowImageInFolderLeafStyle}">
+        <Setter Property="ItemsSource" Value="{Binding Children}" />
+        <Setter Property="ItemContainerStyle" Value="{StaticResource ShowImageInFolderLeafStyle}" />
+    </Style>
+
     <ContextMenu x:Key="TrayContextMenu">
         <!-- 切り替え中は進み具合を表示する（切り替えの項目は、終わるまで押せない） -->
         <MenuItem Header="{Binding ChangeProgressText, TargetNullValue=壁紙を切り替えています…}" IsEnabled="False"
@@ -36,6 +70,22 @@
                   ToolTip="壁紙フォルダを読み込み直して、全モニターの壁紙を選び直します">
             <MenuItem.Icon>
                 <TextBlock Style="{StaticResource SymbolTextStyle}" Text="&#xE72C;" />
+            </MenuItem.Icon>
+        </MenuItem>
+        <Separator />
+        <!-- 表示中の画像（メニューを開くたびに TrayIconService が作り直させる）。分割表示ではマスを選ぶ -->
+        <MenuItem Header="この画像を表示しない" ItemsSource="{Binding ShownImages}"
+                  ItemContainerStyle="{StaticResource ExcludeImageItemStyle}" IsEnabled="{Binding HasShownImages}"
+                  ToolTip="表示中の画像を壁紙の候補から外し、別の画像に差し替えます（設定画面で戻せます）">
+            <MenuItem.Icon>
+                <TextBlock Style="{StaticResource SymbolTextStyle}" Text="&#xED1A;" />
+            </MenuItem.Icon>
+        </MenuItem>
+        <MenuItem Header="画像の場所を開く" ItemsSource="{Binding ShownImages}"
+                  ItemContainerStyle="{StaticResource ShowImageInFolderItemStyle}" IsEnabled="{Binding HasShownImages}"
+                  ToolTip="表示中の画像を、エクスプローラーで選択した状態で開きます">
+            <MenuItem.Icon>
+                <TextBlock Style="{StaticResource SymbolTextStyle}" Text="&#xE838;" />
             </MenuItem.Icon>
         </MenuItem>
         <Separator />
