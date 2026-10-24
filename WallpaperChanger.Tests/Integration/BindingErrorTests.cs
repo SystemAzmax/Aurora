@@ -185,6 +185,7 @@ public sealed class BindingErrorTests
 
         var settings = new InMemorySettingsService(new AppSettings()
             .WithMonitor(MonitorSettings.CreateDefault("MON-P").AddFolder(@"C:\Wallpapers").AddTileFolder(3, @"C:\Tile"))
+            .WithMonitor(MonitorSettings.CreateDefault("MON-OLD").AddFolder(@"C:\Old") with { DisplayName = "Old" })
             .AddExcludedImage(@"C:\Wallpapers\hidden.jpg"));
 
         return new SettingsViewModel(

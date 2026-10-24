@@ -646,6 +646,40 @@ public sealed class WallpaperRotationServiceTests : IDisposable
         Assert.Equal(Images[0], current[0].Selection?.Images[0]);
     }
 
+    // ---- 履歴の引き継ぎ ----
+
+    [Fact]
+    public async Task 履歴を新しいモニターのIDに移して保存する()
+    {
+        CancellationToken ct = TestContext.Current.CancellationToken;
+        _wallpaper.GetWallpaperAsync("MON1", Arg.Any<CancellationToken>()).Returns(Images[0]);
+        await _sut.NextAsync("MON1", ct); // 1 -> 2
+
+        // 接続先を変えて、モニターの ID が変わった
+        _monitors.GetMonitorsAsync(Arg.Any<CancellationToken>()).Returns([Monitor1 with { Id = "MON1-NEW" }, Monitor2]);
+        await _settings.UpdateAsync(s => s.MoveMonitor("MON1", "MON1-NEW"), ct);
+        await _sut.InheritHistoryAsync("MON1", "MON1-NEW", ct);
+        _wallpaper.ClearReceivedCalls();
+
+        await _sut.PreviousAsync("MON1-NEW", ct);
+
+        await _wallpaper.Received(1).SetWallpaperAsync("MON1-NEW", Images[0], Arg.Any<CancellationToken>());
+        Assert.Equal("MON1-NEW", Assert.Single(_historyStore.Saved).MonitorId);
+    }
+
+    [Fact]
+    public async Task 新しいIDで既に切り替えていれば履歴を移さない()
+    {
+        CancellationToken ct = TestContext.Current.CancellationToken;
+        await _sut.NextAsync(cancellationToken: ct);
+        int saveCount = _historyStore.SaveCount;
+
+        await _sut.InheritHistoryAsync("MON1", "MON2", ct);
+
+        Assert.Equal(saveCount, _historyStore.SaveCount);
+        Assert.Equal(AllMonitorIds, _historyStore.Saved.Select(h => h.MonitorId));
+    }
+
     // ---- 履歴の保存（再起動後） ----
 
     [Fact]

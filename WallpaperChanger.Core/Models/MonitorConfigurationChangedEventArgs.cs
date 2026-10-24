@@ -7,7 +7,8 @@ public sealed class MonitorConfigurationChangedEventArgs(
     IReadOnlyList<MonitorInfo> added,
     IReadOnlyList<MonitorInfo> removed,
     IReadOnlyList<MonitorInfo> resized,
-    IReadOnlyList<MonitorInfo> current) : EventArgs
+    IReadOnlyList<MonitorInfo> current,
+    IReadOnlyList<MonitorInfo>? inherited = null) : EventArgs
 {
     /// <summary>新しく接続されたモニター。</summary>
     public IReadOnlyList<MonitorInfo> Added { get; } = added;
@@ -20,4 +21,7 @@ public sealed class MonitorConfigurationChangedEventArgs(
 
     /// <summary>変化後の全モニター。</summary>
     public IReadOnlyList<MonitorInfo> Current { get; } = current;
+
+    /// <summary>接続先を変えたモニターとして、前の設定を引き継いだモニター（<see cref="Added"/> のうち）。</summary>
+    public IReadOnlyList<MonitorInfo> Inherited { get; } = inherited ?? [];
 }

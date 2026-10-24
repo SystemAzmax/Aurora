@@ -49,4 +49,10 @@ public interface IWallpaperRotationService
     /// 切り替え中に呼んだ場合は、切り替えが終わってから返す。
     /// </summary>
     Task<IReadOnlyList<CurrentWallpaper>> GetCurrentWallpapersAsync(CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// モニターの ID が変わったとき（接続先のポートを変えたときなど）に、前の ID の履歴を新しい ID に移す。
+    /// 新しい ID で既に切り替えていれば、その履歴を残して何もしない。
+    /// </summary>
+    Task InheritHistoryAsync(string fromMonitorId, string toMonitorId, CancellationToken cancellationToken = default);
 }

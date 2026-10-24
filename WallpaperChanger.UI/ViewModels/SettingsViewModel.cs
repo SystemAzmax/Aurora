@@ -102,6 +102,7 @@ public sealed partial class SettingsViewModel : ObservableObject, IDisposable
     [NotifyCanExecuteChangedFor(nameof(AddFolderCommand))]
     [NotifyCanExecuteChangedFor(nameof(ChangeSelectedMonitorNowCommand))]
     [NotifyCanExecuteChangedFor(nameof(PreviousSelectedMonitorCommand))]
+    [NotifyCanExecuteChangedFor(nameof(CopySettingsCommand))]
     public partial MonitorItemViewModel? SelectedMonitor { get; set; }
 
     public bool HasSelectedMonitor => SelectedMonitor is not null;
@@ -284,6 +285,18 @@ public sealed partial class SettingsViewModel : ObservableObject, IDisposable
     [NotifyCanExecuteChangedFor(nameof(RestoreExcludedImageCommand), nameof(ShowExcludedImageInFolderCommand))]
     public partial string? SelectedExcludedImage { get; set; }
 
+    // ---- ほかのモニターの設定のコピー ----
+
+    /// <summary>
+    /// 選択中のモニターに設定をコピーできる、ほかのモニター（壁紙フォルダを設定したもの）。
+    /// 買い替えたモニターなどに前のモニターの設定を使えるよう、接続していないモニターも含める。
+    /// </summary>
+    public ObservableCollection<MonitorCopySourceViewModel> CopySources { get; } = [];
+
+    [ObservableProperty]
+    [NotifyCanExecuteChangedFor(nameof(CopySettingsCommand))]
+    public partial MonitorCopySourceViewModel? SelectedCopySource { get; set; }
+
     // ---- ステータス ----
 
     [ObservableProperty]
@@ -295,7 +308,8 @@ public sealed partial class SettingsViewModel : ObservableObject, IDisposable
     /// <summary>切り替え中（自動切り替えを含む）の進み具合。切り替え中でなければ null。</summary>
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(IsChangingWallpaper))]
-    [NotifyCanExecuteChangedFor(nameof(ChangeSelectedMonitorNowCommand), nameof(PreviousSelectedMonitorCommand), nameof(ChangeAllNowCommand))]
+    [NotifyCanExecuteChangedFor(
+        nameof(ChangeSelectedMonitorNowCommand), nameof(PreviousSelectedMonitorCommand), nameof(ChangeAllNowCommand), nameof(CopySettingsCommand))]
     public partial string? ChangeProgressText { get; set; }
 
     /// <summary>切り替え中か。切り替え中は切り替えのボタンを押せない（順番待ちになり、さらに待たされないように）。</summary>
@@ -500,6 +514,26 @@ public sealed partial class SettingsViewModel : ObservableObject, IDisposable
     });
 
     private bool CanChangeSelectedMonitor() => HasSelectedMonitor && !IsChangingWallpaper;
+
+    /// <summary>コピー元のモニターの設定（フォルダ・表示レイアウト・選び方など）を、選択中のモニターにコピーして表示し直す。</summary>
+    [RelayCommand(CanExecute = nameof(CanCopySettings))]
+    private Task CopySettingsAsync() => ExecuteSafelyAsync("設定のコピー", async () =>
+    {
+        if (SelectedMonitor is not { } monitor || SelectedCopySource is not { } source)
+        {
+            return;
+        }
+
+        MonitorSettings from = _settingsService.Current.GetMonitor(source.MonitorId);
+        await UpdateMonitorSettingsAsync(monitor, m => m.WithSettingsFrom(from));
+        string copied = $"{source.Name} の設定を {monitor.DisplayName} にコピーしました。";
+        ShowInfo(copied);
+
+        // コピーした設定の画像を、次の定期実行を待たずに表示する
+        ReportProblems(await _rotationService.NextAsync(monitor.Id), copied);
+    });
+
+    private bool CanCopySettings() => CanChangeSelectedMonitor() && SelectedCopySource is not null;
 
     private bool CanChangeWallpaper() => !IsChangingWallpaper;
 
@@ -773,12 +807,42 @@ public sealed partial class SettingsViewModel : ObservableObject, IDisposable
         {
             _isLoading = false;
             OnPropertyChanged(nameof(EmptyFoldersMessage));
+            LoadCopySources();
         }
     }
 
+    private void LoadCopySources()
+    {
+        string? selectedId = SelectedCopySource?.MonitorId;
+        CopySources.Clear();
+        if (SelectedMonitor is { } target)
+        {
+            AppSettings settings = _settingsService.Current;
+            foreach (MonitorItemViewModel monitor in Monitors.Where(m => !ReferenceEquals(m, target)))
+            {
+                if (settings.GetMonitor(monitor.Id).HasFolderSettings)
+                {
+                    CopySources.Add(new MonitorCopySourceViewModel(monitor.Id, $"{monitor.Number}. {monitor.DisplayName}", IsConnected: true));
+                }
+            }
+
+            foreach (MonitorSettings saved in settings.Monitors.Where(s => s.HasFolderSettings && !IsConnected(s.MonitorId)))
+            {
+                string name = saved.DisplayName ?? MonitorHardwareId.FromMonitorId(saved.MonitorId) ?? "名前の分からないモニター";
+                CopySources.Add(new MonitorCopySourceViewModel(saved.MonitorId, name, IsConnected: false));
+            }
+        }
+
+        SelectedCopySource = CopySources.FirstOrDefault(c => string.Equals(c.MonitorId, selectedId, StringComparison.OrdinalIgnoreCase));
+    }
+
+    private bool IsConnected(string monitorId) =>
+        Monitors.Any(m => string.Equals(m.Id, monitorId, StringComparison.OrdinalIgnoreCase));
+
     private async Task UpdateMonitorSettingsAsync(MonitorItemViewModel monitor, Func<MonitorSettings, MonitorSettings> update)
     {
-        await _settingsService.UpdateAsync(s => s.WithMonitor(update(s.GetMonitor(monitor.Id))));
+        // 接続していないときにも設定画面でどのモニターか分かるよう、名前も記録する
+        await _settingsService.UpdateAsync(s => s.WithMonitor(update(s.GetMonitor(monitor.Id)) with { DisplayName = monitor.DisplayName }));
 
         if (ReferenceEquals(SelectedMonitor, monitor))
         {
@@ -906,6 +970,11 @@ public sealed partial class SettingsViewModel : ObservableObject, IDisposable
             parts.Add($"接続: {string.Join("、", e.Added.Select(m => m.DisplayName))}");
         }
 
+        if (e.Inherited.Count > 0)
+        {
+            parts.Add($"前の設定を引き継ぎ: {string.Join("、", e.Inherited.Select(m => m.DisplayName))}");
+        }
+
         if (e.Removed.Count > 0)
         {
             parts.Add($"切断: {string.Join("、", e.Removed.Select(m => m.DisplayName))}");
@@ -921,13 +990,14 @@ public sealed partial class SettingsViewModel : ObservableObject, IDisposable
             : "モニターの配置の変更を検出しました。";
     }
 
-    /// <summary>トレイのメニューから表示しない画像を加えた場合も、一覧に反映する。</summary>
+    /// <summary>トレイのメニューから表示しない画像を加えた場合や、接続先を変えたモニターに設定を引き継いだ場合も、一覧に反映する。</summary>
     private async void OnSettingsChanged(object? sender, AppSettings settings) =>
         await _uiDispatcher.InvokeAsync(() =>
         {
             if (!_disposed)
             {
                 LoadExcludedImages();
+                LoadCopySources();
             }
         });
 

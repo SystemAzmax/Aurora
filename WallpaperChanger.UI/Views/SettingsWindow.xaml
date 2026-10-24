@@ -297,6 +297,25 @@
                     </StackPanel>
                 </Border>
 
+                <!-- ほかのモニターの設定をコピー（買い替えたモニターなど、自動で引き継げない場合に使う） -->
+                <Border Style="{StaticResource CardStyle}" IsEnabled="{Binding HasSelectedMonitor}">
+                    <StackPanel>
+                        <TextBlock Text="ほかのモニターの設定をコピー" Style="{StaticResource SectionTitleStyle}" />
+                        <TextBlock Style="{StaticResource CaptionTextStyle}" Margin="0,0,0,10"
+                                   Text="買い替えたモニターなどに、前のモニター（接続していないモニターを含む）の壁紙フォルダ・表示レイアウト・選び方をコピーします。同じ型番のモニターの接続先を変えた場合は、自動で引き継ぎます。" />
+                        <StackPanel Orientation="Horizontal">
+                            <ComboBox Width="320" VerticalAlignment="Center"
+                                      ItemsSource="{Binding CopySources}" DisplayMemberPath="Label"
+                                      SelectedItem="{Binding SelectedCopySource}" />
+                            <Button Content="コピー" Tag="&#xE8C8;" Style="{StaticResource IconButtonStyle}" Margin="8,0,0,0"
+                                    Command="{Binding CopySettingsCommand}" />
+                        </StackPanel>
+                        <TextBlock Text="コピーできる設定がありません（壁紙フォルダを設定したモニターがありません）"
+                                   Style="{StaticResource CaptionTextStyle}" Margin="0,6,0,0"
+                                   Visibility="{Binding CopySources.Count, Converter={StaticResource ZeroToVisibleConverter}, FallbackValue=Visible}" />
+                    </StackPanel>
+                </Border>
+
                 <!-- 表示しない画像（アプリ全体の設定） -->
                 <Border Style="{StaticResource CardStyle}">
                     <StackPanel>

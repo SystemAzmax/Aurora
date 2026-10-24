@@ -6,6 +6,7 @@ namespace WallpaperChanger.Core.Services;
 
 /// <summary>
 /// ディスプレイ構成の変更通知を受け、落ち着いた時点（<see cref="SettleDelay"/> 後）で 1 回だけ構成を比較して壁紙を合わせる。
+/// 接続先を変えたモニターには、壁紙を表示する前に前の設定を引き継ぐ（開始時にも、電源を切っている間の変更に備えて引き継ぐ）。
 /// 直前の構成を保持するため、アプリケーション内で 1 インスタンスとして登録する。
 /// </summary>
 public sealed partial class MonitorConfigurationWatcher : IMonitorConfigurationWatcher, IDisposable
@@ -18,6 +19,7 @@ public sealed partial class MonitorConfigurationWatcher : IMonitorConfigurationW
     private readonly IDisplayChangeNotifier _notifier;
     private readonly IMonitorService _monitorService;
     private readonly IWallpaperRotationService _rotationService;
+    private readonly IMonitorSettingsInheritor _settingsInheritor;
     private readonly TimeProvider _timeProvider;
     private readonly ILogger<MonitorConfigurationWatcher> _logger;
     private readonly Lock _gate = new();
@@ -31,12 +33,14 @@ public sealed partial class MonitorConfigurationWatcher : IMonitorConfigurationW
         IDisplayChangeNotifier notifier,
         IMonitorService monitorService,
         IWallpaperRotationService rotationService,
+        IMonitorSettingsInheritor settingsInheritor,
         TimeProvider timeProvider,
         ILogger<MonitorConfigurationWatcher> logger)
     {
         _notifier = notifier ?? throw new ArgumentNullException(nameof(notifier));
         _monitorService = monitorService ?? throw new ArgumentNullException(nameof(monitorService));
         _rotationService = rotationService ?? throw new ArgumentNullException(nameof(rotationService));
+        _settingsInheritor = settingsInheritor ?? throw new ArgumentNullException(nameof(settingsInheritor));
         _timeProvider = timeProvider ?? throw new ArgumentNullException(nameof(timeProvider));
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
     }
@@ -72,6 +76,9 @@ public sealed partial class MonitorConfigurationWatcher : IMonitorConfigurationW
 
         _notifier.DisplaysChanged += OnDisplaysChanged;
         LogStarted(monitors.Count);
+
+        // アプリを起動していない間に接続先を変えたモニターにも、前の設定を引き継ぐ
+        await InheritSettingsAsync(monitors).ConfigureAwait(false);
     }
 
     public Task StopAsync()
@@ -158,7 +165,10 @@ public sealed partial class MonitorConfigurationWatcher : IMonitorConfigurationW
         }
 
         LogChanged(added.Count, removed.Count, resized.Count, moved);
-        ConfigurationChanged?.Invoke(this, new MonitorConfigurationChangedEventArgs(added, removed, resized, current));
+
+        // 接続先を変えたモニターは新しく接続されたモニターとして通知されるため、壁紙を表示する前に前の設定を引き継ぐ
+        IReadOnlyList<MonitorInfo> inherited = added.Count > 0 ? await InheritSettingsAsync(current).ConfigureAwait(false) : [];
+        ConfigurationChanged?.Invoke(this, new MonitorConfigurationChangedEventArgs(added, removed, resized, current, inherited));
 
         foreach (MonitorInfo monitor in added)
         {
@@ -168,6 +178,20 @@ public sealed partial class MonitorConfigurationWatcher : IMonitorConfigurationW
         foreach (MonitorInfo monitor in resized)
         {
             await UpdateWallpaperAsync(monitor, () => _rotationService.ReapplyAsync(monitor.Id)).ConfigureAwait(false);
+        }
+    }
+
+    private async Task<IReadOnlyList<MonitorInfo>> InheritSettingsAsync(IReadOnlyList<MonitorInfo> monitors)
+    {
+        try
+        {
+            return await _settingsInheritor.InheritAsync(monitors).ConfigureAwait(false);
+        }
+        catch (Exception ex)
+        {
+            // 引き継げなくても、壁紙の表示と監視は続ける（設定画面からコピーできる）
+            LogInheritFailed(ex);
+            return [];
         }
     }
 
@@ -195,6 +219,9 @@ public sealed partial class MonitorConfigurationWatcher : IMonitorConfigurationW
 
     [LoggerMessage(Level = LogLevel.Information, Message = "モニター構成が変わりました (接続: {Added}, 切断: {Removed}, 解像度変更: {Resized}, 配置変更: {Moved})")]
     private partial void LogChanged(int added, int removed, int resized, bool moved);
+
+    [LoggerMessage(Level = LogLevel.Error, Message = "接続先が変わったモニターに設定を引き継げませんでした")]
+    private partial void LogInheritFailed(Exception exception);
 
     [LoggerMessage(Level = LogLevel.Error, Message = "モニター構成の変更を処理できませんでした")]
     private partial void LogProcessingFailed(Exception exception);

@@ -90,6 +90,34 @@ public sealed partial class WallpaperRotationService : IWallpaperRotationService
         }
     }
 
+    public async Task InheritHistoryAsync(string fromMonitorId, string toMonitorId, CancellationToken cancellationToken = default)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(fromMonitorId);
+        ArgumentException.ThrowIfNullOrWhiteSpace(toMonitorId);
+
+        await _gate.WaitAsync(cancellationToken).ConfigureAwait(false);
+        try
+        {
+            await LoadHistoriesAsync(cancellationToken).ConfigureAwait(false);
+            if (!_histories.TryGetValue(fromMonitorId, out WallpaperHistory? history)
+                || history.IsEmpty
+                || (_histories.TryGetValue(toMonitorId, out WallpaperHistory? existing) && !existing.IsEmpty))
+            {
+                return;
+            }
+
+            _histories.Remove(fromMonitorId);
+            _histories[toMonitorId] = history;
+
+            // 移しただけでは変更番号が変わらないため、変更の有無を見ずに保存する
+            await SaveHistoriesAsync().ConfigureAwait(false);
+        }
+        finally
+        {
+            _gate.Release();
+        }
+    }
+
     public void Dispose() => _gate.Dispose();
 
     private async Task<WallpaperChangeResult> ExecuteForMonitorsAsync(
@@ -474,12 +502,16 @@ public sealed partial class WallpaperRotationService : IWallpaperRotationService
     /// <summary>前回の読み込み・保存から履歴が変わっていれば保存する。_gate の内側で呼ぶ。</summary>
     private async Task SaveHistoriesIfChangedAsync()
     {
-        int version = GetHistoryVersion();
-        if (version == _savedHistoryVersion)
+        if (GetHistoryVersion() != _savedHistoryVersion)
         {
-            return;
+            await SaveHistoriesAsync().ConfigureAwait(false);
         }
+    }
 
+    /// <summary>全モニターの履歴を保存する。_gate の内側で呼ぶ。</summary>
+    private async Task SaveHistoriesAsync()
+    {
+        int version = GetHistoryVersion();
         WallpaperHistorySnapshot[] snapshots = [.. _histories
             .Where(pair => !pair.Value.IsEmpty)
             .Select(pair => pair.Value.ToSnapshot(pair.Key))];

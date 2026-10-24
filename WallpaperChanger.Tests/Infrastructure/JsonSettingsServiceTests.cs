@@ -56,6 +56,21 @@ public sealed class JsonSettingsServiceTests : IDisposable
     }
 
     [Fact]
+    public async Task モニターの名前を保存して再読み込みできる()
+    {
+        CancellationToken ct = TestContext.Current.CancellationToken;
+        using (JsonSettingsService writer = CreateSut())
+        {
+            await writer.UpdateAsync(s => s.WithMonitor(MonitorSettings.CreateDefault("M") with { DisplayName = "LG ULTRAGEAR" }), ct);
+        }
+
+        using JsonSettingsService reader = CreateSut();
+        await reader.LoadAsync(ct);
+
+        Assert.Equal("LG ULTRAGEAR", reader.Current.GetMonitor("M").DisplayName);
+    }
+
+    [Fact]
     public async Task 表示しない画像を保存して再読み込みできる()
     {
         CancellationToken ct = TestContext.Current.CancellationToken;
@@ -102,6 +117,8 @@ public sealed class JsonSettingsServiceTests : IDisposable
         Assert.Contains("\"intervalMinutes\"", json, StringComparison.Ordinal);
         Assert.Contains("\"Random\"", json, StringComparison.Ordinal);
         Assert.DoesNotContain("\"interval\"", json, StringComparison.Ordinal);
+        Assert.DoesNotContain("usesTileFolders", json, StringComparison.Ordinal);
+        Assert.DoesNotContain("hasFolderSettings", json, StringComparison.Ordinal);
     }
 
     [Fact]

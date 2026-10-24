@@ -19,6 +19,7 @@ public static class CoreServiceCollectionExtensions
 
         services.AddTransient<IImageSelector, RandomImageSelector>();
         services.AddTransient<IImageSelector, SequentialImageSelector>();
+        services.AddTransient<IMonitorSettingsInheritor, MonitorSettingsInheritor>();
 
         services.AddSingleton<IWallpaperRotationService, WallpaperRotationService>();
         services.AddSingleton<IWallpaperScheduler, WallpaperScheduler>();

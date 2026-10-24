@@ -18,12 +18,15 @@ public sealed class MonitorConfigurationWatcherTests : IDisposable
     private readonly FakeDisplayChangeNotifier _notifier = new();
     private readonly IMonitorService _monitors = Substitute.For<IMonitorService>();
     private readonly IWallpaperRotationService _rotation = Substitute.For<IWallpaperRotationService>();
+    private readonly IMonitorSettingsInheritor _inheritor = Substitute.For<IMonitorSettingsInheritor>();
     private readonly MonitorConfigurationWatcher _sut;
     private readonly List<MonitorConfigurationChangedEventArgs> _changes = [];
 
     public MonitorConfigurationWatcherTests()
     {
-        _sut = new MonitorConfigurationWatcher(_notifier, _monitors, _rotation, _time, NullLogger<MonitorConfigurationWatcher>.Instance);
+        _inheritor.InheritAsync(Arg.Any<IReadOnlyList<MonitorInfo>>(), Arg.Any<CancellationToken>()).Returns([]);
+        _sut = new MonitorConfigurationWatcher(
+            _notifier, _monitors, _rotation, _inheritor, _time, NullLogger<MonitorConfigurationWatcher>.Instance);
         _sut.ConfigurationChanged += (_, e) => _changes.Add(e);
     }
 
@@ -125,6 +128,62 @@ public sealed class MonitorConfigurationWatcherTests : IDisposable
         await SettleAsync();
 
         await _rotation.Received(1).NextAsync("EXT2", Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task 開始時に接続中のモニターへ前の設定の引き継ぎを試みる()
+    {
+        await StartWithAsync(Laptop, External);
+
+        await _inheritor.Received(1).InheritAsync(
+            Arg.Is<IReadOnlyList<MonitorInfo>>(m => m.SequenceEqual(new[] { Laptop, External })), Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task 新しく接続されたモニターは前の設定を引き継いでから壁紙を表示する()
+    {
+        await StartWithAsync(Laptop);
+        UseMonitors(Laptop, External);
+        _inheritor.InheritAsync(Arg.Any<IReadOnlyList<MonitorInfo>>(), Arg.Any<CancellationToken>()).Returns([External]);
+
+        _notifier.Raise();
+        await SettleAsync();
+
+        Received.InOrder(() =>
+        {
+            _inheritor.InheritAsync(
+                Arg.Is<IReadOnlyList<MonitorInfo>>(m => m.SequenceEqual(new[] { Laptop, External })), Arg.Any<CancellationToken>());
+            _rotation.NextAsync("EXT", Arg.Any<CancellationToken>());
+        });
+        Assert.Equal([External], Assert.Single(_changes).Inherited);
+    }
+
+    [Fact]
+    public async Task 設定を引き継げなくても新しく接続されたモニターに壁紙を表示する()
+    {
+        await StartWithAsync(Laptop);
+        UseMonitors(Laptop, External);
+        _inheritor.InheritAsync(Arg.Any<IReadOnlyList<MonitorInfo>>(), Arg.Any<CancellationToken>())
+            .ThrowsAsync(new IOException("書き込めません"));
+
+        _notifier.Raise();
+        await SettleAsync();
+
+        await _rotation.Received(1).NextAsync("EXT", Arg.Any<CancellationToken>());
+        Assert.Empty(Assert.Single(_changes).Inherited);
+    }
+
+    [Fact]
+    public async Task 新しく接続されたモニターが無ければ設定の引き継ぎを試みない()
+    {
+        await StartWithAsync(Laptop, External);
+        _inheritor.ClearReceivedCalls();
+        UseMonitors(Laptop);
+
+        _notifier.Raise();
+        await SettleAsync();
+
+        await _inheritor.DidNotReceive().InheritAsync(Arg.Any<IReadOnlyList<MonitorInfo>>(), Arg.Any<CancellationToken>());
     }
 
     [Fact]

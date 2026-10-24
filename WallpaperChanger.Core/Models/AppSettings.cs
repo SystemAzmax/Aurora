@@ -49,6 +49,49 @@ public sealed record AppSettings
         };
     }
 
+    /// <summary>
+    /// モニターの設定を別のモニター ID に移した新しい設定を返す（接続先のポートを変えて ID が変わったモニター用）。
+    /// 移し先に設定があれば置き換える。移し元に設定が無ければ何もしない。
+    /// </summary>
+    public AppSettings MoveMonitor(string fromMonitorId, string toMonitorId)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(fromMonitorId);
+        ArgumentException.ThrowIfNullOrWhiteSpace(toMonitorId);
+
+        if (Monitors.FirstOrDefault(m => IsSameMonitor(m.MonitorId, fromMonitorId)) is not { } source)
+        {
+            return this;
+        }
+
+        return this with
+        {
+            Monitors =
+            [
+                .. Monitors.Where(m => !IsSameMonitor(m.MonitorId, fromMonitorId) && !IsSameMonitor(m.MonitorId, toMonitorId)),
+                source with { MonitorId = toMonitorId },
+            ],
+        };
+    }
+
+    /// <summary>接続中のモニターの名前を、そのモニターの設定に記録した新しい設定を返す（設定の無いモニターは追加しない）。</summary>
+    public AppSettings RecordMonitorNames(IEnumerable<MonitorInfo> monitors)
+    {
+        ArgumentNullException.ThrowIfNull(monitors);
+
+        Dictionary<string, string> names = monitors
+            .GroupBy(m => m.Id, StringComparer.OrdinalIgnoreCase)
+            .ToDictionary(g => g.Key, g => g.First().DisplayName, StringComparer.OrdinalIgnoreCase);
+        return this with
+        {
+            Monitors =
+            [
+                .. Monitors.Select(m => names.TryGetValue(m.MonitorId, out string? name) && m.DisplayName != name
+                    ? m with { DisplayName = name }
+                    : m),
+            ],
+        };
+    }
+
     /// <summary>画像を表示しない画像に加えた新しい設定を返す。</summary>
     public AppSettings AddExcludedImage(string imagePath) =>
         this with { ExcludedImages = PathList.Add(ExcludedImages, imagePath) };

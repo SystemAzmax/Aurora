@@ -52,6 +52,70 @@ public sealed class SettingsViewModelTests : IDisposable
 
     public void Dispose() => _sut.Dispose();
 
+    // ---- ほかのモニターの設定のコピー ----
+
+    [Fact]
+    public async Task コピー元にはフォルダを設定したほかのモニターと接続していないモニターを並べる()
+    {
+        await _settings.UpdateAsync(
+            s => s
+                .WithMonitor(MonitorSettings.CreateDefault("MON-OLD").AddFolder(@"C:\Old") with { DisplayName = "Old Monitor" })
+                .WithMonitor(MonitorSettings.CreateDefault(@"\\?\DISPLAY#GSM7666#5&1&0&UID1#{e6f07b5f-ee97-4a90-b076-33f57bf4eaa7}").AddFolder(@"C:\Lg"))
+                .WithMonitor(MonitorSettings.CreateDefault("MON-EMPTY")),
+            TestContext.Current.CancellationToken);
+        await _sut.InitializeCommand.ExecuteAsync(null);
+
+        _sut.SelectedMonitor = _sut.Monitors.Single(m => m.Id == "MON-L");
+
+        // 名前を記録していないモニターは型番で示す。フォルダの無い設定はコピー元にしない
+        Assert.Equal(["2. Primary", "Old Monitor（未接続）", "GSM7666（未接続）"], _sut.CopySources.Select(c => c.Label));
+        Assert.False(_sut.CopySettingsCommand.CanExecute(null));
+    }
+
+    [Fact]
+    public async Task ほかのモニターの設定をコピーしてすぐに表示し直す()
+    {
+        await _sut.InitializeCommand.ExecuteAsync(null);
+        _sut.SelectedMonitor = _sut.Monitors.Single(m => m.Id == "MON-L");
+        _sut.SelectedCopySource = _sut.CopySources.Single(c => c.MonitorId == "MON-P");
+
+        await _sut.CopySettingsCommand.ExecuteAsync(null);
+
+        MonitorSettings left = _settings.Current.GetMonitor("MON-L");
+        Assert.Equal([@"C:\Wallpapers"], left.Folders);
+        Assert.False(left.IncludeSubfolders);
+        Assert.Equal(ImageSelectionMode.Sequential, left.SelectionMode);
+        Assert.Equal("Left", left.DisplayName);
+        Assert.Equal([@"C:\Wallpapers"], _sut.Folders);
+        await _rotation.Received(1).NextAsync("MON-L", Arg.Any<CancellationToken>());
+        Assert.False(_sut.IsStatusError);
+        Assert.Equal("2. Primary の設定を Left にコピーしました。", _sut.StatusMessage);
+    }
+
+    [Fact]
+    public async Task 設定を変えるとモニターの名前も記録する()
+    {
+        await _sut.InitializeCommand.ExecuteAsync(null);
+
+        _sut.IncludeSubfolders = true;
+
+        Assert.Equal("Primary", _settings.Current.GetMonitor("MON-P").DisplayName);
+    }
+
+    [Fact]
+    public async Task 接続先を変えたモニターに設定を引き継いだら伝える()
+    {
+        await _sut.InitializeCommand.ExecuteAsync(null);
+        MonitorInfo added = new("MON-R", 2, "Right", new MonitorBounds(2560, 0, 4480, 1080), 1920, 1080);
+        _monitors.GetMonitorsAsync(Arg.Any<CancellationToken>()).Returns([Left, Primary, added]);
+
+        _watcher.ConfigurationChanged += Raise.EventWith(_watcher,
+            new MonitorConfigurationChangedEventArgs([added], [], [], [Left, Primary, added], [added]));
+        await WaitUntilAsync(() => _sut.Monitors.Count == 3);
+
+        Assert.Contains("前の設定を引き継ぎ: Right", _sut.StatusMessage, StringComparison.Ordinal);
+    }
+
     // ---- 表示しない画像 ----
 
     [Fact]

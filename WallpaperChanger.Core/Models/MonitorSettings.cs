@@ -1,3 +1,5 @@
+using System.Text.Json.Serialization;
+
 namespace WallpaperChanger.Core.Models;
 
 /// <summary>
@@ -7,6 +9,9 @@ public sealed record MonitorSettings
 {
     /// <summary>対象モニターの ID（<see cref="MonitorInfo.Id"/>）。</summary>
     public required string MonitorId { get; init; }
+
+    /// <summary>最後に接続していたときのモニター名。接続していないモニターの設定を、設定画面で示すために使う。</summary>
+    public string? DisplayName { get; init; }
 
     /// <summary>壁紙フォルダ一覧（1 枚表示、および分割表示でフォルダ未設定のマスで使う）。</summary>
     public IReadOnlyList<string> Folders { get; init; } = [];
@@ -59,10 +64,18 @@ public sealed record MonitorSettings
 
     public MonitorSettings RemoveTileFolder(int index, string folder) => WithTile(index, GetTile(index).RemoveFolder(folder));
 
+    /// <summary>別のモニターの設定（フォルダ・表示レイアウト・選び方など）をコピーした新しい設定を返す。モニターの ID と名前はそのまま。</summary>
+    public MonitorSettings WithSettingsFrom(MonitorSettings source)
+    {
+        ArgumentNullException.ThrowIfNull(source);
+        return source with { MonitorId = MonitorId, DisplayName = DisplayName };
+    }
+
     /// <summary>
     /// 分割表示で、いずれかの区画に専用フォルダが設定されているか。
     /// true の場合、専用フォルダの無い区画のマスは黒で表示する。
     /// </summary>
+    [JsonIgnore]
     public bool UsesTileFolders =>
         Layout != WallpaperLayout.SingleImage && AnyQuadrantHasFolders;
 
@@ -79,6 +92,10 @@ public sealed record MonitorSettings
     public bool HasAnyFolder() =>
         Folders.Count > 0
         || UsesTileFolders;
+
+    /// <summary>1 枚表示・分割表示のどちらかにフォルダを設定しているか（今のレイアウトで使うかは問わない）。</summary>
+    [JsonIgnore]
+    public bool HasFolderSettings => Folders.Count > 0 || AnyQuadrantHasFolders;
 
     private bool AnyQuadrantHasFolders =>
         Enumerable.Range(0, WallpaperLayoutExtensions.QuadrantCount).Any(i => GetTile(i).Folders.Count > 0);

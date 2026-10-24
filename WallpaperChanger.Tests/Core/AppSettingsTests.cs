@@ -136,6 +136,83 @@ public class AppSettingsTests
     }
 
     [Fact]
+    public void MoveMonitorは設定を新しいIDに移し移し先の設定を置き換える()
+    {
+        var settings = new AppSettings()
+            .WithMonitor(MonitorSettings.CreateDefault("OLD").AddFolder(@"C:\w") with { DisplayName = "LG" })
+            .WithMonitor(MonitorSettings.CreateDefault("NEW") with { Layout = WallpaperLayout.Grid2x2 })
+            .WithMonitor(MonitorSettings.CreateDefault("OTHER"));
+
+        settings = settings.MoveMonitor("old", "NEW");
+
+        Assert.Equal(["OTHER", "NEW"], settings.Monitors.Select(m => m.MonitorId));
+        MonitorSettings moved = settings.GetMonitor("NEW");
+        Assert.Equal([@"C:\w"], moved.Folders);
+        Assert.Equal(WallpaperLayout.SingleImage, moved.Layout);
+        Assert.Equal("LG", moved.DisplayName);
+    }
+
+    [Fact]
+    public void MoveMonitorは移し元の設定が無ければ何もしない()
+    {
+        var settings = new AppSettings().WithMonitor(MonitorSettings.CreateDefault("NEW").AddFolder(@"C:\w"));
+
+        Assert.Same(settings, settings.MoveMonitor("OLD", "NEW"));
+    }
+
+    [Fact]
+    public void RecordMonitorNamesは設定のあるモニターにだけ名前を記録する()
+    {
+        var settings = new AppSettings().WithMonitor(MonitorSettings.CreateDefault("MON1"));
+
+        settings = settings.RecordMonitorNames(
+        [
+            new MonitorInfo("mon1", 0, "LG", new MonitorBounds(0, 0, 1920, 1080), 1920, 1080),
+            new MonitorInfo("MON2", 1, "DELL", new MonitorBounds(1920, 0, 3840, 1080), 1920, 1080),
+        ]);
+
+        Assert.Equal("LG", Assert.Single(settings.Monitors).DisplayName);
+    }
+
+    [Fact]
+    public void WithSettingsFromはIDと名前を残してほかの設定をコピーする()
+    {
+        MonitorSettings source = MonitorSettings.CreateDefault("SRC").AddFolder(@"C:\w").AddTileFolder(1, @"C:\b") with
+        {
+            DisplayName = "Source",
+            IncludeSubfolders = false,
+            SelectionMode = ImageSelectionMode.Sequential,
+            Layout = WallpaperLayout.Grid4x4,
+        };
+        MonitorSettings target = MonitorSettings.CreateDefault("DST") with { DisplayName = "Target" };
+
+        MonitorSettings copied = target.WithSettingsFrom(source);
+
+        Assert.Equal(source with { MonitorId = "DST", DisplayName = "Target" }, copied);
+    }
+
+    [Theory]
+    [InlineData(false, false, false)]
+    [InlineData(true, false, true)]
+    [InlineData(false, true, true)]
+    public void HasFolderSettingsは今のレイアウトに関わらずフォルダの有無を返す(bool hasFolder, bool hasTileFolder, bool expected)
+    {
+        MonitorSettings settings = MonitorSettings.CreateDefault("MON1");
+        if (hasFolder)
+        {
+            settings = settings.AddFolder(@"C:\w");
+        }
+
+        if (hasTileFolder)
+        {
+            settings = settings.AddTileFolder(2, @"C:\c");
+        }
+
+        // 1 枚表示ではマスのフォルダを使わないが、設定はしてある
+        Assert.Equal(expected, settings.HasFolderSettings);
+    }
+
+    [Fact]
     public void 表示しない画像は重複せずに追加され大文字小文字を区別せずに判定し削除できる()
     {
         AppSettings settings = new AppSettings()
