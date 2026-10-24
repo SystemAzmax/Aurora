@@ -13,6 +13,10 @@ namespace WallpaperChanger.UI.Services;
 ///       → 2 つ目に起動されたときの要求の受け付け開始（設定画面を前面に出す）
 /// 終了: 要求の受け付け停止 → モニター構成の監視・自動切り替え停止 → 設定画面とトレイアイコンの破棄
 /// </summary>
+/// <remarks>
+/// モニター構成の監視は、始められるまで間隔を空けて再試行し、その間も起動処理を進める。
+/// サインイン直後の自動起動では、エクスプローラーの準備が間に合わず、モニターの取得が時間切れになることがあるため。
+/// </remarks>
 internal sealed partial class ApplicationHostedService(
     ISettingsService settingsService,
     IWallpaperScheduler scheduler,
@@ -22,9 +26,16 @@ internal sealed partial class ApplicationHostedService(
     IMonitorConfigurationWatcher monitorWatcher,
     IActivationRequestListener activationRequestListener,
     IUiDispatcher uiDispatcher,
-    ILogger<ApplicationHostedService> logger) : IHostedService
+    TimeProvider timeProvider,
+    ILogger<ApplicationHostedService> logger) : IHostedService, IDisposable
 {
     private const string AppName = "壁紙チェンジャー";
+
+    /// <summary>モニター構成の監視を始められなかったときに、最初に再試行するまでの待ち時間。再試行のたびに倍にする。</summary>
+    internal static readonly TimeSpan FirstRetryDelay = TimeSpan.FromSeconds(10);
+
+    /// <summary>再試行するまでの待ち時間の上限。</summary>
+    internal static readonly TimeSpan MaxRetryDelay = TimeSpan.FromMinutes(5);
 
     private readonly ISettingsService _settingsService = settingsService ?? throw new ArgumentNullException(nameof(settingsService));
     private readonly IWallpaperScheduler _scheduler = scheduler ?? throw new ArgumentNullException(nameof(scheduler));
@@ -34,10 +45,16 @@ internal sealed partial class ApplicationHostedService(
     private readonly IMonitorConfigurationWatcher _monitorWatcher = monitorWatcher ?? throw new ArgumentNullException(nameof(monitorWatcher));
     private readonly IActivationRequestListener _activationRequestListener = activationRequestListener ?? throw new ArgumentNullException(nameof(activationRequestListener));
     private readonly IUiDispatcher _uiDispatcher = uiDispatcher ?? throw new ArgumentNullException(nameof(uiDispatcher));
+    private readonly TimeProvider _timeProvider = timeProvider ?? throw new ArgumentNullException(nameof(timeProvider));
     private readonly ILogger<ApplicationHostedService> _logger = logger ?? throw new ArgumentNullException(nameof(logger));
     private readonly Lock _stopGate = new();
+    private readonly CancellationTokenSource _stoppingCts = new();
+    private Task _monitorWatcherStart = Task.CompletedTask;
     private Task? _stopTask;
     private volatile bool _isStopping;
+
+    /// <summary>モニター構成の監視を始める処理（再試行を含む）。テストで完了を待つために使う。</summary>
+    internal Task MonitorWatcherStart => _monitorWatcherStart;
 
     public async Task StartAsync(CancellationToken cancellationToken)
     {
@@ -52,7 +69,9 @@ internal sealed partial class ApplicationHostedService(
         }
 
         _scheduler.Start();
-        await _monitorWatcher.StartAsync(cancellationToken).ConfigureAwait(false);
+
+        // エクスプローラーの準備が間に合わない場合は始められるまで再試行するため、完了を待たずに起動処理を進める
+        _monitorWatcherStart = StartMonitorWatcherAsync(_stoppingCts.Token);
 
         // 4 分割のマス専用フォルダも含めて判定する（現在のレイアウトで表示に使うフォルダがあるか）
         bool hasAnyFolder = _settingsService.Current.Monitors.Any(m => m.HasAnyFolder());
@@ -81,9 +100,15 @@ internal sealed partial class ApplicationHostedService(
         }
     }
 
+    public void Dispose() => _stoppingCts.Dispose();
+
     private async Task StopCoreAsync()
     {
         _activationRequestListener.StopListening();
+
+        // 監視を始められずに再試行している場合は、やめさせてから監視を止める
+        await _stoppingCts.CancelAsync().ConfigureAwait(false);
+        await _monitorWatcherStart.ConfigureAwait(false);
         await _monitorWatcher.StopAsync().ConfigureAwait(false);
         await _scheduler.StopAsync().ConfigureAwait(false);
         await _uiDispatcher.InvokeAsync(() =>
@@ -93,6 +118,49 @@ internal sealed partial class ApplicationHostedService(
         }).ConfigureAwait(false);
 
         LogStopped();
+    }
+
+    /// <summary>
+    /// モニター構成の監視を始める。始められなければ、終了するまで間隔を空けて再試行する（待ち時間は倍にしていき、上限で止める）。
+    /// 監視を始められなくても、壁紙の自動切り替えは続く（切り替えのたびにモニターを取得し直すため）。
+    /// </summary>
+    private async Task StartMonitorWatcherAsync(CancellationToken stoppingToken)
+    {
+        TimeSpan delay = FirstRetryDelay;
+        for (int attempt = 1; ; attempt++)
+        {
+            try
+            {
+                // エクスプローラーが応答しない間の呼び出しは、キャンセルしても時間切れまで終わらないため、
+                // 終了するときはその完了を待たずに抜ける（終了処理を待たせない）
+                await _monitorWatcher.StartAsync(stoppingToken).WaitAsync(stoppingToken).ConfigureAwait(false);
+                if (attempt > 1)
+                {
+                    LogMonitorWatcherStarted(attempt);
+                }
+
+                return;
+            }
+            catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested)
+            {
+                return;
+            }
+            catch (Exception ex)
+            {
+                LogMonitorWatcherStartFailed(ex, attempt, delay);
+            }
+
+            try
+            {
+                await Task.Delay(delay, _timeProvider, stoppingToken).ConfigureAwait(false);
+            }
+            catch (OperationCanceledException)
+            {
+                return;
+            }
+
+            delay = TimeSpan.FromTicks(Math.Min(delay.Ticks * 2, MaxRetryDelay.Ticks));
+        }
     }
 
     /// <summary>2 つ目に起動されたときは、起動中のこちらの設定画面を前面に出す（トレイアイコンを探さなくて済むように）。</summary>
@@ -134,6 +202,12 @@ internal sealed partial class ApplicationHostedService(
 
     [LoggerMessage(Level = LogLevel.Information, Message = "壁紙チェンジャーを終了しました")]
     private partial void LogStopped();
+
+    [LoggerMessage(Level = LogLevel.Warning, Message = "モニター構成の監視を始められませんでした（{Attempt} 回目）。{Delay} 後に再試行します")]
+    private partial void LogMonitorWatcherStartFailed(Exception exception, int attempt, TimeSpan delay);
+
+    [LoggerMessage(Level = LogLevel.Information, Message = "モニター構成の監視を始めました（{Attempt} 回目で成功）")]
+    private partial void LogMonitorWatcherStarted(int attempt);
 
     [LoggerMessage(Level = LogLevel.Warning, Message = "自動起動の登録パスを更新できませんでした")]
     private partial void LogStartupRegistrationUpdateFailed(Exception exception);

@@ -1,4 +1,5 @@
 using Microsoft.Extensions.Logging.Abstractions;
+using Microsoft.Extensions.Time.Testing;
 using NSubstitute;
 using WallpaperChanger.Core.Interfaces;
 using WallpaperChanger.Core.Models;
@@ -15,6 +16,7 @@ public class ApplicationHostedServiceTests
     private readonly IStartupRegistrationService _startup = Substitute.For<IStartupRegistrationService>();
     private readonly IMonitorConfigurationWatcher _watcher = Substitute.For<IMonitorConfigurationWatcher>();
     private readonly IActivationRequestListener _activation = Substitute.For<IActivationRequestListener>();
+    private readonly FakeTimeProvider _time = new();
 
     [Fact]
     public async Task フォルダが1つも無ければ起動時に設定画面を開く()
@@ -127,6 +129,96 @@ public class ApplicationHostedServiceTests
         _settingsWindow.DidNotReceive().Show();
     }
 
+    [Fact]
+    public async Task モニター構成の監視を始められなくても起動を続け始められるまで再試行する()
+    {
+        var timeout = new TimeoutException("エクスプローラーが応答しません");
+        _watcher.StartAsync(Arg.Any<CancellationToken>())
+            .Returns(Task.FromException(timeout), Task.FromException(timeout), Task.CompletedTask);
+        ApplicationHostedService sut = Create(new AppSettings());
+
+        await sut.StartAsync(TestContext.Current.CancellationToken);
+
+        // 監視を始められなくても、起動処理は最後まで進める
+        _activation.Received(1).StartListening(Arg.Any<Action>());
+        Assert.Equal(1, WatcherStartCount());
+
+        _time.Advance(TimeSpan.FromSeconds(10));
+        await WaitUntilAsync(() => WatcherStartCount() == 2);
+        _time.Advance(TimeSpan.FromSeconds(20));
+        await sut.MonitorWatcherStart.WaitAsync(TimeSpan.FromSeconds(5), TestContext.Current.CancellationToken);
+
+        Assert.Equal(3, WatcherStartCount());
+    }
+
+    [Fact]
+    public async Task 再試行の待ち時間は倍にしていき上限で止める()
+    {
+        _watcher.StartAsync(Arg.Any<CancellationToken>()).Returns(Task.FromException(new TimeoutException()));
+        ApplicationHostedService sut = Create(new AppSettings());
+        await sut.StartAsync(TestContext.Current.CancellationToken);
+
+        // 10 秒、20 秒、40 秒、80 秒、160 秒と倍にしていき、その後は上限（5 分）の間隔で再試行する
+        int[] delaySeconds = [10, 20, 40, 80, 160, 300, 300];
+        for (int i = 0; i < delaySeconds.Length; i++)
+        {
+            _time.Advance(TimeSpan.FromSeconds(delaySeconds[i] - 1));
+            await Task.Delay(20, TestContext.Current.CancellationToken);
+            Assert.Equal(i + 1, WatcherStartCount());
+
+            _time.Advance(TimeSpan.FromSeconds(1));
+            int expected = i + 2;
+            await WaitUntilAsync(() => WatcherStartCount() == expected);
+        }
+
+        await sut.StopAsync(TestContext.Current.CancellationToken);
+    }
+
+    [Fact]
+    public async Task 再試行中に終了したら再試行をやめる()
+    {
+        _watcher.StartAsync(Arg.Any<CancellationToken>()).Returns(Task.FromException(new TimeoutException()));
+        ApplicationHostedService sut = Create(new AppSettings());
+        await sut.StartAsync(TestContext.Current.CancellationToken);
+
+        await sut.StopAsync(TestContext.Current.CancellationToken);
+        _time.Advance(ApplicationHostedService.MaxRetryDelay);
+        await Task.Delay(50, TestContext.Current.CancellationToken);
+
+        Assert.Equal(1, WatcherStartCount());
+        Assert.True(sut.MonitorWatcherStart.IsCompleted);
+        await _watcher.Received(1).StopAsync();
+    }
+
+    [Fact]
+    public async Task モニターの取得が終わらなくても起動処理を進め終了も待たせない()
+    {
+        // エクスプローラーが応答せず、モニターの取得が時間切れになるまで終わらない状態
+        var hung = new TaskCompletionSource();
+        _watcher.StartAsync(Arg.Any<CancellationToken>()).Returns(hung.Task);
+        ApplicationHostedService sut = Create(new AppSettings());
+
+        await sut.StartAsync(TestContext.Current.CancellationToken);
+
+        _settingsWindow.Received(1).Show();
+        _activation.Received(1).StartListening(Arg.Any<Action>());
+        await sut.StopAsync(TestContext.Current.CancellationToken).WaitAsync(TimeSpan.FromSeconds(5), TestContext.Current.CancellationToken);
+        await _watcher.Received(1).StopAsync();
+    }
+
+    private int WatcherStartCount() =>
+        _watcher.ReceivedCalls().Count(c => c.GetMethodInfo().Name == nameof(IMonitorConfigurationWatcher.StartAsync));
+
+    private static async Task WaitUntilAsync(Func<bool> condition)
+    {
+        for (int i = 0; i < 500 && !condition(); i++)
+        {
+            await Task.Delay(10, TestContext.Current.CancellationToken);
+        }
+
+        Assert.True(condition());
+    }
+
     private Task StartAsync(AppSettings settings) => Create(settings).StartAsync(TestContext.Current.CancellationToken);
 
     private ApplicationHostedService Create(AppSettings settings) => Create(new InMemorySettingsService(settings));
@@ -140,5 +232,6 @@ public class ApplicationHostedServiceTests
         _watcher,
         _activation,
         new InlineUiDispatcher(),
+        _time,
         NullLogger<ApplicationHostedService>.Instance);
 }
