@@ -35,7 +35,7 @@ public sealed class SettingsViewModelTests : IDisposable
         // 既定では、対象のモニターの壁紙を変更できたものとする
         _rotation.NextAsync(Arg.Any<string?>(), Arg.Any<CancellationToken>()).Returns(Changed(Primary));
         _rotation.PreviousAsync(Arg.Any<string?>(), Arg.Any<CancellationToken>()).Returns(Changed(Primary));
-        _scheduler.ChangeNowAsync(Arg.Any<CancellationToken>()).Returns(Changed(Left, Primary));
+        _scheduler.RefreshNowAsync(Arg.Any<CancellationToken>()).Returns(Changed(Left, Primary));
 
         _settings = new InMemorySettingsService(new AppSettings { IntervalMinutes = 120 }
             .WithMonitor(MonitorSettings.CreateDefault("MON-P").AddFolder(@"C:\Wallpapers") with
@@ -163,14 +163,16 @@ public sealed class SettingsViewModelTests : IDisposable
     // ---- 切り替え結果の表示 ----
 
     [Fact]
-    public async Task 全モニターを変更できれば成功を表示する()
+    public async Task 全壁紙を更新はフォルダを読み込み直して全モニターを変更し成功を表示する()
     {
         await _sut.InitializeCommand.ExecuteAsync(null);
 
-        await _sut.ChangeAllNowCommand.ExecuteAsync(null);
+        await _sut.RefreshAllWallpapersCommand.ExecuteAsync(null);
 
+        await _scheduler.Received(1).RefreshNowAsync(Arg.Any<CancellationToken>());
+        await _scheduler.DidNotReceive().ChangeNowAsync(Arg.Any<CancellationToken>());
         Assert.False(_sut.IsStatusError);
-        Assert.Equal("全モニターの壁紙を変更しました。", _sut.StatusMessage);
+        Assert.Equal("壁紙フォルダを読み込み直して、全モニターの壁紙を更新しました。", _sut.StatusMessage);
     }
 
     [Fact]
@@ -195,7 +197,7 @@ public sealed class SettingsViewModelTests : IDisposable
 
         Assert.True(_sut.IsChangingWallpaper);
         Assert.Equal("壁紙を切り替えています…（2 台中 1 台目: Left）", _sut.ChangeProgressText);
-        Assert.False(_sut.ChangeAllNowCommand.CanExecute(null));
+        Assert.False(_sut.RefreshAllWallpapersCommand.CanExecute(null));
         Assert.False(_sut.ChangeSelectedMonitorNowCommand.CanExecute(null));
         Assert.False(_sut.PreviousSelectedMonitorCommand.CanExecute(null));
 
@@ -203,7 +205,7 @@ public sealed class SettingsViewModelTests : IDisposable
 
         Assert.False(_sut.IsChangingWallpaper);
         Assert.Null(_sut.ChangeProgressText);
-        Assert.True(_sut.ChangeAllNowCommand.CanExecute(null));
+        Assert.True(_sut.RefreshAllWallpapersCommand.CanExecute(null));
         Assert.True(_sut.ChangeSelectedMonitorNowCommand.CanExecute(null));
         Assert.True(_sut.PreviousSelectedMonitorCommand.CanExecute(null));
     }
@@ -222,10 +224,10 @@ public sealed class SettingsViewModelTests : IDisposable
     public async Task 画像が無く変更されなかったモニターがあれば成功ではなく理由を表示する()
     {
         await _sut.InitializeCommand.ExecuteAsync(null);
-        _scheduler.ChangeNowAsync(Arg.Any<CancellationToken>()).Returns(new WallpaperChangeResult(
+        _scheduler.RefreshNowAsync(Arg.Any<CancellationToken>()).Returns(new WallpaperChangeResult(
             [new(Left, WallpaperChangeStatus.Changed), new(Primary, WallpaperChangeStatus.NoImages)]));
 
-        await _sut.ChangeAllNowCommand.ExecuteAsync(null);
+        await _sut.RefreshAllWallpapersCommand.ExecuteAsync(null);
 
         Assert.True(_sut.IsStatusError);
         Assert.Contains("一部のモニターの壁紙は変更されませんでした", _sut.StatusMessage, StringComparison.Ordinal);
@@ -236,22 +238,22 @@ public sealed class SettingsViewModelTests : IDisposable
     public async Task フォルダ未登録のモニターは他のモニターが変わっていれば伝えない()
     {
         await _sut.InitializeCommand.ExecuteAsync(null);
-        _scheduler.ChangeNowAsync(Arg.Any<CancellationToken>()).Returns(new WallpaperChangeResult(
+        _scheduler.RefreshNowAsync(Arg.Any<CancellationToken>()).Returns(new WallpaperChangeResult(
             [new(Left, WallpaperChangeStatus.NoFolders), new(Primary, WallpaperChangeStatus.Changed)]));
 
-        await _sut.ChangeAllNowCommand.ExecuteAsync(null);
+        await _sut.RefreshAllWallpapersCommand.ExecuteAsync(null);
 
         Assert.False(_sut.IsStatusError);
-        Assert.Equal("全モニターの壁紙を変更しました。", _sut.StatusMessage);
+        Assert.Equal("壁紙フォルダを読み込み直して、全モニターの壁紙を更新しました。", _sut.StatusMessage);
     }
 
     [Fact]
     public async Task どのモニターも変わらなければフォルダ未登録も理由として表示する()
     {
         await _sut.InitializeCommand.ExecuteAsync(null);
-        _scheduler.ChangeNowAsync(Arg.Any<CancellationToken>()).Returns(Result(WallpaperChangeStatus.NoFolders, Left, Primary));
+        _scheduler.RefreshNowAsync(Arg.Any<CancellationToken>()).Returns(Result(WallpaperChangeStatus.NoFolders, Left, Primary));
 
-        await _sut.ChangeAllNowCommand.ExecuteAsync(null);
+        await _sut.RefreshAllWallpapersCommand.ExecuteAsync(null);
 
         Assert.True(_sut.IsStatusError);
         Assert.Equal("壁紙は変更されませんでした。壁紙フォルダが登録されていません（Left、Primary）", _sut.StatusMessage);

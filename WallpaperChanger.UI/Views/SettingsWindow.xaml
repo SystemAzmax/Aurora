@@ -271,8 +271,9 @@
                                     </Style>
                                 </Button.Style>
                             </Button>
-                            <Button Content="今すぐ全モニターを変更" Tag="&#xE72C;" Style="{StaticResource AccentIconButtonStyle}"
-                                    Command="{Binding ChangeAllNowCommand}" />
+                            <Button Content="全壁紙を更新" Tag="&#xE72C;" Style="{StaticResource AccentIconButtonStyle}"
+                                    ToolTip="壁紙フォルダを読み込み直して、全モニターの壁紙を選び直します"
+                                    Command="{Binding RefreshAllWallpapersCommand}" />
                         </StackPanel>
                     </StackPanel>
                 </Border>

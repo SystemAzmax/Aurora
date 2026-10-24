@@ -309,7 +309,7 @@ public sealed partial class SettingsViewModel : ObservableObject, IDisposable
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(IsChangingWallpaper))]
     [NotifyCanExecuteChangedFor(
-        nameof(ChangeSelectedMonitorNowCommand), nameof(PreviousSelectedMonitorCommand), nameof(ChangeAllNowCommand), nameof(CopySettingsCommand))]
+        nameof(ChangeSelectedMonitorNowCommand), nameof(PreviousSelectedMonitorCommand), nameof(RefreshAllWallpapersCommand), nameof(CopySettingsCommand))]
     public partial string? ChangeProgressText { get; set; }
 
     /// <summary>切り替え中か。切り替え中は切り替えのボタンを押せない（順番待ちになり、さらに待たされないように）。</summary>
@@ -537,13 +537,17 @@ public sealed partial class SettingsViewModel : ObservableObject, IDisposable
 
     private bool CanChangeWallpaper() => !IsChangingWallpaper;
 
+    /// <summary>
+    /// 壁紙フォルダを読み込み直して（列挙結果のキャッシュを使わずに）、全モニターの壁紙を選び直す。トレイの「全壁紙を更新」と同じ。
+    /// 変更を監視できないネットワーク共有のフォルダでも、追加した画像をすぐに候補に入れられるようにする。
+    /// </summary>
     [RelayCommand(CanExecute = nameof(CanChangeWallpaper))]
-    private Task ChangeAllNowAsync() => ExecuteSafelyAsync("全モニターの壁紙の変更", async () =>
+    private Task RefreshAllWallpapersAsync() => ExecuteSafelyAsync("全壁紙の更新", async () =>
     {
-        WallpaperChangeResult result = await _scheduler.ChangeNowAsync();
+        WallpaperChangeResult result = await _scheduler.RefreshNowAsync();
         if (!ReportProblems(result))
         {
-            ShowInfo("全モニターの壁紙を変更しました。");
+            ShowInfo("壁紙フォルダを読み込み直して、全モニターの壁紙を更新しました。");
         }
     });
 
