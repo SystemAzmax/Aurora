@@ -73,8 +73,8 @@ internal sealed partial class ApplicationHostedService(
         // エクスプローラーの準備が間に合わない場合は始められるまで再試行するため、完了を待たずに起動処理を進める
         _monitorWatcherStart = StartMonitorWatcherAsync(_stoppingCts.Token);
 
-        // 4 分割のマス専用フォルダも含めて判定する（現在のレイアウトで表示に使うフォルダがあるか）
-        bool hasAnyFolder = _settingsService.Current.Monitors.Any(m => m.HasAnyFolder());
+        // 分割表示のマス専用フォルダやスパンのフォルダも含めて判定する（現在のレイアウトで表示に使うフォルダがあるか）
+        bool hasAnyFolder = _settingsService.Current.HasAnyFolder();
         if (!hasAnyFolder)
         {
             // 初回起動時など、壁紙フォルダが未登録なら設定画面を開く

@@ -11,6 +11,15 @@ namespace WallpaperChanger.Core.Services;
 /// </summary>
 public sealed partial class WallpaperRotationService : IWallpaperRotationService, IDisposable
 {
+    /// <summary>
+    /// スパン（複数モニターにまたがる 1 枚表示）の履歴のキー。スパンの履歴はモニターごとではなく、スパン全体で 1 つ持つ。
+    /// モニターの ID（デバイスパス）とは重ならない値にする。
+    /// </summary>
+    internal const string SpanHistoryKey = "*span*";
+
+    /// <summary>ログに使う、スパン全体の呼び方。</summary>
+    private const string SpanName = "スパン";
+
     private readonly IMonitorService _monitorService;
     private readonly IWallpaperService _wallpaperService;
     private readonly IImageProvider _imageProvider;
@@ -59,27 +68,31 @@ public sealed partial class WallpaperRotationService : IWallpaperRotationService
     public event EventHandler<WallpaperChangeProgressEventArgs>? ProgressChanged;
 
     public Task<WallpaperChangeResult> NextAsync(string? monitorId = null, CancellationToken cancellationToken = default) =>
-        ExecuteForMonitorsAsync(monitorId, NextForMonitorAsync, cancellationToken);
+        ExecuteForMonitorsAsync(
+            monitorId, NextForMonitorAsync, (monitors, ct) => NextForSpanAsync(monitors, replayForward: true, ct), cancellationToken);
 
     public Task<WallpaperChangeResult> RefreshAsync(string? monitorId = null, CancellationToken cancellationToken = default)
     {
         // キャッシュに入っていない追加直後の画像も候補にする
         _imageProvider.Invalidate();
         return ExecuteForMonitorsAsync(
-            monitorId, (monitor, ct) => NextForMonitorAsync(monitor, replayForward: false, ct), cancellationToken);
+            monitorId,
+            (monitor, ct) => NextForMonitorAsync(monitor, replayForward: false, ct),
+            (monitors, ct) => NextForSpanAsync(monitors, replayForward: false, ct),
+            cancellationToken);
     }
 
     public Task<WallpaperChangeResult> PreviousAsync(string? monitorId = null, CancellationToken cancellationToken = default) =>
-        ExecuteForMonitorsAsync(monitorId, PreviousForMonitorAsync, cancellationToken);
+        ExecuteForMonitorsAsync(monitorId, PreviousForMonitorAsync, PreviousForSpanAsync, cancellationToken);
 
     public Task<WallpaperChangeResult> ReapplyAsync(string monitorId, CancellationToken cancellationToken = default)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(monitorId);
-        return ExecuteForMonitorsAsync(monitorId, ReapplyForMonitorAsync, cancellationToken);
+        return ExecuteForMonitorsAsync(monitorId, ReapplyForMonitorAsync, ReapplyForSpanAsync, cancellationToken);
     }
 
     public Task<WallpaperChangeResult> ReplaceExcludedImagesAsync(CancellationToken cancellationToken = default) =>
-        ExecuteForMonitorsAsync(monitorId: null, ReplaceExcludedForMonitorAsync, cancellationToken);
+        ExecuteForMonitorsAsync(monitorId: null, ReplaceExcludedForMonitorAsync, ReplaceExcludedForSpanAsync, cancellationToken);
 
     public async Task<IReadOnlyList<CurrentWallpaper>> GetCurrentWallpapersAsync(CancellationToken cancellationToken = default)
     {
@@ -88,7 +101,12 @@ public sealed partial class WallpaperRotationService : IWallpaperRotationService
         {
             await LoadHistoriesAsync(cancellationToken).ConfigureAwait(false);
             IReadOnlyList<MonitorInfo> monitors = await _monitorService.GetMonitorsAsync(cancellationToken).ConfigureAwait(false);
-            return [.. monitors.Select(m => new CurrentWallpaper(m, _histories.GetValueOrDefault(m.Id)?.Current))];
+
+            // スパンのモニターは、スパン全体の履歴の画像を表示している
+            AppSettings settings = _settingsService.Current;
+            WallpaperSelection? span = _histories.GetValueOrDefault(SpanHistoryKey)?.Current;
+            return [.. monitors.Select(m => new CurrentWallpaper(
+                m, IsSpanMonitor(settings, m) ? span : _histories.GetValueOrDefault(m.Id)?.Current))];
         }
         finally
         {
@@ -126,9 +144,12 @@ public sealed partial class WallpaperRotationService : IWallpaperRotationService
 
     public void Dispose() => _gate.Dispose();
 
+    /// <param name="action">スパンでないモニター 1 台ずつに行う処理。</param>
+    /// <param name="spanAction">スパンに参加するモニター（接続中のすべて）にまとめて 1 回行う処理。</param>
     private async Task<WallpaperChangeResult> ExecuteForMonitorsAsync(
         string? monitorId,
         Func<MonitorInfo, CancellationToken, Task<WallpaperChangeStatus>> action,
+        Func<IReadOnlyList<MonitorInfo>, CancellationToken, Task<WallpaperChangeStatus>> spanAction,
         CancellationToken cancellationToken)
     {
         await _gate.WaitAsync(cancellationToken).ConfigureAwait(false);
@@ -137,7 +158,7 @@ public sealed partial class WallpaperRotationService : IWallpaperRotationService
             await LoadHistoriesAsync(cancellationToken).ConfigureAwait(false);
             try
             {
-                return await ExecuteForMonitorsCoreAsync(monitorId, action, cancellationToken).ConfigureAwait(false);
+                return await ExecuteForMonitorsCoreAsync(monitorId, action, spanAction, cancellationToken).ConfigureAwait(false);
             }
             finally
             {
@@ -155,6 +176,7 @@ public sealed partial class WallpaperRotationService : IWallpaperRotationService
     private async Task<WallpaperChangeResult> ExecuteForMonitorsCoreAsync(
         string? monitorId,
         Func<MonitorInfo, CancellationToken, Task<WallpaperChangeStatus>> action,
+        Func<IReadOnlyList<MonitorInfo>, CancellationToken, Task<WallpaperChangeStatus>> spanAction,
         CancellationToken cancellationToken)
     {
         IReadOnlyList<MonitorInfo> monitors = await _monitorService.GetMonitorsAsync(cancellationToken).ConfigureAwait(false);
@@ -168,24 +190,42 @@ public sealed partial class WallpaperRotationService : IWallpaperRotationService
             return WallpaperChangeResult.Empty;
         }
 
+        // スパンに参加するモニターは 1 枚の画像を分け合うため、対象に 1 台でも含まれていれば、接続中のすべてをまとめて 1 回で処理する
+        AppSettings settings = _settingsService.Current;
+        List<MonitorInfo> spanMonitors = [.. monitors.Where(m => IsSpanMonitor(settings, m))];
+        List<ChangeUnit> units = [];
+        foreach (MonitorInfo target in targets)
+        {
+            if (!spanMonitors.Contains(target))
+            {
+                units.Add(new ChangeUnit([target], IsSpan: false));
+            }
+            else if (!units.Any(u => u.IsSpan))
+            {
+                units.Add(new ChangeUnit(spanMonitors, IsSpan: true));
+            }
+        }
+
         // 1 台の失敗で他のモニターの切り替えを止めないよう、例外は集約して最後に送出する
         List<Exception> errors = [];
         List<MonitorChangeResult> results = [];
         try
         {
-            for (int i = 0; i < targets.Count; i++)
+            for (int i = 0; i < units.Count; i++)
             {
-                MonitorInfo monitor = targets[i];
+                ChangeUnit unit = units[i];
                 cancellationToken.ThrowIfCancellationRequested();
-                ProgressChanged?.Invoke(this, new WallpaperChangeProgressEventArgs(i, targets.Count, monitor));
+                ProgressChanged?.Invoke(this, new WallpaperChangeProgressEventArgs(i, units.Count, unit.Monitors[0]));
                 try
                 {
-                    WallpaperChangeStatus status = await action(monitor, cancellationToken).ConfigureAwait(false);
-                    results.Add(new MonitorChangeResult(monitor, status));
+                    WallpaperChangeStatus status = unit.IsSpan
+                        ? await spanAction(unit.Monitors, cancellationToken).ConfigureAwait(false)
+                        : await action(unit.Monitors[0], cancellationToken).ConfigureAwait(false);
+                    results.AddRange(unit.Monitors.Select(m => new MonitorChangeResult(m, status)));
                 }
                 catch (Exception ex) when (ex is not OperationCanceledException)
                 {
-                    LogMonitorChangeFailed(ex, monitor.DisplayName);
+                    LogMonitorChangeFailed(ex, unit.IsSpan ? SpanName : unit.Monitors[0].DisplayName);
                     errors.Add(ex);
                 }
             }
@@ -193,7 +233,7 @@ public sealed partial class WallpaperRotationService : IWallpaperRotationService
         finally
         {
             // 失敗・キャンセルでも、進み具合の表示を終わらせる
-            ProgressChanged?.Invoke(this, new WallpaperChangeProgressEventArgs(targets.Count, targets.Count, null));
+            ProgressChanged?.Invoke(this, new WallpaperChangeProgressEventArgs(units.Count, units.Count, null));
         }
 
         // 接続されなくなったモニターの合成画像は、そのモニターでは合成されないため、ここで後片付けする
@@ -241,7 +281,7 @@ public sealed partial class WallpaperRotationService : IWallpaperRotationService
         }
 
         IReadOnlyList<string?> current = history.Current?.Images ?? [];
-        IReadOnlyList<string?>? next = await SelectAvailableImagesAsync(monitor, settings, current, _ => true, cancellationToken)
+        IReadOnlyList<string?>? next = await SelectAvailableImagesAsync(monitor.DisplayName, settings, current, _ => true, cancellationToken)
             .ConfigureAwait(false);
 
         if (next is null)
@@ -281,7 +321,7 @@ public sealed partial class WallpaperRotationService : IWallpaperRotationService
 
         IReadOnlyList<string?> images = current.Images;
         IReadOnlyList<string?>? next = await SelectAvailableImagesAsync(
-                monitor, settings, images, i => i < images.Count && images[i] is { } image && appSettings.IsExcluded(image), cancellationToken)
+                monitor.DisplayName, settings, images, i => i < images.Count && images[i] is { } image && appSettings.IsExcluded(image), cancellationToken)
             .ConfigureAwait(false);
 
         if (next is null)
@@ -300,8 +340,9 @@ public sealed partial class WallpaperRotationService : IWallpaperRotationService
     /// <summary>
     /// <see cref="SelectImagesAsync"/> で選ぶ。キャッシュされた候補が、その後に削除・移動されていた場合は列挙し直して選び直す。
     /// </summary>
+    /// <param name="name">ログに使う、表示先（モニター・スパン）の名前。</param>
     private async Task<IReadOnlyList<string?>?> SelectAvailableImagesAsync(
-        MonitorInfo monitor,
+        string name,
         MonitorSettings settings,
         IReadOnlyList<string?> current,
         Func<int, bool> shouldSelect,
@@ -312,7 +353,7 @@ public sealed partial class WallpaperRotationService : IWallpaperRotationService
         // 選び直したマスの画像だけを確かめる（選び直さなかったマスは、ここでは差し替えないため）
         if (next is not null && !Enumerable.Range(0, next.Count).Where(shouldSelect).Select(i => next[i]).OfType<string>().All(_imageProvider.Exists))
         {
-            LogStaleImageList(monitor.DisplayName);
+            LogStaleImageList(name);
             _imageProvider.Invalidate();
             next = await SelectImagesAsync(settings, current, shouldSelect, cancellationToken).ConfigureAwait(false);
         }
@@ -485,6 +526,119 @@ public sealed partial class WallpaperRotationService : IWallpaperRotationService
         return _composer.ComposeAsync(request, cancellationToken);
     }
 
+    // ---- スパン（複数モニターにまたがる 1 枚表示） ----
+
+    /// <param name="monitors">スパンに参加する接続中のモニター。</param>
+    /// <param name="replayForward">「前へ」で戻った後に、進む履歴を表示するか。false なら新しく選び直す（進む履歴は破棄される）。</param>
+    private async Task<WallpaperChangeStatus> NextForSpanAsync(
+        IReadOnlyList<MonitorInfo> monitors, bool replayForward, CancellationToken cancellationToken)
+    {
+        SpanSettings span = _settingsService.Current.Span;
+        if (span.Folders.Count == 0)
+        {
+            LogNoFolders(SpanName);
+            return WallpaperChangeStatus.NoFolders;
+        }
+
+        WallpaperHistory history = GetHistory(SpanHistoryKey);
+        if (replayForward && history.Forward is { } forward && CanShow(forward))
+        {
+            history.TryMoveForward(out _);
+            await ApplySpanAsync(monitors, forward, cancellationToken).ConfigureAwait(false);
+            return WallpaperChangeStatus.Changed;
+        }
+
+        // スパンの設定を、1 枚表示のモニターの設定と同じ形にして選ぶ
+        MonitorSettings source = MonitorSettings.CreateDefault(SpanHistoryKey) with
+        {
+            Folders = span.Folders,
+            IncludeSubfolders = span.IncludeSubfolders,
+            SelectionMode = span.SelectionMode,
+        };
+        IReadOnlyList<string?>? next = await SelectAvailableImagesAsync(
+                SpanName, source, history.Current?.Images ?? [], _ => true, cancellationToken)
+            .ConfigureAwait(false);
+
+        if (next is null)
+        {
+            LogNoImages(SpanName);
+            return WallpaperChangeStatus.NoImages;
+        }
+
+        var selection = new WallpaperSelection(WallpaperLayout.Span, next);
+        await ApplySpanAsync(monitors, selection, cancellationToken).ConfigureAwait(false);
+        history.Push(selection);
+        return WallpaperChangeStatus.Changed;
+    }
+
+    private async Task<WallpaperChangeStatus> PreviousForSpanAsync(IReadOnlyList<MonitorInfo> monitors, CancellationToken cancellationToken)
+    {
+        WallpaperHistory history = GetHistory(SpanHistoryKey);
+        while (history.TryMoveBack(out WallpaperSelection? previous))
+        {
+            if (CanShow(previous))
+            {
+                await ApplySpanAsync(monitors, previous, cancellationToken).ConfigureAwait(false);
+                return WallpaperChangeStatus.Changed;
+            }
+
+            LogHistoryImageUnavailable(previous.Images);
+        }
+
+        LogNoPreviousWallpaper(SpanName);
+        return WallpaperChangeStatus.NoPreviousWallpaper;
+    }
+
+    /// <summary>
+    /// 参加するモニターの接続・切断・配置・解像度や、収め方が変わると切り分ける位置が変わるため、同じ画像で作り直す。
+    /// 表示中の画像が無ければ次の壁紙を表示する。
+    /// </summary>
+    private async Task<WallpaperChangeStatus> ReapplyForSpanAsync(IReadOnlyList<MonitorInfo> monitors, CancellationToken cancellationToken)
+    {
+        if (GetHistory(SpanHistoryKey).Current is { } current && CanShow(current))
+        {
+            await ApplySpanAsync(monitors, current, cancellationToken).ConfigureAwait(false);
+            return WallpaperChangeStatus.Changed;
+        }
+
+        return await NextForSpanAsync(monitors, replayForward: true, cancellationToken).ConfigureAwait(false);
+    }
+
+    /// <summary>表示中の画像が表示しない画像に指定されていれば、選び直す。</summary>
+    private Task<WallpaperChangeStatus> ReplaceExcludedForSpanAsync(IReadOnlyList<MonitorInfo> monitors, CancellationToken cancellationToken)
+    {
+        AppSettings settings = _settingsService.Current;
+        return GetHistory(SpanHistoryKey).Current is { } current && current.ShownImages.Any(settings.IsExcluded)
+            ? NextForSpanAsync(monitors, replayForward: false, cancellationToken)
+            : Task.FromResult(WallpaperChangeStatus.NotRequired);
+    }
+
+    /// <summary>画像を参加するモニターの位置に合わせて切り分け、それぞれの壁紙に設定する。</summary>
+    private async Task ApplySpanAsync(IReadOnlyList<MonitorInfo> monitors, WallpaperSelection selection, CancellationToken cancellationToken)
+    {
+        var request = new SpanCompositionRequest(
+            selection.ShownImages.First(),
+            [.. monitors.Select(m => new SpanMonitor(m.Id, m.Bounds, m.Width, m.Height))],
+            _settingsService.Current.Span.Fit);
+        IReadOnlyDictionary<string, string> paths = await _composer.ComposeSpanAsync(request, cancellationToken).ConfigureAwait(false);
+
+        foreach (MonitorInfo monitor in monitors)
+        {
+            string wallpaperPath = paths[monitor.Id];
+            await _wallpaperService.SetWallpaperAsync(monitor.Id, wallpaperPath, cancellationToken).ConfigureAwait(false);
+            _fittedSingleImageMonitors.Remove(monitor.Id);
+            WallpaperChanged?.Invoke(this, new WallpaperChangedEventArgs(monitor.Id, wallpaperPath, selection));
+        }
+
+        LogSpanChanged(monitors.Count, selection.Images);
+    }
+
+    private static bool IsSpanMonitor(AppSettings settings, MonitorInfo monitor) =>
+        settings.GetMonitor(monitor.Id).Layout == WallpaperLayout.Span;
+
+    /// <summary>1 回の処理の単位。スパンでないモニターは 1 台ずつ、スパンのモニターはまとめて 1 つ。</summary>
+    private sealed record ChangeUnit(IReadOnlyList<MonitorInfo> Monitors, bool IsSpan);
+
     /// <summary>組の画像がすべて存在し、どれも表示しない画像に指定されていないか。</summary>
     private bool CanShow(WallpaperSelection selection)
     {
@@ -562,6 +716,9 @@ public sealed partial class WallpaperRotationService : IWallpaperRotationService
 
     [LoggerMessage(Level = LogLevel.Information, Message = "壁紙を変更しました: {Monitor} ({Layout}) -> {Images}")]
     private partial void LogWallpaperChanged(string monitor, WallpaperLayout layout, IReadOnlyList<string?> images);
+
+    [LoggerMessage(Level = LogLevel.Information, Message = "スパンの壁紙を変更しました ({Count} 台): {Images}")]
+    private partial void LogSpanChanged(int count, IReadOnlyList<string?> images);
 
     [LoggerMessage(Level = LogLevel.Warning, Message = "対象のモニターが見つかりません: {MonitorId}")]
     private partial void LogNoTargetMonitor(string monitorId);

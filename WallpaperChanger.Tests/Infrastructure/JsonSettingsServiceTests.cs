@@ -164,6 +164,49 @@ public sealed class JsonSettingsServiceTests : IDisposable
     }
 
     [Fact]
+    public async Task スパンの設定とレイアウトを保存して再読み込みできる()
+    {
+        CancellationToken ct = TestContext.Current.CancellationToken;
+        var span = new SpanSettings
+        {
+            IncludeSubfolders = false,
+            SelectionMode = ImageSelectionMode.Sequential,
+            Fit = ImageFit.Fit,
+        };
+        using (JsonSettingsService writer = CreateSut())
+        {
+            await writer.UpdateAsync(
+                s => s.WithMonitor(MonitorSettings.CreateDefault("M") with { Layout = WallpaperLayout.Span }) with
+                {
+                    Span = span.AddFolder(@"C:\Panorama"),
+                },
+                ct);
+        }
+
+        using JsonSettingsService reader = CreateSut();
+        await reader.LoadAsync(ct);
+
+        Assert.Equal(WallpaperLayout.Span, reader.Current.GetMonitor("M").Layout);
+        SpanSettings loaded = reader.Current.Span;
+        Assert.Equal([@"C:\Panorama"], loaded.Folders);
+        Assert.Equal((false, ImageSelectionMode.Sequential, ImageFit.Fit), (loaded.IncludeSubfolders, loaded.SelectionMode, loaded.Fit));
+    }
+
+    [Fact]
+    public async Task スパンの設定が無いファイルは既定値で読み込む()
+    {
+        CancellationToken ct = TestContext.Current.CancellationToken;
+        Directory.CreateDirectory(Path.GetDirectoryName(_filePath)!);
+        await File.WriteAllTextAsync(_filePath, """{ "intervalMinutes": 30 }""", ct);
+
+        using JsonSettingsService sut = CreateSut();
+        await sut.LoadAsync(ct);
+
+        Assert.Equal(new SpanSettings(), sut.Current.Span);
+        Assert.True(sut.Current.Span.IncludeSubfolders);
+    }
+
+    [Fact]
     public async Task 保存内容はキャメルケースで列挙型は文字列になる()
     {
         using JsonSettingsService sut = CreateSut();

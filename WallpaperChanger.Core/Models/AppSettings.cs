@@ -23,6 +23,9 @@ public sealed record AppSettings
     /// <summary>表示しない画像（全モニター共通）。壁紙フォルダにあっても候補にしない。</summary>
     public IReadOnlyList<string> ExcludedImages { get; init; } = [];
 
+    /// <summary>複数モニターにまたがる 1 枚表示（スパン）の設定。表示レイアウトにスパンを選んだモニターで共通。</summary>
+    public SpanSettings Span { get; init; } = new();
+
     [JsonIgnore]
     public TimeSpan Interval => TimeSpan.FromMinutes(IntervalMinutes);
 
@@ -92,6 +95,19 @@ public sealed record AppSettings
         };
     }
 
+    /// <summary>
+    /// モニターの今のレイアウトで、画像の取得元となるフォルダが 1 つでも設定されているか。
+    /// スパンではスパンのフォルダ、それ以外ではモニターのフォルダを見る。
+    /// </summary>
+    public bool HasFoldersFor(string monitorId)
+    {
+        MonitorSettings monitor = GetMonitor(monitorId);
+        return monitor.Layout == WallpaperLayout.Span ? Span.Folders.Count > 0 : monitor.HasAnyFolder();
+    }
+
+    /// <summary>設定のあるモニターのうち、どれか 1 台でも今のレイアウトで使うフォルダが設定されているか。</summary>
+    public bool HasAnyFolder() => Monitors.Any(m => HasFoldersFor(m.MonitorId));
+
     /// <summary>画像を表示しない画像に加えた新しい設定を返す。</summary>
     public AppSettings AddExcludedImage(string imagePath) =>
         this with { ExcludedImages = PathList.Add(ExcludedImages, imagePath) };
@@ -122,6 +138,7 @@ public sealed record AppSettings
         Monitors = [.. (Monitors ?? []).Where(m => !string.IsNullOrWhiteSpace(m.MonitorId))
             .Select(m => m.Normalize())],
         ExcludedImages = [.. (ExcludedImages ?? []).Where(p => !string.IsNullOrWhiteSpace(p))],
+        Span = (Span ?? new SpanSettings()).Normalize(),
     };
 
     private static bool IsSameMonitor(string a, string b) =>

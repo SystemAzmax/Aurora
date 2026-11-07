@@ -56,6 +56,100 @@ internal sealed partial class WicWallpaperComposer : IWallpaperComposer
         return Task.Run(() => Compose(request, cancellationToken), cancellationToken);
     }
 
+    public Task<IReadOnlyDictionary<string, string>> ComposeSpanAsync(SpanCompositionRequest request, CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(request);
+        ArgumentException.ThrowIfNullOrWhiteSpace(request.ImagePath);
+        if (request.Monitors.Count == 0)
+        {
+            throw new ArgumentException("スパンに参加するモニターを 1 台以上指定してください。", nameof(request));
+        }
+
+        if (request.Monitors.Any(m => string.IsNullOrWhiteSpace(m.MonitorId) || m.Width <= 0 || m.Height <= 0
+                                      || m.Bounds.Width <= 0 || m.Bounds.Height <= 0))
+        {
+            throw new ArgumentException("モニターの ID と大きさを指定してください。", nameof(request));
+        }
+
+        return Task.Run<IReadOnlyDictionary<string, string>>(() => ComposeSpan(request, cancellationToken), cancellationToken);
+    }
+
+    private Dictionary<string, string> ComposeSpan(SpanCompositionRequest request, CancellationToken cancellationToken)
+    {
+        SpanPlacement? placement = null;
+        BitmapSource image = DecodeOriented(request.ImagePath, (width, height) =>
+        {
+            placement = SpanLayout.Calculate(width, height, [.. request.Monitors.Select(m => m.Bounds)], request.Fit);
+
+            // 拡大する場合は元の大きさのままデコードし、モニターごとに切り抜いてから拡大する
+            // （モニター全体を囲む大きさに拡大してからだと、横に長い並びでメモリを使いすぎるため）
+            return placement.ScaledWidth <= width ? (placement.ScaledWidth, placement.ScaledHeight) : (width, height);
+        });
+
+        // 計算上の拡大縮小後の座標から、デコードした画像の座標への倍率
+        double scaleX = (double)image.PixelWidth / placement!.ScaledWidth;
+        double scaleY = (double)image.PixelHeight / placement.ScaledHeight;
+
+        var outputs = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+        for (int i = 0; i < request.Monitors.Count; i++)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            SpanMonitor monitor = request.Monitors[i];
+            BitmapSource part = RenderSpanPart(image, placement.Parts[i], monitor, scaleX, scaleY, request.EmptyColor);
+            string outputPath = Save(part, monitor.MonitorId);
+            DeleteOldFiles(monitor.MonitorId, outputPath);
+            outputs[monitor.MonitorId] = outputPath;
+        }
+
+        LogSpanComposed(request.Monitors.Count, request.ImagePath);
+        return outputs;
+    }
+
+    /// <summary>1 台のモニターに映る範囲を切り抜き、モニターの解像度の画像にする。</summary>
+    private static BitmapSource RenderSpanPart(
+        BitmapSource image, SpanPart part, SpanMonitor monitor, double scaleX, double scaleY, int emptyColor)
+    {
+        int width = monitor.Bounds.Width;
+        int height = monitor.Bounds.Height;
+        int stride = width * BytesPerPixel;
+        byte[] pixels = new byte[stride * height];
+        FillBackground(pixels, emptyColor);
+
+        if (!part.IsEmpty)
+        {
+            // 切り抜く範囲を、デコードした画像の座標に直す
+            int x = Math.Clamp((int)Math.Floor(part.Source.X * scaleX), 0, image.PixelWidth - 1);
+            int y = Math.Clamp((int)Math.Floor(part.Source.Y * scaleY), 0, image.PixelHeight - 1);
+            int cropWidth = Math.Clamp((int)Math.Round(part.Source.Width * scaleX), 1, image.PixelWidth - x);
+            int cropHeight = Math.Clamp((int)Math.Round(part.Source.Height * scaleY), 1, image.PixelHeight - y);
+            BitmapSource piece = new CroppedBitmap(image, new Int32Rect(x, y, cropWidth, cropHeight));
+            if (cropWidth != part.Source.Width || cropHeight != part.Source.Height)
+            {
+                piece = new TransformedBitmap(
+                    piece, new ScaleTransform((double)part.Source.Width / cropWidth, (double)part.Source.Height / cropHeight));
+            }
+
+            var converted = new FormatConvertedBitmap(piece, PixelFormats.Bgr32, null, 0);
+
+            // 拡大縮小の丸めで 1 ピクセルはみ出しても、モニターの範囲に収める
+            int copyWidth = Math.Min(converted.PixelWidth, width - part.OffsetX);
+            int copyHeight = Math.Min(converted.PixelHeight, height - part.OffsetY);
+            int offset = (part.OffsetY * stride) + (part.OffsetX * BytesPerPixel);
+            converted.CopyPixels(new Int32Rect(0, 0, copyWidth, copyHeight), pixels, stride, offset);
+        }
+
+        BitmapSource canvas = BitmapSource.Create(width, height, 96, 96, PixelFormats.Bgr32, null, pixels, stride);
+
+        // 仮想デスクトップ上の大きさと解像度が違う場合は、解像度に合わせる
+        if (monitor.Width != width || monitor.Height != height)
+        {
+            canvas = new TransformedBitmap(canvas, new ScaleTransform((double)monitor.Width / width, (double)monitor.Height / height));
+        }
+
+        canvas.Freeze();
+        return canvas;
+    }
+
     private string Compose(WallpaperCompositionRequest request, CancellationToken cancellationToken)
     {
         IReadOnlyList<PixelRect> tiles = TileLayout.CalculateTiles(
@@ -126,6 +220,35 @@ internal sealed partial class WicWallpaperComposer : IWallpaperComposer
     /// </summary>
     private (FormatConvertedBitmap Image, int OffsetX, int OffsetY) LoadTileImage(string imagePath, int tileWidth, int tileHeight, ImageFit fit)
     {
+        ImagePlacement placement = default;
+        BitmapSource scaled = DecodeOriented(imagePath, (width, height) =>
+        {
+            placement = TileLayout.CalculatePlacement(width, height, tileWidth, tileHeight, fit);
+            return (placement.ScaledWidth, placement.ScaledHeight);
+        });
+
+        // タイルからはみ出す部分を切り抜き、合成バッファと同じ形式に変換する
+        // （デコード結果の大きさが計算と 1 ピクセルずれても、画像とタイルの範囲に収める）
+        int cropWidth = Math.Min(placement.Crop.Width, scaled.PixelWidth);
+        int cropHeight = Math.Min(placement.Crop.Height, scaled.PixelHeight);
+        var cropRect = new Int32Rect(
+            Math.Clamp(placement.Crop.X, 0, scaled.PixelWidth - cropWidth),
+            Math.Clamp(placement.Crop.Y, 0, scaled.PixelHeight - cropHeight),
+            cropWidth,
+            cropHeight);
+        var cropped = new CroppedBitmap(scaled, cropRect);
+        var converted = new FormatConvertedBitmap(cropped, PixelFormats.Bgr32, null, 0);
+        converted.Freeze();
+        return (converted, placement.OffsetX, placement.OffsetY);
+    }
+
+    /// <summary>
+    /// 画像を読み込み、撮影時の向き（EXIF）に合わせて回転・反転する。
+    /// 大きな写真でもメモリを抑えられるよう、<paramref name="decodeSize"/> が返す大きさで直接デコードする。
+    /// </summary>
+    /// <param name="decodeSize">向きを反映した元の幅・高さから、デコードする幅・高さ（向きを反映した後）を決める。</param>
+    private BitmapSource DecodeOriented(string imagePath, Func<int, int, (int Width, int Height)> decodeSize)
+    {
         try
         {
             using var stream = new FileStream(imagePath, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete);
@@ -146,40 +269,26 @@ internal sealed partial class WicWallpaperComposer : IWallpaperComposer
                     $"画像のピクセル数 ({header.PixelWidth}×{header.PixelHeight}) が上限 ({_limits.MaxPixelCount:N0}) を超えるため読み込みません: {imagePath}");
             }
 
-            // 撮影時の向き（EXIF）を反映した縦横で、タイルに収める大きさを決める
+            // 撮影時の向き（EXIF）を反映した縦横で、デコードする大きさを決める
             int orientation = ExifOrientation.Read(header);
             bool swapsDimensions = ExifOrientation.SwapsDimensions(orientation);
-            ImagePlacement placement = swapsDimensions
-                ? TileLayout.CalculatePlacement(header.PixelHeight, header.PixelWidth, tileWidth, tileHeight, fit)
-                : TileLayout.CalculatePlacement(header.PixelWidth, header.PixelHeight, tileWidth, tileHeight, fit);
+            (int width, int height) = swapsDimensions
+                ? decodeSize(header.PixelHeight, header.PixelWidth)
+                : decodeSize(header.PixelWidth, header.PixelHeight);
 
-            // 2. 収める大きさで直接デコードする（大きな写真でもメモリを抑えられる）。
+            // 2. 決めた大きさで直接デコードする。
             //    デコードは保存されている向きのまま行うため、縦横が入れ替わる場合はデコードする大きさも入れ替える
             stream.Position = 0;
             var decoded = new BitmapImage();
             decoded.BeginInit();
             decoded.CacheOption = BitmapCacheOption.OnLoad;
             decoded.CreateOptions = BitmapCreateOptions.IgnoreColorProfile;
-            decoded.DecodePixelWidth = swapsDimensions ? placement.ScaledHeight : placement.ScaledWidth;
-            decoded.DecodePixelHeight = swapsDimensions ? placement.ScaledWidth : placement.ScaledHeight;
+            decoded.DecodePixelWidth = swapsDimensions ? height : width;
+            decoded.DecodePixelHeight = swapsDimensions ? width : height;
             decoded.StreamSource = stream;
             decoded.EndInit();
             decoded.Freeze();
-            BitmapSource scaled = ExifOrientation.Apply(decoded, orientation);
-
-            // 3. タイルからはみ出す部分を切り抜き、合成バッファと同じ形式に変換する
-            //    （デコード結果の大きさが計算と 1 ピクセルずれても、画像とタイルの範囲に収める）
-            int cropWidth = Math.Min(placement.Crop.Width, scaled.PixelWidth);
-            int cropHeight = Math.Min(placement.Crop.Height, scaled.PixelHeight);
-            var cropRect = new Int32Rect(
-                Math.Clamp(placement.Crop.X, 0, scaled.PixelWidth - cropWidth),
-                Math.Clamp(placement.Crop.Y, 0, scaled.PixelHeight - cropHeight),
-                cropWidth,
-                cropHeight);
-            var cropped = new CroppedBitmap(scaled, cropRect);
-            var converted = new FormatConvertedBitmap(cropped, PixelFormats.Bgr32, null, 0);
-            converted.Freeze();
-            return (converted, placement.OffsetX, placement.OffsetY);
+            return ExifOrientation.Apply(decoded, orientation);
         }
         catch (ImageTooLargeException)
         {
@@ -317,6 +426,9 @@ internal sealed partial class WicWallpaperComposer : IWallpaperComposer
 
     [LoggerMessage(Level = LogLevel.Debug, Message = "{Count} 枚の画像を合成しました ({Width}×{Height}): {OutputPath}")]
     private partial void LogComposed(int count, int width, int height, string outputPath);
+
+    [LoggerMessage(Level = LogLevel.Debug, Message = "{Count} 台のモニターにまたがる画像を作りました: {ImagePath}")]
+    private partial void LogSpanComposed(int count, string imagePath);
 
     [LoggerMessage(Level = LogLevel.Information, Message = "接続されていないモニターの古い合成画像を削除しました: {FilePath}")]
     private partial void LogDisconnectedMonitorFileDeleted(string filePath);

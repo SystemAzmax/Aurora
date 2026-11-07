@@ -104,7 +104,7 @@
                                     </StackPanel>
                                 </StackPanel>
                             </RadioButton>
-                            <RadioButton GroupName="Layout" Margin="0,0,0,6" VerticalContentAlignment="Center"
+                            <RadioButton GroupName="Layout" Margin="0,0,32,6" VerticalContentAlignment="Center"
                                          IsChecked="{Binding IsGrid4x4Layout}">
                                 <StackPanel Orientation="Horizontal">
                                     <UniformGrid Width="48" Height="27" Margin="0,0,10,0" Rows="4" Columns="4">
@@ -128,6 +128,28 @@
                                     <StackPanel VerticalAlignment="Center">
                                         <TextBlock Text="16 分割表示" />
                                         <TextBlock Text="4 × 4 で 16 枚を同時に表示" Style="{StaticResource CaptionTextStyle}" />
+                                    </StackPanel>
+                                </StackPanel>
+                            </RadioButton>
+                            <RadioButton GroupName="Layout" Margin="0,0,0,6" VerticalContentAlignment="Center"
+                                         IsChecked="{Binding IsSpanLayout}">
+                                <StackPanel Orientation="Horizontal">
+                                    <!-- 2 台の画面（枠）に、1 枚の画像（帯）がまたがるアイコン -->
+                                    <Grid Width="48" Height="27" Margin="0,0,10,0">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition />
+                                            <ColumnDefinition />
+                                        </Grid.ColumnDefinitions>
+                                        <Border Grid.Column="0" Margin="0,0,1,0" CornerRadius="2,0,0,2" BorderThickness="1"
+                                                BorderBrush="{DynamicResource AccentFillColorDefaultBrush}" />
+                                        <Border Grid.Column="1" Margin="1,0,0,0" CornerRadius="0,2,2,0" BorderThickness="1"
+                                                BorderBrush="{DynamicResource AccentFillColorDefaultBrush}" />
+                                        <Border Grid.ColumnSpan="2" Margin="3,7" CornerRadius="1"
+                                                Background="{DynamicResource AccentFillColorDefaultBrush}" />
+                                    </Grid>
+                                    <StackPanel VerticalAlignment="Center">
+                                        <TextBlock Text="スパン" />
+                                        <TextBlock Text="複数のモニターにまたがって 1 枚を表示" Style="{StaticResource CaptionTextStyle}" />
                                     </StackPanel>
                                 </StackPanel>
                             </RadioButton>
@@ -267,6 +289,26 @@
                             </Grid>
                         </StackPanel>
 
+                        <!-- スパンの収め方（スパンを選んだモニターで共通） -->
+                        <StackPanel Margin="0,14,0,0"
+                                    Visibility="{Binding IsSpanLayout, Converter={StaticResource BooleanToVisibilityConverter}}">
+                            <TextBlock Text="収め方（スパンで共通）" Margin="0,0,0,6" />
+                            <RadioButton GroupName="SpanFit" Margin="0,0,0,6" IsChecked="{Binding IsSpanFill}">
+                                <StackPanel>
+                                    <TextBlock Text="モニター全体を埋める" />
+                                    <TextBlock Text="スパンを選んだモニター全体を覆うように拡大し、はみ出した部分は中央で切り抜きます" Style="{StaticResource CaptionTextStyle}" />
+                                </StackPanel>
+                            </RadioButton>
+                            <RadioButton GroupName="SpanFit" IsChecked="{Binding IsSpanFitWhole}">
+                                <StackPanel>
+                                    <TextBlock Text="全体を表示" />
+                                    <TextBlock Text="画像全体がスパンを選んだモニター全体に収まるように拡大縮小し、余白は黒で表示します" Style="{StaticResource CaptionTextStyle}" />
+                                </StackPanel>
+                            </RadioButton>
+                            <TextBlock Style="{StaticResource CaptionTextStyle}" Margin="0,10,0,0"
+                                       Text="モニターの配置（Windows の「ディスプレイ」設定の位置）に合わせて切り分けます。モニターの縁の幅は考慮しません。" />
+                        </StackPanel>
+
                         <!-- 1 枚表示の表示方法（Windows の「調整方法」は全モニター共通のため、モニターごとに選べるようにする） -->
                         <StackPanel Margin="0,14,0,0"
                                     Visibility="{Binding IsSingleImageLayout, Converter={StaticResource BooleanToVisibilityConverter}}">
@@ -349,6 +391,8 @@
                 <Border Style="{StaticResource CardStyle}" IsEnabled="{Binding HasSelectedMonitor}">
                     <StackPanel>
                         <TextBlock Text="ランダム設定" Style="{StaticResource SectionTitleStyle}" />
+                        <TextBlock Text="スパンを選んだモニターで共通の設定です。" Style="{StaticResource CaptionTextStyle}" Margin="0,0,0,10"
+                                   Visibility="{Binding IsSpanLayout, Converter={StaticResource BooleanToVisibilityConverter}}" />
                         <RadioButton GroupName="SelectionMode" Margin="0,0,0,6"
                                      IsChecked="{Binding IsRandomSelection}">
                             <StackPanel>

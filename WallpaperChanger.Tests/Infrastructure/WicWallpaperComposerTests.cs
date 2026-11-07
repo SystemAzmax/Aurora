@@ -411,6 +411,104 @@ public sealed class WicWallpaperComposerTests : IDisposable
         Assert.True(File.Exists(disconnectedRecent)); // 再接続に備えて保存期間内は残す
     }
 
+    // ---- スパン ----
+
+    [Fact]
+    public async Task スパンでは画像をモニターの位置に合わせて切り分けモニターごとに保存する()
+    {
+        // 左半分が赤、右半分が青の画像を、左右に並んだ 2 台（左のモニターは負の座標）に分ける
+        string image = CreateSplitImage("split.png", 400, 100, Colors.Red, Colors.Blue);
+        WicWallpaperComposer sut = CreateSut();
+
+        IReadOnlyDictionary<string, string> outputs = await sut.ComposeSpanAsync(
+            new SpanCompositionRequest(image,
+            [
+                new SpanMonitor("MAIN", new MonitorBounds(0, 0, 200, 100), 200, 100),
+                new SpanMonitor("LEFT", new MonitorBounds(-200, 0, 0, 100), 200, 100),
+            ]),
+            TestContext.Current.CancellationToken);
+
+        Assert.NotEqual(outputs["MAIN"], outputs["LEFT"]);
+        BitmapSource left = Load(outputs["LEFT"]);
+        BitmapSource main = Load(outputs["MAIN"]);
+        Assert.Equal((200, 100), (left.PixelWidth, left.PixelHeight));
+        AssertColor(left, 5, 50, Colors.Red);
+        AssertColor(left, 190, 50, Colors.Red);
+        AssertColor(main, 10, 50, Colors.Blue);
+        AssertColor(main, 195, 50, Colors.Blue);
+    }
+
+    [Fact]
+    public async Task スパンでは小さい画像も切り分けてから拡大する()
+    {
+        // 40×10 の画像を 400×100 の範囲に: 元の大きさでデコードし、モニターごとに切り抜いてから拡大する
+        string image = CreateSplitImage("small.png", 40, 10, Colors.Red, Colors.Blue);
+        WicWallpaperComposer sut = CreateSut();
+
+        IReadOnlyDictionary<string, string> outputs = await sut.ComposeSpanAsync(
+            new SpanCompositionRequest(image,
+            [
+                new SpanMonitor("A", new MonitorBounds(0, 0, 200, 100), 200, 100),
+                new SpanMonitor("B", new MonitorBounds(200, 0, 400, 100), 200, 100),
+            ]),
+            TestContext.Current.CancellationToken);
+
+        BitmapSource a = Load(outputs["A"]);
+        BitmapSource b = Load(outputs["B"]);
+        Assert.Equal((200, 100), (a.PixelWidth, a.PixelHeight));
+        AssertColor(a, 100, 50, Colors.Red);
+        AssertColor(a, 2, 2, Colors.Red);
+        AssertColor(b, 100, 50, Colors.Blue);
+        AssertColor(b, 197, 97, Colors.Blue);
+    }
+
+    [Fact]
+    public async Task スパンの全体表示では余白を黒にする()
+    {
+        // 100×100 の赤い画像を 400×100 の範囲に: 中央（150～250）に置き、両側は黒
+        string red = CreateImage("red.png", 100, 100, Colors.Red, new PngBitmapEncoder());
+        WicWallpaperComposer sut = CreateSut();
+
+        IReadOnlyDictionary<string, string> outputs = await sut.ComposeSpanAsync(
+            new SpanCompositionRequest(red,
+            [
+                new SpanMonitor("A", new MonitorBounds(0, 0, 200, 100), 200, 100),
+                new SpanMonitor("B", new MonitorBounds(200, 0, 400, 100), 200, 100),
+            ], ImageFit.Fit),
+            TestContext.Current.CancellationToken);
+
+        BitmapSource a = Load(outputs["A"]);
+        BitmapSource b = Load(outputs["B"]);
+        AssertColor(a, 50, 50, Colors.Black);
+        AssertColor(a, 180, 50, Colors.Red);
+        AssertColor(b, 20, 50, Colors.Red);
+        AssertColor(b, 150, 50, Colors.Black);
+    }
+
+    [Fact]
+    public async Task スパンでは仮想デスクトップ上の大きさと解像度が違えば解像度に合わせる()
+    {
+        string red = CreateImage("red.png", 64, 64, Colors.Red, new PngBitmapEncoder());
+        WicWallpaperComposer sut = CreateSut();
+
+        IReadOnlyDictionary<string, string> outputs = await sut.ComposeSpanAsync(
+            new SpanCompositionRequest(red, [new SpanMonitor("A", new MonitorBounds(0, 0, 200, 100), 400, 200)]),
+            TestContext.Current.CancellationToken);
+
+        BitmapSource a = Load(outputs["A"]);
+        Assert.Equal((400, 200), (a.PixelWidth, a.PixelHeight));
+        AssertColor(a, 200, 100, Colors.Red);
+    }
+
+    [Fact]
+    public async Task スパンのモニターが無ければ例外になる()
+    {
+        WicWallpaperComposer sut = CreateSut();
+
+        await Assert.ThrowsAsync<ArgumentException>(() => sut.ComposeSpanAsync(
+            new SpanCompositionRequest(@"C:\none.jpg", []), TestContext.Current.CancellationToken));
+    }
+
     [Fact]
     public void 合成画像の保存先が無くても後片付けは例外にならない()
     {

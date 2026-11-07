@@ -13,6 +13,12 @@ public enum WallpaperLayout
 
     /// <summary>画面を 16 分割（4 × 4）して 16 枚を表示。4 マスずつの区画（左上・右上・左下・右下）に分かれる。</summary>
     Grid4x4 = 2,
+
+    /// <summary>
+    /// 複数モニターにまたがる 1 枚表示（スパン）。スパンを選んだモニターをまとめて、1 枚の画像を各モニターの位置で分けて表示する。
+    /// 画像の取得元は <see cref="AppSettings.Span"/>（スパンを選んだモニターで共通）。
+    /// </summary>
+    Span = 3,
 }
 
 public static class WallpaperLayoutExtensions
@@ -26,11 +32,14 @@ public static class WallpaperLayoutExtensions
     /// <summary>レイアウトの列数・行数。</summary>
     public static (int Columns, int Rows) GetGridSize(this WallpaperLayout layout) => layout switch
     {
-        WallpaperLayout.SingleImage => (1, 1),
+        WallpaperLayout.SingleImage or WallpaperLayout.Span => (1, 1),
         WallpaperLayout.Grid2x2 => (2, 2),
         WallpaperLayout.Grid4x4 => (4, 4),
         _ => throw new ArgumentOutOfRangeException(nameof(layout), layout, "未対応のレイアウトです。"),
     };
+
+    /// <summary>複数の画像を 1 枚に合成する分割表示（4 分割・16 分割）か。</summary>
+    public static bool IsSplit(this WallpaperLayout layout) => layout is WallpaperLayout.Grid2x2 or WallpaperLayout.Grid4x4;
 
     /// <summary>レイアウトに必要な画像の枚数。</summary>
     public static int GetTileCount(this WallpaperLayout layout)

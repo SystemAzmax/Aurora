@@ -91,6 +91,9 @@ public sealed partial class SettingsViewModel : ObservableObject, IDisposable
 
     public ObservableCollection<string> Folders { get; } = [];
 
+    /// <summary>スパン（複数モニターにまたがる 1 枚表示）のフォルダ。スパンを選んだモニターで共通。</summary>
+    public ObservableCollection<string> SpanFolders { get; } = [];
+
     /// <summary>
     /// 分割表示でフォルダを設定する単位（左上・右上・左下・右下）。
     /// 4 分割では各マス、16 分割では 4 マスずつの各区画を表し、両方のレイアウトで設定を共有する。
@@ -165,6 +168,7 @@ public sealed partial class SettingsViewModel : ObservableObject, IDisposable
     [NotifyPropertyChangedFor(nameof(IsSingleImageLayout))]
     [NotifyPropertyChangedFor(nameof(IsGridLayout))]
     [NotifyPropertyChangedFor(nameof(IsGrid4x4Layout))]
+    [NotifyPropertyChangedFor(nameof(IsSpanLayout))]
     [NotifyPropertyChangedFor(nameof(IsSplitLayout))]
     [NotifyPropertyChangedFor(nameof(FolderCaption))]
     [NotifyPropertyChangedFor(nameof(EditingFolders))]
@@ -177,8 +181,12 @@ public sealed partial class SettingsViewModel : ObservableObject, IDisposable
     {
         WallpaperLayout.Grid2x2 => "マスを選んでフォルダを設定します。どのマスも未設定なら 1 枚表示のフォルダから 4 枚を選び、1 つでも設定すると、未設定のマスは空きマス（画像を置かず「空きマス・余白の色」で塗る）になります。",
         WallpaperLayout.Grid4x4 => "区画（4 マスずつ）を選んでフォルダを設定します。どの区画も未設定なら 1 枚表示のフォルダから 16 枚を選び、1 つでも設定すると、未設定の区画は空きマス（画像を置かず「空きマス・余白の色」で塗る）になります。4 分割のマスの設定と共通です。",
+        WallpaperLayout.Span => $"スパンを選んだモニター（接続中の {SpanMonitorCount} 台）をまとめて、1 枚の画像を各モニターの位置に合わせて分けて表示します。フォルダ・サブフォルダの検索・選び方・収め方は、スパンを選んだモニターで共通です。",
         _ => "このモニターに表示する画像のフォルダ（JPG / JPEG / PNG / BMP / WEBP）",
     };
+
+    /// <summary>表示レイアウトにスパンを選んでいる、接続中のモニターの数。</summary>
+    private int SpanMonitorCount => Monitors.Count(m => IsSpanMonitor(m.Id));
 
     /// <summary>いずれかのマス（区画）に専用フォルダがあるか（あれば未設定のマス（区画）は空きマスになる）。</summary>
     private bool AnyTileHasFolders => Tiles.Any(t => t.HasOwnFolders);
@@ -194,9 +202,9 @@ public sealed partial class SettingsViewModel : ObservableObject, IDisposable
 
     /// <summary>
     /// 壁紙フォルダ欄に表示・編集するフォルダ一覧。
-    /// 1 枚表示ではモニターのフォルダ、分割表示では選択中のマス（区画）のフォルダ。
+    /// 1 枚表示ではモニターのフォルダ、分割表示では選択中のマス（区画）のフォルダ、スパンではスパンのフォルダ。
     /// </summary>
-    public ObservableCollection<string>? EditingFolders => IsSplitLayout ? SelectedTile?.Folders : Folders;
+    public ObservableCollection<string>? EditingFolders => IsSplitLayout ? SelectedTile?.Folders : IsSpanLayout ? SpanFolders : Folders;
 
     /// <summary>分割表示で編集対象のマス（区画）を示す見出し。</summary>
     public string? EditingTargetText => IsSplitLayout && SelectedTile is { } tile ? $"{tile.Position} の{TileUnit}のフォルダ" : null;
@@ -246,8 +254,53 @@ public sealed partial class SettingsViewModel : ObservableObject, IDisposable
         }
     }
 
+    /// <summary>複数モニターにまたがる 1 枚表示（スパン）か。</summary>
+    public bool IsSpanLayout
+    {
+        get => Layout == WallpaperLayout.Span;
+        set
+        {
+            if (value)
+            {
+                Layout = WallpaperLayout.Span;
+            }
+        }
+    }
+
     /// <summary>複数の画像を合成する分割表示（4 分割・16 分割）か。</summary>
-    public bool IsSplitLayout => Layout != WallpaperLayout.SingleImage;
+    public bool IsSplitLayout => Layout.IsSplit();
+
+    /// <summary>スパンで、画像をモニター全体を囲む範囲に収める方法。</summary>
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(IsSpanFill))]
+    [NotifyPropertyChangedFor(nameof(IsSpanFitWhole))]
+    public partial ImageFit SpanFit { get; set; }
+
+    /// <summary>スパンで、モニター全体を覆うように拡大し、はみ出した部分を切り抜くか。</summary>
+    public bool IsSpanFill
+    {
+        get => SpanFit == ImageFit.Fill;
+        set
+        {
+            if (value)
+            {
+                SpanFit = ImageFit.Fill;
+            }
+        }
+    }
+
+    /// <summary>スパンで、画像全体をモニター全体に収め、余白を残すか。</summary>
+    public bool IsSpanFitWhole
+    {
+        get => SpanFit == ImageFit.Fit;
+        set
+        {
+            if (value)
+            {
+                SpanFit = ImageFit.Fit;
+            }
+        }
+    }
 
     public IReadOnlyList<SingleImageFitOption> SingleImageFits { get; } = SingleImageFitOption.All;
 
@@ -471,13 +524,36 @@ public sealed partial class SettingsViewModel : ObservableObject, IDisposable
     });
 
     /// <summary>
-    /// 編集中の一覧にフォルダを追加する。1 枚表示ではモニターのフォルダ、分割表示では選択中のマス（区画）のフォルダが対象。
+    /// 編集中の一覧にフォルダを追加する。1 枚表示ではモニターのフォルダ、分割表示では選択中のマス（区画）のフォルダ、
+    /// スパンではスパンのフォルダが対象。
     /// </summary>
     [RelayCommand(CanExecute = nameof(HasSelectedMonitor))]
     private Task AddFolderAsync() => ExecuteSafelyAsync("フォルダの追加", async () =>
     {
         if (SelectedMonitor is not { } monitor)
         {
+            return;
+        }
+
+        if (IsSpanLayout)
+        {
+            IReadOnlyList<string> spanFolders = _folderPicker.PickFolders("スパンで表示するフォルダを選択");
+            if (spanFolders.Count == 0)
+            {
+                return;
+            }
+
+            bool wasSpanEmpty = SpanFolders.Count == 0;
+            await UpdateSpanSettingsAsync(s => spanFolders.Aggregate(s, (current, folder) => current.AddFolder(folder)));
+            string addedSpan = $"スパンのフォルダを {spanFolders.Count} 件追加しました。";
+            ShowInfo(addedSpan);
+
+            // 初めてフォルダを登録したときは、次の定期実行を待たずに壁紙を反映する
+            if (wasSpanEmpty)
+            {
+                ReportProblems(await _rotationService.NextAsync(monitor.Id), addedSpan);
+            }
+
             return;
         }
 
@@ -522,13 +598,21 @@ public sealed partial class SettingsViewModel : ObservableObject, IDisposable
     });
 
     /// <summary>
-    /// 編集中の一覧からフォルダを削除する。1 枚表示ではモニターのフォルダ、分割表示では選択中のマス（区画）のフォルダが対象。
+    /// 編集中の一覧からフォルダを削除する。1 枚表示ではモニターのフォルダ、分割表示では選択中のマス（区画）のフォルダ、
+    /// スパンではスパンのフォルダが対象。
     /// </summary>
     [RelayCommand(CanExecute = nameof(CanRemoveFolder))]
     private Task RemoveFolderAsync() => ExecuteSafelyAsync("フォルダの削除", async () =>
     {
         if (SelectedMonitor is not { } monitor || SelectedFolder is not { } folder)
         {
+            return;
+        }
+
+        if (IsSpanLayout)
+        {
+            await UpdateSpanSettingsAsync(s => s.RemoveFolder(folder));
+            ShowInfo("スパンのフォルダを削除しました。");
             return;
         }
 
@@ -549,7 +633,7 @@ public sealed partial class SettingsViewModel : ObservableObject, IDisposable
             ShowInfo(removed);
 
             // マスの表示内容が変わるため、すぐに表示し直す
-            if (_settingsService.Current.GetMonitor(monitor.Id).HasAnyFolder())
+            if (_settingsService.Current.HasFoldersFor(monitor.Id))
             {
                 ReportProblems(await _rotationService.NextAsync(monitor.Id), removed);
             }
@@ -568,7 +652,7 @@ public sealed partial class SettingsViewModel : ObservableObject, IDisposable
     {
         if (SelectedMonitor is { } monitor && !ReportProblems(await _rotationService.NextAsync(monitor.Id)))
         {
-            ShowInfo($"{monitor.DisplayName} の壁紙を変更しました。");
+            ShowInfo($"{DescribeTarget(monitor)} の壁紙を変更しました。");
         }
     });
 
@@ -577,7 +661,7 @@ public sealed partial class SettingsViewModel : ObservableObject, IDisposable
     {
         if (SelectedMonitor is { } monitor && !ReportProblems(await _rotationService.PreviousAsync(monitor.Id)))
         {
-            ShowInfo($"{monitor.DisplayName} の壁紙を前の壁紙に戻しました。");
+            ShowInfo($"{DescribeTarget(monitor)} の壁紙を前の壁紙に戻しました。");
         }
     });
 
@@ -592,13 +676,14 @@ public sealed partial class SettingsViewModel : ObservableObject, IDisposable
             return;
         }
 
+        WallpaperLayout oldLayout = _settingsService.Current.GetMonitor(monitor.Id).Layout;
         MonitorSettings from = _settingsService.Current.GetMonitor(source.MonitorId);
         await UpdateMonitorSettingsAsync(monitor, m => m.WithSettingsFrom(from));
         string copied = $"{source.Name} の設定を {monitor.DisplayName} にコピーしました。";
         ShowInfo(copied);
 
         // コピーした設定の画像を、次の定期実行を待たずに表示する
-        ReportProblems(await _rotationService.NextAsync(monitor.Id), copied);
+        await RedisplayAfterLayoutChangeAsync(monitor, oldLayout, copied, redisplayAlways: true);
     });
 
     private bool CanCopySettings() => CanChangeSelectedMonitor() && SelectedCopySource is not null;
@@ -648,8 +733,9 @@ public sealed partial class SettingsViewModel : ObservableObject, IDisposable
     {
         if (!_isLoading && SelectedMonitor is { } monitor)
         {
-            _ = ExecuteSafelyAsync("サブフォルダ設定の保存",
-                () => UpdateMonitorSettingsAsync(monitor, m => m with { IncludeSubfolders = value }));
+            _ = ExecuteSafelyAsync("サブフォルダ設定の保存", () => IsSpanMonitor(monitor.Id)
+                ? UpdateSpanSettingsAsync(s => s with { IncludeSubfolders = value })
+                : UpdateMonitorSettingsAsync(monitor, m => m with { IncludeSubfolders = value }));
         }
     }
 
@@ -657,14 +743,15 @@ public sealed partial class SettingsViewModel : ObservableObject, IDisposable
     {
         if (!_isLoading && SelectedMonitor is { } monitor)
         {
-            _ = ExecuteSafelyAsync("選択方法の保存",
-                () => UpdateMonitorSettingsAsync(monitor, m => m with { SelectionMode = value }));
+            _ = ExecuteSafelyAsync("選択方法の保存", () => IsSpanMonitor(monitor.Id)
+                ? UpdateSpanSettingsAsync(s => s with { SelectionMode = value })
+                : UpdateMonitorSettingsAsync(monitor, m => m with { SelectionMode = value }));
         }
     }
 
-    partial void OnLayoutChanged(WallpaperLayout value)
+    partial void OnLayoutChanged(WallpaperLayout oldValue, WallpaperLayout newValue)
     {
-        // 表示する一覧（モニター／マス）が切り替わるため、前の一覧での選択は解除する
+        // 表示する一覧（モニター／マス／スパン）が切り替わるため、前の一覧での選択は解除する
         SelectedFolder = null;
 
         if (_isLoading || SelectedMonitor is not { } monitor)
@@ -674,21 +761,47 @@ public sealed partial class SettingsViewModel : ObservableObject, IDisposable
 
         _ = ExecuteSafelyAsync("表示レイアウトの変更", async () =>
         {
-            await UpdateMonitorSettingsAsync(monitor, m => m with { Layout = value });
-            string switched = value switch
+            await UpdateMonitorSettingsAsync(monitor, m => m with { Layout = newValue });
+            string switched = newValue switch
             {
                 WallpaperLayout.Grid2x2 => "4 分割表示に切り替えました。",
                 WallpaperLayout.Grid4x4 => "16 分割表示に切り替えました。",
+                WallpaperLayout.Span => $"スパン（複数モニターにまたがる 1 枚表示）に切り替えました。スパンを選んだモニターは {SpanMonitorCount} 台です。",
                 _ => "1 枚表示に切り替えました。",
             };
             ShowInfo(switched);
 
             // 次の定期実行を待たず、新しいレイアウトで表示し直す
-            if (_settingsService.Current.GetMonitor(monitor.Id).HasAnyFolder())
-            {
-                ReportProblems(await _rotationService.NextAsync(monitor.Id), switched);
-            }
+            await RedisplayAfterLayoutChangeAsync(monitor, oldValue, switched, redisplayAlways: false);
         });
+    }
+
+    /// <summary>
+    /// 表示レイアウトが変わったモニターを表示し直す。
+    /// スパンに加わった場合は今のスパンの画像のまま作り直し、スパンから外れた場合は残りのスパンのモニターも作り直す。
+    /// </summary>
+    /// <param name="redisplayAlways">スパンに加わったままの場合（設定のコピーなど）も表示し直すか。</param>
+    private async Task RedisplayAfterLayoutChangeAsync(
+        MonitorItemViewModel monitor, WallpaperLayout oldLayout, string precedingMessage, bool redisplayAlways)
+    {
+        AppSettings settings = _settingsService.Current;
+        WallpaperLayout newLayout = settings.GetMonitor(monitor.Id).Layout;
+        if (settings.HasFoldersFor(monitor.Id) && (redisplayAlways || newLayout != oldLayout))
+        {
+            // スパンに加わったときは、ほかのスパンのモニターの画像を変えないよう、同じ画像で作り直す
+            ReportProblems(
+                newLayout == WallpaperLayout.Span
+                    ? await _rotationService.ReapplyAsync(monitor.Id)
+                    : await _rotationService.NextAsync(monitor.Id),
+                precedingMessage);
+        }
+
+        // スパンから外れたモニターの分、残りのスパンのモニターに映る範囲が変わる
+        if (oldLayout == WallpaperLayout.Span && newLayout != WallpaperLayout.Span && settings.Span.Folders.Count > 0
+            && Monitors.FirstOrDefault(m => m.Id != monitor.Id && IsSpanMonitor(m.Id)) is { } remaining)
+        {
+            ReportProblems(await _rotationService.ReapplyAsync(remaining.Id), precedingMessage);
+        }
     }
 
     partial void OnSelectedSingleImageFitChanged(SingleImageFitOption value)
@@ -697,18 +810,18 @@ public sealed partial class SettingsViewModel : ObservableObject, IDisposable
         {
             ChangeAppearance(
                 "表示方法の変更", m => m with { SingleImageFit = value.Fit },
-                $"1 枚表示の表示方法を「{value.DisplayName}」に変更しました。", forSplitLayout: false);
+                $"1 枚表示の表示方法を「{value.DisplayName}」に変更しました。", l => l == WallpaperLayout.SingleImage);
         }
     }
 
     partial void OnTileFitChanged(ImageFit value) => ChangeAppearance(
         "マスへの収め方の変更", m => m with { TileStyle = m.TileStyle with { Fit = value } },
         value == ImageFit.Fit ? "マスに画像全体を表示するようにしました。" : "マスを埋めるように表示するようにしました。",
-        forSplitLayout: true);
+        l => l.IsSplit());
 
     partial void OnTileGapChanged(int value) => ChangeAppearance(
         "マスの間隔の変更", m => m with { TileStyle = m.TileStyle with { Gap = Math.Clamp(value, 0, TileStyle.MaxGap) } },
-        $"マスの間隔を {value} px に変更しました。", forSplitLayout: true);
+        $"マスの間隔を {value} px に変更しました。", l => l.IsSplit());
 
     partial void OnSelectedTileGapColorChanged(TileColorOption? value)
     {
@@ -716,7 +829,7 @@ public sealed partial class SettingsViewModel : ObservableObject, IDisposable
         {
             ChangeAppearance(
                 "間隔の色の変更", m => m with { TileStyle = m.TileStyle with { GapColor = value.Rgb } },
-                $"マスの間隔の色を「{value.DisplayName}」に変更しました。", forSplitLayout: true);
+                $"マスの間隔の色を「{value.DisplayName}」に変更しました。", l => l.IsSplit());
         }
     }
 
@@ -726,15 +839,39 @@ public sealed partial class SettingsViewModel : ObservableObject, IDisposable
         {
             ChangeAppearance(
                 "空きマス・余白の色の変更", m => m with { TileStyle = m.TileStyle with { EmptyColor = value.Rgb } },
-                $"空きマス・余白の色を「{value.DisplayName}」に変更しました。", forSplitLayout: true);
+                $"空きマス・余白の色を「{value.DisplayName}」に変更しました。", l => l.IsSplit());
         }
+    }
+
+    partial void OnSpanFitChanged(ImageFit value)
+    {
+        if (_isLoading || SelectedMonitor is not { } monitor)
+        {
+            return;
+        }
+
+        _ = ExecuteSafelyAsync("スパンの収め方の変更", async () =>
+        {
+            await UpdateSpanSettingsAsync(s => s with { Fit = value });
+            string changed = value == ImageFit.Fit
+                ? "スパンで画像全体を表示するようにしました。"
+                : "スパンでモニター全体を埋めるように表示するようにしました。";
+            ShowInfo(changed);
+
+            // 今の画像のまま、新しい収め方で作り直す
+            if (IsSpanMonitor(monitor.Id) && _settingsService.Current.HasFoldersFor(monitor.Id))
+            {
+                ReportProblems(await _rotationService.ReapplyAsync(monitor.Id), changed);
+            }
+        });
     }
 
     /// <summary>
     /// 表示の見た目（1 枚表示の表示方法、分割表示の収め方・間隔・色）の変更を保存し、今の画像のまま表示し直す。
     /// </summary>
-    /// <param name="forSplitLayout">分割表示の設定か（false は 1 枚表示の設定）。今のレイアウトで使う設定のときだけ表示し直す。</param>
-    private void ChangeAppearance(string operation, Func<MonitorSettings, MonitorSettings> update, string message, bool forSplitLayout)
+    /// <param name="isTargetLayout">変える設定を使うレイアウトか。今のレイアウトで使う設定のときだけ表示し直す。</param>
+    private void ChangeAppearance(
+        string operation, Func<MonitorSettings, MonitorSettings> update, string message, Func<WallpaperLayout, bool> isTargetLayout)
     {
         if (_isLoading || SelectedMonitor is not { } monitor)
         {
@@ -747,9 +884,8 @@ public sealed partial class SettingsViewModel : ObservableObject, IDisposable
             ShowInfo(message);
 
             // 次の定期実行を待たず、今の画像を新しい見た目で表示し直す
-            MonitorSettings settings = _settingsService.Current.GetMonitor(monitor.Id);
-            bool isSplitLayout = settings.Layout != WallpaperLayout.SingleImage;
-            if (isSplitLayout == forSplitLayout && settings.HasAnyFolder())
+            AppSettings settings = _settingsService.Current;
+            if (isTargetLayout(settings.GetMonitor(monitor.Id).Layout) && settings.HasFoldersFor(monitor.Id))
             {
                 ReportProblems(await _rotationService.ReapplyAsync(monitor.Id), message);
             }
@@ -913,6 +1049,17 @@ public sealed partial class SettingsViewModel : ObservableObject, IDisposable
         {
             Folders.Clear();
             SelectedFolder = null;
+            SpanSettings span = _settingsService.Current.Span;
+            if (!SpanFolders.SequenceEqual(span.Folders))
+            {
+                SpanFolders.Clear();
+                foreach (string folder in span.Folders)
+                {
+                    SpanFolders.Add(folder);
+                }
+            }
+
+            SpanFit = span.Fit;
             if (monitor is null)
             {
                 foreach (TileItemViewModel tile in Tiles)
@@ -936,8 +1083,10 @@ public sealed partial class SettingsViewModel : ObservableObject, IDisposable
                 tile.SetFolders(settings.GetTile(tile.Index).Folders, isBlankWhenEmpty: anyTileHasFolders);
             }
 
-            IncludeSubfolders = settings.IncludeSubfolders;
-            SelectionMode = settings.SelectionMode;
+            // スパンでは、サブフォルダの検索と選び方もスパンで共通の設定を表示する
+            bool isSpan = settings.Layout == WallpaperLayout.Span;
+            IncludeSubfolders = isSpan ? span.IncludeSubfolders : settings.IncludeSubfolders;
+            SelectionMode = isSpan ? span.SelectionMode : settings.SelectionMode;
             Layout = settings.Layout;
             SelectedSingleImageFit = SingleImageFitOption.From(settings.SingleImageFit);
             TileStyle style = settings.TileStyle;
@@ -952,6 +1101,7 @@ public sealed partial class SettingsViewModel : ObservableObject, IDisposable
         {
             _isLoading = false;
             OnPropertyChanged(nameof(EmptyFoldersMessage));
+            OnPropertyChanged(nameof(FolderCaption));
             LoadCopySources();
         }
     }
@@ -983,6 +1133,21 @@ public sealed partial class SettingsViewModel : ObservableObject, IDisposable
 
     private bool IsConnected(string monitorId) =>
         Monitors.Any(m => string.Equals(m.Id, monitorId, StringComparison.OrdinalIgnoreCase));
+
+    /// <summary>スパンの設定（スパンを選んだモニターで共通）を変えて、画面に反映する。</summary>
+    private async Task UpdateSpanSettingsAsync(Func<SpanSettings, SpanSettings> update)
+    {
+        await _settingsService.UpdateAsync(s => s with { Span = update(s.Span) });
+        LoadMonitorSettings(SelectedMonitor);
+    }
+
+    /// <summary>表示レイアウトにスパンを選んでいるモニターか（保存した設定で判定する）。</summary>
+    private bool IsSpanMonitor(string monitorId) =>
+        _settingsService.Current.GetMonitor(monitorId).Layout == WallpaperLayout.Span;
+
+    /// <summary>切り替えの結果の文言で使う、切り替えた対象の呼び方。スパンでは参加するモニターすべてが変わる。</summary>
+    private string DescribeTarget(MonitorItemViewModel monitor) =>
+        IsSpanMonitor(monitor.Id) ? "スパン（複数モニター）" : monitor.DisplayName;
 
     private async Task UpdateMonitorSettingsAsync(MonitorItemViewModel monitor, Func<MonitorSettings, MonitorSettings> update)
     {

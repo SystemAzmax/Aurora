@@ -7,6 +7,7 @@ namespace WallpaperChanger.Core.Services;
 /// <summary>
 /// ディスプレイ構成の変更通知を受け、落ち着いた時点（<see cref="SettleDelay"/> 後）で 1 回だけ構成を比較して壁紙を合わせる。
 /// 接続先を変えたモニターには、壁紙を表示する前に前の設定を引き継ぐ（開始時にも、電源を切っている間の変更に備えて引き継ぐ）。
+/// スパン（複数モニターにまたがる 1 枚表示）は、参加するモニターの構成が変わると切り分ける位置が変わるため、今の画像のまま作り直す。
 /// 直前の構成を保持するため、アプリケーション内で 1 インスタンスとして登録する。
 /// </summary>
 public sealed partial class MonitorConfigurationWatcher : IMonitorConfigurationWatcher, IDisposable
@@ -20,6 +21,7 @@ public sealed partial class MonitorConfigurationWatcher : IMonitorConfigurationW
     private readonly IMonitorService _monitorService;
     private readonly IWallpaperRotationService _rotationService;
     private readonly IMonitorSettingsInheritor _settingsInheritor;
+    private readonly ISettingsService _settingsService;
     private readonly TimeProvider _timeProvider;
     private readonly ILogger<MonitorConfigurationWatcher> _logger;
     private readonly Lock _gate = new();
@@ -34,6 +36,7 @@ public sealed partial class MonitorConfigurationWatcher : IMonitorConfigurationW
         IMonitorService monitorService,
         IWallpaperRotationService rotationService,
         IMonitorSettingsInheritor settingsInheritor,
+        ISettingsService settingsService,
         TimeProvider timeProvider,
         ILogger<MonitorConfigurationWatcher> logger)
     {
@@ -41,6 +44,7 @@ public sealed partial class MonitorConfigurationWatcher : IMonitorConfigurationW
         _monitorService = monitorService ?? throw new ArgumentNullException(nameof(monitorService));
         _rotationService = rotationService ?? throw new ArgumentNullException(nameof(rotationService));
         _settingsInheritor = settingsInheritor ?? throw new ArgumentNullException(nameof(settingsInheritor));
+        _settingsService = settingsService ?? throw new ArgumentNullException(nameof(settingsService));
         _timeProvider = timeProvider ?? throw new ArgumentNullException(nameof(timeProvider));
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
     }
@@ -170,14 +174,25 @@ public sealed partial class MonitorConfigurationWatcher : IMonitorConfigurationW
         IReadOnlyList<MonitorInfo> inherited = added.Count > 0 ? await InheritSettingsAsync(current).ConfigureAwait(false) : [];
         ConfigurationChanged?.Invoke(this, new MonitorConfigurationChangedEventArgs(added, removed, resized, current, inherited));
 
-        foreach (MonitorInfo monitor in added)
+        // スパンに参加するモニターは、下でまとめて作り直す（引き継いだ設定も反映した後で判定する）
+        AppSettings settings = _settingsService.Current;
+        bool IsSpan(MonitorInfo monitor) => settings.GetMonitor(monitor.Id).Layout == WallpaperLayout.Span;
+
+        foreach (MonitorInfo monitor in added.Where(m => !IsSpan(m)))
         {
             await UpdateWallpaperAsync(monitor, () => _rotationService.NextAsync(monitor.Id)).ConfigureAwait(false);
         }
 
-        foreach (MonitorInfo monitor in resized)
+        foreach (MonitorInfo monitor in resized.Where(m => !IsSpan(m)))
         {
             await UpdateWallpaperAsync(monitor, () => _rotationService.ReapplyAsync(monitor.Id)).ConfigureAwait(false);
+        }
+
+        // スパンは、参加するモニターの接続・切断・解像度や、モニターの配置が変わると、切り分ける位置が変わる
+        bool spanChanged = moved || added.Any(IsSpan) || removed.Any(IsSpan) || resized.Any(IsSpan);
+        if (spanChanged && current.FirstOrDefault(IsSpan) is { } spanMonitor)
+        {
+            await UpdateWallpaperAsync(spanMonitor, () => _rotationService.ReapplyAsync(spanMonitor.Id)).ConfigureAwait(false);
         }
     }
 

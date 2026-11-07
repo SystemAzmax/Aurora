@@ -19,6 +19,7 @@ public sealed class MonitorConfigurationWatcherTests : IDisposable
     private readonly IMonitorService _monitors = Substitute.For<IMonitorService>();
     private readonly IWallpaperRotationService _rotation = Substitute.For<IWallpaperRotationService>();
     private readonly IMonitorSettingsInheritor _inheritor = Substitute.For<IMonitorSettingsInheritor>();
+    private readonly InMemorySettingsService _settings = new(new AppSettings());
     private readonly MonitorConfigurationWatcher _sut;
     private readonly List<MonitorConfigurationChangedEventArgs> _changes = [];
 
@@ -26,7 +27,7 @@ public sealed class MonitorConfigurationWatcherTests : IDisposable
     {
         _inheritor.InheritAsync(Arg.Any<IReadOnlyList<MonitorInfo>>(), Arg.Any<CancellationToken>()).Returns([]);
         _sut = new MonitorConfigurationWatcher(
-            _notifier, _monitors, _rotation, _inheritor, _time, NullLogger<MonitorConfigurationWatcher>.Instance);
+            _notifier, _monitors, _rotation, _inheritor, _settings, _time, NullLogger<MonitorConfigurationWatcher>.Instance);
         _sut.ConfigurationChanged += (_, e) => _changes.Add(e);
     }
 
@@ -199,6 +200,80 @@ public sealed class MonitorConfigurationWatcherTests : IDisposable
         Assert.Empty(_changes);
         Assert.False(_notifier.HasSubscribers);
     }
+
+    // ---- スパン ----
+
+    [Fact]
+    public async Task スパンのモニターが接続されたら次の壁紙にせずスパン全体を今の画像で作り直す()
+    {
+        await UseSpanAsync("LAPTOP", "EXT");
+        await StartWithAsync(Laptop);
+        UseMonitors(Laptop, External);
+
+        _notifier.Raise();
+        await SettleAsync();
+
+        await _rotation.DidNotReceive().NextAsync(Arg.Any<string?>(), Arg.Any<CancellationToken>());
+        await _rotation.Received(1).ReapplyAsync(Arg.Any<string>(), Arg.Any<CancellationToken>());
+        await _rotation.Received(1).ReapplyAsync("LAPTOP", Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task スパンのモニターが切断されたら残りのスパンを作り直す()
+    {
+        await UseSpanAsync("LAPTOP", "EXT");
+        await StartWithAsync(Laptop, External);
+        UseMonitors(Laptop);
+
+        _notifier.Raise();
+        await SettleAsync();
+
+        await _rotation.Received(1).ReapplyAsync("LAPTOP", Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task モニターの配置が変わるとスパンを作り直す()
+    {
+        await UseSpanAsync("LAPTOP", "EXT");
+        await StartWithAsync(Laptop, External);
+        UseMonitors(Laptop, External with { Bounds = new MonitorBounds(1920, 0, 3840, 1080) });
+
+        _notifier.Raise();
+        await SettleAsync();
+
+        await _rotation.Received(1).ReapplyAsync("LAPTOP", Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task スパンでないモニターの接続はスパンを作り直さない()
+    {
+        await UseSpanAsync("LAPTOP");
+        await StartWithAsync(Laptop);
+        UseMonitors(Laptop, External);
+
+        _notifier.Raise();
+        await SettleAsync();
+
+        await _rotation.Received(1).NextAsync("EXT", Arg.Any<CancellationToken>());
+        await _rotation.DidNotReceive().ReapplyAsync(Arg.Any<string>(), Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task スパンのモニターが無ければ配置が変わっても何もしない()
+    {
+        await StartWithAsync(Laptop, External);
+        UseMonitors(Laptop, External with { Bounds = new MonitorBounds(1920, 0, 3840, 1080) });
+
+        _notifier.Raise();
+        await SettleAsync();
+
+        await _rotation.DidNotReceive().ReapplyAsync(Arg.Any<string>(), Arg.Any<CancellationToken>());
+        await _rotation.DidNotReceive().NextAsync(Arg.Any<string?>(), Arg.Any<CancellationToken>());
+    }
+
+    private Task UseSpanAsync(params string[] monitorIds) =>
+        _settings.UpdateAsync(s => monitorIds.Aggregate(
+            s, (current, id) => current.WithMonitor(current.GetMonitor(id) with { Layout = WallpaperLayout.Span })));
 
     private async Task StartWithAsync(params MonitorInfo[] monitors)
     {

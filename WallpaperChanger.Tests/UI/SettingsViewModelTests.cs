@@ -422,6 +422,106 @@ public sealed class SettingsViewModelTests : IDisposable
         await _rotation.Received(1).NextAsync("MON-P", Arg.Any<CancellationToken>());
     }
 
+    // ---- スパン ----
+
+    [Fact]
+    public async Task スパンを選ぶとスパンで共通のフォルダとサブフォルダと選び方を編集する()
+    {
+        await _sut.InitializeCommand.ExecuteAsync(null);
+        Assert.False(_sut.IncludeSubfolders); // MON-P 自身の設定
+
+        _sut.IsSpanLayout = true;
+
+        Assert.Equal(WallpaperLayout.Span, _settings.Current.GetMonitor("MON-P").Layout);
+        Assert.Same(_sut.SpanFolders, _sut.EditingFolders);
+        Assert.True(_sut.IncludeSubfolders);                      // スパンの既定値
+        Assert.Equal(ImageSelectionMode.Random, _sut.SelectionMode); // スパンの既定値
+        Assert.Contains("接続中の 1 台", _sut.FolderCaption, StringComparison.Ordinal);
+        await _rotation.DidNotReceive().ReapplyAsync(Arg.Any<string>(), Arg.Any<CancellationToken>()); // スパンのフォルダが無い
+
+        _folderPicker.PickFolders(Arg.Any<string>()).Returns([@"D:\Panorama"]);
+        await _sut.AddFolderCommand.ExecuteAsync(null);
+        _sut.IncludeSubfolders = false;
+        _sut.IsSequentialSelection = true;
+
+        AppSettings saved = _settings.Current;
+        Assert.Equal([@"D:\Panorama"], saved.Span.Folders);
+        Assert.Equal((false, ImageSelectionMode.Sequential), (saved.Span.IncludeSubfolders, saved.Span.SelectionMode));
+        Assert.Equal([@"C:\Wallpapers"], saved.GetMonitor("MON-P").Folders); // モニター自身の設定はそのまま残す
+        Assert.Equal([@"D:\Panorama"], _sut.SpanFolders);
+        await _rotation.Received(1).NextAsync("MON-P", Arg.Any<CancellationToken>());
+
+        _sut.SelectedFolder = @"D:\Panorama";
+        await _sut.RemoveFolderCommand.ExecuteAsync(null);
+        Assert.Empty(_settings.Current.Span.Folders);
+    }
+
+    [Fact]
+    public async Task スパンに加わるときは今のスパンの画像のまま作り直す()
+    {
+        _rotation.ReapplyAsync(Arg.Any<string>(), Arg.Any<CancellationToken>()).Returns(Changed(Left, Primary));
+        await _settings.UpdateAsync(s => s.WithMonitor(s.GetMonitor("MON-L") with { Layout = WallpaperLayout.Span }) with
+        {
+            Span = new SpanSettings().AddFolder(@"D:\Panorama"),
+        }, TestContext.Current.CancellationToken);
+        await _sut.InitializeCommand.ExecuteAsync(null);
+
+        _sut.IsSpanLayout = true;
+
+        await _rotation.Received(1).ReapplyAsync("MON-P", Arg.Any<CancellationToken>());
+        await _rotation.DidNotReceive().NextAsync(Arg.Any<string?>(), Arg.Any<CancellationToken>());
+        Assert.Contains("スパンを選んだモニターは 2 台", _sut.StatusMessage, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task スパンから外れると残りのスパンのモニターを作り直す()
+    {
+        _rotation.ReapplyAsync(Arg.Any<string>(), Arg.Any<CancellationToken>()).Returns(Changed(Left));
+        await _settings.UpdateAsync(s => s
+            .WithMonitor(s.GetMonitor("MON-L") with { Layout = WallpaperLayout.Span })
+            .WithMonitor(s.GetMonitor("MON-P") with { Layout = WallpaperLayout.Span }) with
+        {
+            Span = new SpanSettings().AddFolder(@"D:\Panorama"),
+        }, TestContext.Current.CancellationToken);
+        await _sut.InitializeCommand.ExecuteAsync(null);
+
+        _sut.IsSingleImageLayout = true;
+
+        await _rotation.Received(1).NextAsync("MON-P", Arg.Any<CancellationToken>());
+        await _rotation.Received(1).ReapplyAsync("MON-L", Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task スパンの収め方を変えると保存して作り直す()
+    {
+        _rotation.ReapplyAsync(Arg.Any<string>(), Arg.Any<CancellationToken>()).Returns(Changed(Primary));
+        await _settings.UpdateAsync(s => s.WithMonitor(s.GetMonitor("MON-P") with { Layout = WallpaperLayout.Span }) with
+        {
+            Span = new SpanSettings().AddFolder(@"D:\Panorama"),
+        }, TestContext.Current.CancellationToken);
+        await _sut.InitializeCommand.ExecuteAsync(null);
+        Assert.True(_sut.IsSpanFill);
+
+        _sut.IsSpanFitWhole = true;
+
+        Assert.Equal(ImageFit.Fit, _settings.Current.Span.Fit);
+        await _rotation.Received(1).ReapplyAsync("MON-P", Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task スパンの次の壁紙はスパン全体を変えたと伝える()
+    {
+        await _settings.UpdateAsync(s => s.WithMonitor(s.GetMonitor("MON-P") with { Layout = WallpaperLayout.Span }) with
+        {
+            Span = new SpanSettings().AddFolder(@"D:\Panorama"),
+        }, TestContext.Current.CancellationToken);
+        await _sut.InitializeCommand.ExecuteAsync(null);
+
+        await _sut.ChangeSelectedMonitorNowCommand.ExecuteAsync(null);
+
+        Assert.Equal("スパン（複数モニター） の壁紙を変更しました。", _sut.StatusMessage);
+    }
+
     [Fact]
     public async Task 一枚表示の表示方法は保存した設定を選択した状態で表示する()
     {

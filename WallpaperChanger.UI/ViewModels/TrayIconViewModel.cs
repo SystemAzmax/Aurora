@@ -202,8 +202,9 @@ public sealed partial class TrayIconViewModel : ObservableObject, IDisposable
 
             // 番号は設定画面のモニター一覧と同じ（画面配置の順）
             string monitorName = $"{i + 1}. {wallpapers[i].Monitor.DisplayName}";
-            items.Add(selection.IsSingleImage
-                ? CreateImageItem($"{monitorName}: {Path.GetFileName(selection.Images[0])}", selection.Images[0]!)
+            // 1 枚表示とスパン（複数モニターにまたがる 1 枚）は、マスに分けずに 1 項目で示す
+            items.Add(selection.Images is [{ } image]
+                ? CreateImageItem($"{monitorName}: {Path.GetFileName(image)}", image)
                 : ShownImageItemViewModel.ForGroup(monitorName, CreateImageItems(selection)));
         }
 
@@ -212,9 +213,9 @@ public sealed partial class TrayIconViewModel : ObservableObject, IDisposable
 
     private List<ShownImageItemViewModel> CreateImageItems(WallpaperSelection selection)
     {
-        if (selection.IsSingleImage)
+        if (selection.Images is [{ } onlyImage])
         {
-            return [CreateImageItem(Path.GetFileName(selection.Images[0])!, selection.Images[0]!)];
+            return [CreateImageItem(Path.GetFileName(onlyImage), onlyImage)];
         }
 
         var items = new List<ShownImageItemViewModel>();

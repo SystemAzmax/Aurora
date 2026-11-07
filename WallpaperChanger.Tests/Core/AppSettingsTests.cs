@@ -262,6 +262,56 @@ public class AppSettingsTests
         Assert.Equal([@"C:\a.jpg"], settings.ExcludedImages);
     }
 
+    // ---- スパン ----
+
+    [Fact]
+    public void スパンのモニターはスパンのフォルダの有無で判定する()
+    {
+        var settings = new AppSettings()
+            .WithMonitor(MonitorSettings.CreateDefault("SPAN").AddFolder(@"C:\own") with { Layout = WallpaperLayout.Span });
+
+        // モニター自身のフォルダがあっても、スパンでは使わない
+        Assert.False(settings.HasFoldersFor("SPAN"));
+        Assert.False(settings.HasAnyFolder());
+
+        settings = settings with { Span = new SpanSettings().AddFolder(@"C:\panorama") };
+        Assert.True(settings.HasFoldersFor("SPAN"));
+        Assert.True(settings.HasAnyFolder());
+    }
+
+    [Fact]
+    public void スパンのモニターはマスのフォルダを使わない()
+    {
+        MonitorSettings settings = MonitorSettings.CreateDefault("M").AddFolder(@"C:\w").AddTileFolder(1, @"C:\b") with
+        {
+            Layout = WallpaperLayout.Span,
+        };
+
+        Assert.False(settings.UsesTileFolders);
+        Assert.Equal([@"C:\w"], settings.GetEffectiveTileFolders(0));
+    }
+
+    [Fact]
+    public void スパンに参加するモニターはフォルダが無くても設定済みとして扱う()
+    {
+        // 接続先を変えたときの引き継ぎで、スパンの設定が上書きされないように
+        Assert.True((MonitorSettings.CreateDefault("M") with { Layout = WallpaperLayout.Span }).HasFolderSettings);
+    }
+
+    [Fact]
+    public void Normalizeはスパンの設定が無ければ既定値にし範囲外の値を補正する()
+    {
+        Assert.Equal(new SpanSettings(), (new AppSettings { Span = null! }).Normalize().Span);
+
+        SpanSettings span = (new AppSettings
+        {
+            Span = new SpanSettings { Folders = null!, Fit = ImageFit.Center, SelectionMode = (ImageSelectionMode)99 },
+        }).Normalize().Span;
+        Assert.Empty(span.Folders);
+        Assert.Equal(ImageFit.Fill, span.Fit);
+        Assert.Equal(ImageSelectionMode.Random, span.SelectionMode);
+    }
+
     [Fact]
     public void Normalizeは表示しない画像が無い設定を空にする()
     {

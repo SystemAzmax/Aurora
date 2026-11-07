@@ -269,6 +269,19 @@ public sealed class TrayIconViewModelTests : IDisposable
     }
 
     [Fact]
+    public async Task スパンの画像はマスに分けずにモニターごとに1項目で示す()
+    {
+        var span = new WallpaperSelection(WallpaperLayout.Span, [@"C:\p\panorama.jpg"]);
+        _rotation.GetCurrentWallpapersAsync(Arg.Any<CancellationToken>()).Returns(
+            [new CurrentWallpaper(Monitor("Left"), span), new CurrentWallpaper(Monitor("Right"), span)]);
+
+        await _sut.RefreshShownImagesCommand.ExecuteAsync(null);
+
+        Assert.Equal(["1. Left: panorama.jpg", "2. Right: panorama.jpg"], _sut.ShownImages.Select(i => i.Header));
+        Assert.All(_sut.ShownImages, i => Assert.Equal(@"C:\p\panorama.jpg", i.ImagePath));
+    }
+
+    [Fact]
     public async Task モニターが1台ならモニターの階層を省き十六分割のマスは行と列で示す()
     {
         string[] images = [.. Enumerable.Range(1, 16).Select(i => $@"C:\w\{i}.jpg")];

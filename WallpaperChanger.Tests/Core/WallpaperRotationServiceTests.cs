@@ -901,6 +901,149 @@ public sealed class WallpaperRotationServiceTests : IDisposable
         Assert.Equal("MON1", Assert.Single(_historyStore.Saved).MonitorId);
     }
 
+    // ---- スパン（複数モニターにまたがる 1 枚表示） ----
+
+    [Fact]
+    public async Task スパンでは参加するモニターをまとめて1枚の画像を切り分けて設定する()
+    {
+        await UseSpanAsync(["MON1", "MON2"], ImageFit.Fit);
+
+        WallpaperChangeResult result = await _sut.NextAsync("MON1", TestContext.Current.CancellationToken);
+
+        await _composer.Received(1).ComposeSpanAsync(
+            Arg.Is<SpanCompositionRequest>(r =>
+                r.ImagePath == Images[0] && r.Fit == ImageFit.Fit
+                && r.Monitors.Select(m => m.MonitorId).SequenceEqual(AllMonitorIds)
+                && r.Monitors[1].Bounds == Monitor2.Bounds && r.Monitors[1].Width == 1920),
+            Arg.Any<CancellationToken>());
+        await _wallpaper.Received(1).SetWallpaperAsync("MON1", @"C:\span\MON1.jpg", Arg.Any<CancellationToken>());
+        await _wallpaper.Received(1).SetWallpaperAsync("MON2", @"C:\span\MON2.jpg", Arg.Any<CancellationToken>());
+        await _composer.DidNotReceive().ComposeAsync(Arg.Any<WallpaperCompositionRequest>(), Arg.Any<CancellationToken>());
+
+        // 1 台を指定しても、参加するモニターすべての結果を返す
+        Assert.Equal(AllMonitorIds, result.Monitors.Select(m => m.Monitor.Id));
+        Assert.All(result.Monitors, m => Assert.Equal(WallpaperChangeStatus.Changed, m.Status));
+    }
+
+    [Fact]
+    public async Task 全モニターの切り替えでもスパンは1回だけ切り替えスパンでないモニターは個別に切り替える()
+    {
+        await UseSpanAsync(["MON2"]); // MON1 は 1 枚表示のまま
+        _wallpaper.GetWallpaperAsync("MON1", Arg.Any<CancellationToken>()).Returns(Images[0]);
+
+        await _sut.NextAsync(cancellationToken: TestContext.Current.CancellationToken);
+
+        await _composer.Received(1).ComposeSpanAsync(
+            Arg.Is<SpanCompositionRequest>(r => r.Monitors.Count == 1 && r.Monitors[0].MonitorId == "MON2"),
+            Arg.Any<CancellationToken>());
+        await _wallpaper.Received(1).SetWallpaperAsync("MON1", Images[1], Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task スパンの順送りと前へはスパン全体の履歴で進む()
+    {
+        CancellationToken ct = TestContext.Current.CancellationToken;
+        await UseSpanAsync(["MON1", "MON2"]);
+        await _sut.NextAsync("MON1", ct);
+        await _sut.NextAsync("MON2", ct);
+        Assert.Equal([Images[0], Images[1]], SpanImages());
+
+        _composer.ClearReceivedCalls();
+        await _sut.PreviousAsync("MON2", ct);
+
+        Assert.Equal([Images[0]], SpanImages());
+    }
+
+    [Fact]
+    public async Task スパンのフォルダが無ければ参加するモニターはどれも変えない()
+    {
+        await _settings.UpdateAsync(s => s
+            .WithMonitor(s.GetMonitor("MON1") with { Layout = WallpaperLayout.Span })
+            .WithMonitor(s.GetMonitor("MON2") with { Layout = WallpaperLayout.Span }), TestContext.Current.CancellationToken);
+
+        WallpaperChangeResult result = await _sut.NextAsync(cancellationToken: TestContext.Current.CancellationToken);
+
+        Assert.All(result.Monitors, m => Assert.Equal(WallpaperChangeStatus.NoFolders, m.Status));
+        await _wallpaper.DidNotReceive().SetWallpaperAsync(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task 表示し直しはスパンを同じ画像で今の配置に合わせて作り直す()
+    {
+        CancellationToken ct = TestContext.Current.CancellationToken;
+        await UseSpanAsync(["MON1", "MON2"]);
+        await _sut.NextAsync("MON1", ct);
+
+        MonitorInfo moved = Monitor2 with { Bounds = new MonitorBounds(-1920, 0, 0, 1080) };
+        _monitors.GetMonitorsAsync(Arg.Any<CancellationToken>()).Returns([Monitor1, moved]);
+        await _sut.ReapplyAsync("MON1", ct);
+
+        Assert.Equal([Images[0], Images[0]], SpanImages());
+        SpanCompositionRequest last = SpanRequests().Last();
+        Assert.Equal(moved.Bounds, last.Monitors[1].Bounds);
+    }
+
+    [Fact]
+    public async Task スパンの表示中の画像はスパンに参加するモニターごとに返す()
+    {
+        CancellationToken ct = TestContext.Current.CancellationToken;
+        await UseSpanAsync(["MON1", "MON2"]);
+        await _sut.NextAsync("MON1", ct);
+
+        IReadOnlyList<CurrentWallpaper> current = await _sut.GetCurrentWallpapersAsync(ct);
+
+        Assert.All(current, c => Assert.Equal([Images[0]], c.Selection!.Images));
+        Assert.All(current, c => Assert.Equal(WallpaperLayout.Span, c.Selection!.Layout));
+    }
+
+    [Fact]
+    public async Task 表示しない画像にしたスパンの画像は選び直す()
+    {
+        CancellationToken ct = TestContext.Current.CancellationToken;
+        await UseSpanAsync(["MON1", "MON2"]);
+        await _sut.NextAsync("MON1", ct);
+        await _settings.UpdateAsync(s => s.AddExcludedImage(Images[0]), ct);
+
+        await _sut.ReplaceExcludedImagesAsync(ct);
+
+        Assert.Equal([Images[0], Images[1]], SpanImages());
+    }
+
+    [Fact]
+    public async Task 再起動後のスパンの順送りは保存した履歴の続きから選ぶ()
+    {
+        CancellationToken ct = TestContext.Current.CancellationToken;
+        await UseSpanAsync(["MON1", "MON2"]);
+        await _sut.NextAsync("MON1", ct);
+
+        using WallpaperRotationService restarted = CreateSut();
+        await restarted.NextAsync("MON1", ct);
+
+        Assert.Equal([Images[0], Images[1]], SpanImages());
+        Assert.Contains(_historyStore.Saved, s => s.MonitorId == WallpaperRotationService.SpanHistoryKey);
+    }
+
+    private async Task UseSpanAsync(string[] monitorIds, ImageFit fit = ImageFit.Fill)
+    {
+        _composer.ComposeSpanAsync(Arg.Any<SpanCompositionRequest>(), Arg.Any<CancellationToken>())
+            .Returns(call => (IReadOnlyDictionary<string, string>)call.Arg<SpanCompositionRequest>().Monitors
+                .ToDictionary(m => m.MonitorId, m => $@"C:\span\{m.MonitorId}.jpg"));
+        await _settings.UpdateAsync(
+            s => monitorIds.Aggregate(
+                s with { Span = new SpanSettings { Folders = CommonFolders, SelectionMode = ImageSelectionMode.Sequential, Fit = fit } },
+                (current, id) => current.WithMonitor(current.GetMonitor(id) with { Layout = WallpaperLayout.Span })),
+            TestContext.Current.CancellationToken);
+    }
+
+    private List<SpanCompositionRequest> SpanRequests() =>
+    [
+        .. _composer.ReceivedCalls()
+            .Where(c => c.GetMethodInfo().Name == nameof(IWallpaperComposer.ComposeSpanAsync))
+            .Select(c => (SpanCompositionRequest)c.GetArguments()[0]!),
+    ];
+
+    private List<string> SpanImages() => [.. SpanRequests().Select(r => r.ImagePath)];
+
     /// <summary>同じ履歴の保存先を使う新しいインスタンス。2 つ目を作るとアプリの再起動に当たる。</summary>
     private WallpaperRotationService CreateSut() => new(
         _monitors,

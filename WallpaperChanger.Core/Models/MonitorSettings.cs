@@ -22,7 +22,7 @@ public sealed record MonitorSettings
     /// <summary>次の壁紙の選び方。</summary>
     public ImageSelectionMode SelectionMode { get; init; } = ImageSelectionMode.Random;
 
-    /// <summary>1 枚表示か分割表示（4 分割・16 分割）か。</summary>
+    /// <summary>1 枚表示か、分割表示（4 分割・16 分割）か、複数モニターにまたがる 1 枚表示（スパン）か。</summary>
     public WallpaperLayout Layout { get; init; } = WallpaperLayout.SingleImage;
 
     /// <summary>
@@ -86,7 +86,7 @@ public sealed record MonitorSettings
     /// </summary>
     [JsonIgnore]
     public bool UsesTileFolders =>
-        Layout != WallpaperLayout.SingleImage && AnyQuadrantHasFolders;
+        Layout.IsSplit() && AnyQuadrantHasFolders;
 
     /// <summary>
     /// マスで実際に使うフォルダ。空のリストはそのマスに画像を置かない（黒で表示する）ことを表す。
@@ -97,14 +97,20 @@ public sealed record MonitorSettings
     public IReadOnlyList<string> GetEffectiveTileFolders(int index) =>
         UsesTileFolders ? GetTile(Layout.GetQuadrant(index)).Folders : Folders;
 
-    /// <summary>現在のレイアウトで画像の取得元となるフォルダが 1 つでも設定されているか。</summary>
+    /// <summary>
+    /// 現在のレイアウトで画像の取得元となるフォルダが 1 つでも設定されているか。
+    /// スパンのフォルダはこのモニターの設定に無いため、スパンでは <see cref="AppSettings.HasFoldersFor"/> を使う。
+    /// </summary>
     public bool HasAnyFolder() =>
         Folders.Count > 0
         || UsesTileFolders;
 
-    /// <summary>1 枚表示・分割表示のどちらかにフォルダを設定しているか（今のレイアウトで使うかは問わない）。</summary>
+    /// <summary>
+    /// 設定済みのモニターか。1 枚表示・分割表示のどちらかにフォルダを設定しているか（今のレイアウトで使うかは問わない）、
+    /// スパンに参加している（スパンのフォルダを使う）場合に true。
+    /// </summary>
     [JsonIgnore]
-    public bool HasFolderSettings => Folders.Count > 0 || AnyQuadrantHasFolders;
+    public bool HasFolderSettings => Folders.Count > 0 || AnyQuadrantHasFolders || Layout == WallpaperLayout.Span;
 
     private bool AnyQuadrantHasFolders =>
         Enumerable.Range(0, WallpaperLayoutExtensions.QuadrantCount).Any(i => GetTile(i).Folders.Count > 0);
