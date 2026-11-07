@@ -1,7 +1,7 @@
 namespace WallpaperChanger.Infrastructure.Imaging;
 
 /// <summary>
-/// 分割表示の合成画像に関する設定。
+/// 合成画像（分割表示と、表示方法を指定した 1 枚表示）に関する設定。
 /// </summary>
 public sealed class WallpaperCompositionOptions
 {
@@ -19,7 +19,9 @@ public sealed class WallpaperCompositionOptions
     /// <summary>間隔部分の色（0xRRGGBB）。</summary>
     public int BackgroundColor { get; set; } = 0x202020;
 
-    /// <summary>フォルダ未設定のマスの色（0xRRGGBB）。既定は真っ黒（0x000000）。</summary>
+    /// <summary>
+    /// 画像の無い部分の色（0xRRGGBB）。フォルダ未設定のマスと、全体表示・中央表示で画像が覆わない余白に使う。既定は真っ黒（0x000000）。
+    /// </summary>
     public int EmptyTileColor { get; set; }
 
     /// <summary>

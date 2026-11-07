@@ -13,8 +13,8 @@ using WallpaperChanger.Core.Services;
 namespace WallpaperChanger.Infrastructure.Imaging;
 
 /// <summary>
-/// WPF の画像処理 (WIC) で複数の画像を 1 枚に合成する。
-/// 各画像はタイル全体を覆うように拡大縮小し、はみ出した部分は中央で切り抜く。
+/// WPF の画像処理 (WIC) で画像をモニターの解像度の 1 枚に合成する。
+/// 各画像は指定の方法（既定はタイル全体を覆うように拡大縮小し、はみ出した部分は中央で切り抜く）でタイルに収める。
 /// Visual を使わず Freezable な BitmapSource のみで処理するため、任意のスレッドで実行できる。
 /// </summary>
 internal sealed partial class WicWallpaperComposer : IWallpaperComposer
@@ -102,8 +102,14 @@ internal sealed partial class WicWallpaperComposer : IWallpaperComposer
                     return;
                 }
 
-                FormatConvertedBitmap tileImage = LoadTileImage(imagePath, tile.Width, tile.Height);
-                int offset = (tile.Y * stride) + (tile.X * BytesPerPixel);
+                (FormatConvertedBitmap tileImage, int offsetX, int offsetY) = LoadTileImage(imagePath, tile.Width, tile.Height, request.Fit);
+                if (tileImage.PixelWidth < tile.Width || tileImage.PixelHeight < tile.Height)
+                {
+                    // 全体表示・中央表示で画像がマスを覆わない部分は、画像の無いマスと同じ色にする
+                    FillRect(pixels, stride, tile, _options.EmptyTileColor);
+                }
+
+                int offset = ((tile.Y + offsetY) * stride) + ((tile.X + offsetX) * BytesPerPixel);
                 tileImage.CopyPixels(Int32Rect.Empty, pixels, stride, offset);
             });
         }
@@ -114,8 +120,11 @@ internal sealed partial class WicWallpaperComposer : IWallpaperComposer
         }
     }
 
-    /// <summary>画像を読み込み、タイルと同じサイズ（Bgr32）に拡大縮小・切り抜きする。</summary>
-    private FormatConvertedBitmap LoadTileImage(string imagePath, int tileWidth, int tileHeight)
+    /// <summary>
+    /// 画像を読み込み、指定の方法でタイルに収まるように拡大縮小・切り抜きする（Bgr32）。
+    /// 戻り値の画像はタイル以下の大きさで、タイル内のどこに置くかを合わせて返す。
+    /// </summary>
+    private (FormatConvertedBitmap Image, int OffsetX, int OffsetY) LoadTileImage(string imagePath, int tileWidth, int tileHeight, ImageFit fit)
     {
         try
         {
@@ -137,37 +146,40 @@ internal sealed partial class WicWallpaperComposer : IWallpaperComposer
                     $"画像のピクセル数 ({header.PixelWidth}×{header.PixelHeight}) が上限 ({_limits.MaxPixelCount:N0}) を超えるため読み込みません: {imagePath}");
             }
 
-            // 撮影時の向き（EXIF）を反映した縦横で、タイルを覆う大きさを決める
+            // 撮影時の向き（EXIF）を反映した縦横で、タイルに収める大きさを決める
             int orientation = ExifOrientation.Read(header);
             bool swapsDimensions = ExifOrientation.SwapsDimensions(orientation);
-            FillScaling fill = swapsDimensions
-                ? TileLayout.CalculateFill(header.PixelHeight, header.PixelWidth, tileWidth, tileHeight)
-                : TileLayout.CalculateFill(header.PixelWidth, header.PixelHeight, tileWidth, tileHeight);
+            ImagePlacement placement = swapsDimensions
+                ? TileLayout.CalculatePlacement(header.PixelHeight, header.PixelWidth, tileWidth, tileHeight, fit)
+                : TileLayout.CalculatePlacement(header.PixelWidth, header.PixelHeight, tileWidth, tileHeight, fit);
 
-            // 2. タイルを覆うサイズで直接デコードする（大きな写真でもメモリを抑えられる）。
+            // 2. 収める大きさで直接デコードする（大きな写真でもメモリを抑えられる）。
             //    デコードは保存されている向きのまま行うため、縦横が入れ替わる場合はデコードする大きさも入れ替える
             stream.Position = 0;
             var decoded = new BitmapImage();
             decoded.BeginInit();
             decoded.CacheOption = BitmapCacheOption.OnLoad;
             decoded.CreateOptions = BitmapCreateOptions.IgnoreColorProfile;
-            decoded.DecodePixelWidth = swapsDimensions ? fill.ScaledHeight : fill.ScaledWidth;
-            decoded.DecodePixelHeight = swapsDimensions ? fill.ScaledWidth : fill.ScaledHeight;
+            decoded.DecodePixelWidth = swapsDimensions ? placement.ScaledHeight : placement.ScaledWidth;
+            decoded.DecodePixelHeight = swapsDimensions ? placement.ScaledWidth : placement.ScaledHeight;
             decoded.StreamSource = stream;
             decoded.EndInit();
             decoded.Freeze();
             BitmapSource scaled = ExifOrientation.Apply(decoded, orientation);
 
-            // 3. 中央を切り抜き、合成バッファと同じ形式に変換する
+            // 3. タイルからはみ出す部分を切り抜き、合成バッファと同じ形式に変換する
+            //    （デコード結果の大きさが計算と 1 ピクセルずれても、画像とタイルの範囲に収める）
+            int cropWidth = Math.Min(placement.Crop.Width, scaled.PixelWidth);
+            int cropHeight = Math.Min(placement.Crop.Height, scaled.PixelHeight);
             var cropRect = new Int32Rect(
-                Math.Clamp(fill.Crop.X, 0, Math.Max(0, scaled.PixelWidth - tileWidth)),
-                Math.Clamp(fill.Crop.Y, 0, Math.Max(0, scaled.PixelHeight - tileHeight)),
-                Math.Min(tileWidth, scaled.PixelWidth),
-                Math.Min(tileHeight, scaled.PixelHeight));
+                Math.Clamp(placement.Crop.X, 0, scaled.PixelWidth - cropWidth),
+                Math.Clamp(placement.Crop.Y, 0, scaled.PixelHeight - cropHeight),
+                cropWidth,
+                cropHeight);
             var cropped = new CroppedBitmap(scaled, cropRect);
             var converted = new FormatConvertedBitmap(cropped, PixelFormats.Bgr32, null, 0);
             converted.Freeze();
-            return converted;
+            return (converted, placement.OffsetX, placement.OffsetY);
         }
         catch (ImageTooLargeException)
         {

@@ -32,8 +32,8 @@ public interface IWallpaperRotationService
     Task<WallpaperChangeResult> PreviousAsync(string? monitorId = null, CancellationToken cancellationToken = default);
 
     /// <summary>
-    /// 現在の表示を、モニターの今の解像度で表示し直す（分割表示の合成画像を作り直す）。
-    /// 1 枚表示は OS が拡大縮小するため何もしない。表示中の組が無ければ次の壁紙を表示する。
+    /// 現在の表示を、モニターの今の解像度と設定（1 枚表示の表示方法）で表示し直す（合成画像を作り直す）。
+    /// 1 枚表示を Windows の設定のまま表示している場合は、OS が拡大縮小するため何もしない。表示中の組が無ければ次の壁紙を表示する。
     /// </summary>
     Task<WallpaperChangeResult> ReapplyAsync(string monitorId, CancellationToken cancellationToken = default);
 

@@ -212,6 +212,19 @@
                         <TextBlock Style="{StaticResource CaptionTextStyle}" Margin="0,10,0,0"
                                    Visibility="{Binding IsSplitLayout, Converter={StaticResource BooleanToVisibilityConverter}}"
                                    Text="分割表示では各画像をマスいっぱいに拡大し、はみ出した部分は中央で切り抜きます。" />
+
+                        <!-- 1 枚表示の表示方法（Windows の「調整方法」は全モニター共通のため、モニターごとに選べるようにする） -->
+                        <StackPanel Margin="0,14,0,0"
+                                    Visibility="{Binding IsSingleImageLayout, Converter={StaticResource BooleanToVisibilityConverter}}">
+                            <StackPanel Orientation="Horizontal">
+                                <TextBlock Text="表示方法" VerticalAlignment="Center" Margin="0,0,12,0" />
+                                <ComboBox Width="240" VerticalAlignment="Center"
+                                          ItemsSource="{Binding SingleImageFits}" DisplayMemberPath="DisplayName"
+                                          SelectedItem="{Binding SelectedSingleImageFit}" />
+                            </StackPanel>
+                            <TextBlock Text="{Binding SelectedSingleImageFit.Description}" Style="{StaticResource CaptionTextStyle}"
+                                       Margin="0,6,0,0" />
+                        </StackPanel>
                     </StackPanel>
                 </Border>
 
@@ -303,7 +316,7 @@
                     <StackPanel>
                         <TextBlock Text="ほかのモニターの設定をコピー" Style="{StaticResource SectionTitleStyle}" />
                         <TextBlock Style="{StaticResource CaptionTextStyle}" Margin="0,0,0,10"
-                                   Text="買い替えたモニターなどに、前のモニター（接続していないモニターを含む）の壁紙フォルダ・表示レイアウト・選び方をコピーします。同じ型番のモニターの接続先を変えた場合は、自動で引き継ぎます。" />
+                                   Text="買い替えたモニターなどに、前のモニター（接続していないモニターを含む）の壁紙フォルダ・表示レイアウト・表示方法・選び方をコピーします。同じ型番のモニターの接続先を変えた場合は、自動で引き継ぎます。" />
                         <StackPanel Orientation="Horizontal">
                             <ComboBox Width="320" VerticalAlignment="Center"
                                       ItemsSource="{Binding CopySources}" DisplayMemberPath="Label"

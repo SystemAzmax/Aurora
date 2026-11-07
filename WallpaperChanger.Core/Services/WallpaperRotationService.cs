@@ -22,6 +22,12 @@ public sealed partial class WallpaperRotationService : IWallpaperRotationService
     private readonly SemaphoreSlim _gate = new(1, 1);
     private readonly Dictionary<string, WallpaperHistory> _histories = new(StringComparer.OrdinalIgnoreCase);
 
+    /// <summary>
+    /// 1 枚表示を、表示方法に合わせて作った画像で表示しているモニター（表示方法を Windows の設定のままに戻したときに表示し直すため）。
+    /// _gate の内側でのみ読み書きする。
+    /// </summary>
+    private readonly HashSet<string> _fittedSingleImageMonitors = new(StringComparer.OrdinalIgnoreCase);
+
     // 以下は _gate の内側でのみ読み書きする
     private bool _historiesLoaded;
     private int _savedHistoryVersion;
@@ -399,8 +405,11 @@ public sealed partial class WallpaperRotationService : IWallpaperRotationService
     {
         MonitorSettings settings = _settingsService.Current.GetMonitor(monitor.Id);
 
-        // 1 枚表示は OS が新しい解像度に合わせて拡大縮小するため、作り直す必要がない
-        if (settings.Layout == WallpaperLayout.SingleImage)
+        // 1 枚表示を Windows の設定のまま表示している場合は、OS が新しい解像度に合わせて拡大縮小するため、作り直す必要がない
+        // （表示方法に合わせて作った画像を表示している場合は、表示方法を Windows の設定に戻したところなので、元の画像に戻す）
+        if (settings.Layout == WallpaperLayout.SingleImage
+            && settings.SingleImageFit is null
+            && !_fittedSingleImageMonitors.Contains(monitor.Id))
         {
             return WallpaperChangeStatus.NotRequired;
         }
@@ -408,7 +417,7 @@ public sealed partial class WallpaperRotationService : IWallpaperRotationService
         WallpaperHistory history = GetHistory(monitor.Id);
         if (history.Current is { } current && current.Layout == settings.Layout && CanShow(current))
         {
-            // 同じ画像の組を、新しい解像度で合成し直す（履歴は進めない）
+            // 同じ画像の組を、新しい解像度・表示方法で表示し直す（履歴は進めない）
             await ApplyAsync(monitor, current, cancellationToken).ConfigureAwait(false);
             return WallpaperChangeStatus.Changed;
         }
@@ -437,20 +446,32 @@ public sealed partial class WallpaperRotationService : IWallpaperRotationService
 
     private async Task ApplyAsync(MonitorInfo monitor, WallpaperSelection selection, CancellationToken cancellationToken)
     {
-        string wallpaperPath = selection.IsSingleImage
+        // 1 枚表示は、表示方法を指定していなければ画像をそのまま渡し、Windows の「調整方法」で表示させる。
+        // Windows の設定は全モニター共通のため、指定していればモニターの解像度に合わせた画像を作る
+        ImageFit? singleImageFit = selection.IsSingleImage ? _settingsService.Current.GetMonitor(monitor.Id).SingleImageFit : null;
+        string wallpaperPath = selection.IsSingleImage && singleImageFit is null
             ? selection.Images[0]!
-            : await ComposeAsync(monitor, selection, cancellationToken).ConfigureAwait(false);
+            : await ComposeAsync(monitor, selection, singleImageFit ?? ImageFit.Fill, cancellationToken).ConfigureAwait(false);
 
         await _wallpaperService.SetWallpaperAsync(monitor.Id, wallpaperPath, cancellationToken).ConfigureAwait(false);
+        if (singleImageFit is null)
+        {
+            _fittedSingleImageMonitors.Remove(monitor.Id);
+        }
+        else
+        {
+            _fittedSingleImageMonitors.Add(monitor.Id);
+        }
+
         LogWallpaperChanged(monitor.DisplayName, selection.Layout, selection.Images);
         WallpaperChanged?.Invoke(this, new WallpaperChangedEventArgs(monitor.Id, wallpaperPath, selection));
     }
 
-    private Task<string> ComposeAsync(MonitorInfo monitor, WallpaperSelection selection, CancellationToken cancellationToken)
+    private Task<string> ComposeAsync(MonitorInfo monitor, WallpaperSelection selection, ImageFit fit, CancellationToken cancellationToken)
     {
         (int columns, int rows) = selection.Layout.GetGridSize();
         var request = new WallpaperCompositionRequest(
-            monitor.Id, selection.Images, columns, rows, monitor.Width, monitor.Height);
+            monitor.Id, selection.Images, columns, rows, monitor.Width, monitor.Height, fit);
         return _composer.ComposeAsync(request, cancellationToken);
     }
 

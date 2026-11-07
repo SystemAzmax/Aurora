@@ -1,7 +1,9 @@
+using WallpaperChanger.Core.Models;
+
 namespace WallpaperChanger.Core.Interfaces;
 
 /// <summary>
-/// 分割表示用の合成リクエスト。
+/// 分割表示用、または表示方法を指定した 1 枚表示用の合成リクエスト。
 /// </summary>
 /// <param name="MonitorId">対象モニター（出力ファイル名の決定に使う）。</param>
 /// <param name="ImagePaths">タイルに配置する画像（左上から右方向、次の行へ、の順）。null のマスは黒で塗る。</param>
@@ -9,17 +11,20 @@ namespace WallpaperChanger.Core.Interfaces;
 /// <param name="Rows">行数。</param>
 /// <param name="Width">出力画像の幅（モニターの解像度）。</param>
 /// <param name="Height">出力画像の高さ（モニターの解像度）。</param>
+/// <param name="Fit">各画像をマスに収める方法。余白は画像の無いマスと同じ色で塗る。</param>
 public sealed record WallpaperCompositionRequest(
     string MonitorId,
     IReadOnlyList<string?> ImagePaths,
     int Columns,
     int Rows,
     int Width,
-    int Height);
+    int Height,
+    ImageFit Fit = ImageFit.Fill);
 
 /// <summary>
-/// 複数の画像を 1 枚の壁紙画像に合成する。
-/// IDesktopWallpaper は 1 モニターに 1 枚しか設定できないため、分割表示は合成画像で実現する。
+/// 画像をモニターの解像度の 1 枚の壁紙画像に合成する。
+/// IDesktopWallpaper は 1 モニターに 1 枚しか設定できず、表示方法（調整方法）も全モニター共通のため、
+/// 分割表示と、表示方法を指定した 1 枚表示は合成画像で実現する。
 /// </summary>
 public interface IWallpaperComposer
 {

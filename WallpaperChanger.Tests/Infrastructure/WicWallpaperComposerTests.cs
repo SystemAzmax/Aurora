@@ -4,6 +4,7 @@ using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
 using Microsoft.Extensions.Time.Testing;
 using WallpaperChanger.Core.Interfaces;
+using WallpaperChanger.Core.Models;
 using WallpaperChanger.Infrastructure.Imaging;
 using WallpaperChanger.Tests.Fakes;
 
@@ -52,6 +53,90 @@ public sealed class WicWallpaperComposerTests : IDisposable
         // タイルの端まで画像で埋まっている（切り抜きで隙間ができない）
         AssertColor(result, 1, 1, Colors.Red);
         AssertColor(result, 798, 598, Colors.White);
+    }
+
+    [Fact]
+    public async Task 一枚表示の画面を埋める表示では画面全体を覆い余白を残さない()
+    {
+        string red = CreateImage("red.png", 60, 40, Colors.Red, new PngBitmapEncoder());
+        WicWallpaperComposer sut = CreateSut(gap: 10);
+
+        // 60×40 を 200×100 に: 幅に合わせて 200×133 に拡大し、上下を切り抜く
+        string output = await sut.ComposeAsync(
+            new WallpaperCompositionRequest("MON1", [red], 1, 1, 200, 100, ImageFit.Fill), TestContext.Current.CancellationToken);
+
+        BitmapSource result = Load(output);
+        Assert.Equal((200, 100), (result.PixelWidth, result.PixelHeight));
+        AssertColor(result, 1, 1, Colors.Red);
+        AssertColor(result, 198, 98, Colors.Red);
+    }
+
+    [Fact]
+    public async Task 一枚表示の全体表示では画像全体を収めて余白を黒にする()
+    {
+        string red = CreateImage("red.png", 60, 40, Colors.Red, new PngBitmapEncoder());
+        WicWallpaperComposer sut = CreateSut(gap: 10);
+
+        // 60×40 を 200×100 に: 高さに合わせて 150×100 に拡大し、左右に 25 ずつ余白
+        string output = await sut.ComposeAsync(
+            new WallpaperCompositionRequest("MON1", [red], 1, 1, 200, 100, ImageFit.Fit), TestContext.Current.CancellationToken);
+
+        BitmapSource result = Load(output);
+        AssertColor(result, 100, 50, Colors.Red);
+        AssertColor(result, 30, 2, Colors.Red);
+        AssertColor(result, 170, 97, Colors.Red);
+        AssertColor(result, 10, 50, Colors.Black);
+        AssertColor(result, 190, 50, Colors.Black);
+    }
+
+    [Fact]
+    public async Task 一枚表示の引き伸ばしでは縦横比を変えて画面いっぱいにする()
+    {
+        string red = CreateImage("red.png", 60, 40, Colors.Red, new PngBitmapEncoder());
+        WicWallpaperComposer sut = CreateSut(gap: 10);
+
+        string output = await sut.ComposeAsync(
+            new WallpaperCompositionRequest("MON1", [red], 1, 1, 200, 100, ImageFit.Stretch), TestContext.Current.CancellationToken);
+
+        BitmapSource result = Load(output);
+        AssertColor(result, 1, 1, Colors.Red);
+        AssertColor(result, 198, 98, Colors.Red);
+    }
+
+    [Fact]
+    public async Task 一枚表示の中央表示では拡大せずに中央に置き余白を黒にする()
+    {
+        string red = CreateImage("red.png", 60, 40, Colors.Red, new PngBitmapEncoder());
+        WicWallpaperComposer sut = CreateSut(gap: 10);
+
+        // 60×40 のまま、200×100 の中央（左上が (70, 30)）に置く
+        string output = await sut.ComposeAsync(
+            new WallpaperCompositionRequest("MON1", [red], 1, 1, 200, 100, ImageFit.Center), TestContext.Current.CancellationToken);
+
+        BitmapSource result = Load(output);
+        AssertColor(result, 75, 35, Colors.Red);
+        AssertColor(result, 124, 64, Colors.Red);
+        AssertColor(result, 62, 50, Colors.Black);
+        AssertColor(result, 137, 50, Colors.Black);
+        AssertColor(result, 100, 22, Colors.Black);
+        AssertColor(result, 100, 77, Colors.Black);
+    }
+
+    [Fact]
+    public async Task 一枚表示の中央表示では画面より大きい画像の中央を切り抜く()
+    {
+        // 左半分が赤、右半分が青の 400×100 の画像を 200×100 の中央に置くと、中央の 200 ピクセル分だけが見える
+        string image = CreateSplitImage("split.png", 400, 100, Colors.Red, Colors.Blue);
+        WicWallpaperComposer sut = CreateSut(gap: 0);
+
+        string output = await sut.ComposeAsync(
+            new WallpaperCompositionRequest("MON1", [image], 1, 1, 200, 100, ImageFit.Center), TestContext.Current.CancellationToken);
+
+        BitmapSource result = Load(output);
+        AssertColor(result, 1, 50, Colors.Red);
+        AssertColor(result, 94, 50, Colors.Red);
+        AssertColor(result, 106, 50, Colors.Blue);
+        AssertColor(result, 198, 50, Colors.Blue);
     }
 
     [Fact]
@@ -294,6 +379,28 @@ public sealed class WicWallpaperComposerTests : IDisposable
 
     /// <summary>16 マスを見分けられる色（隣どうしで、JPEG の誤差の許容範囲より大きく異なる）。</summary>
     private static Color TileColor(int index) => Color.FromRgb((byte)(index % 4 * 85), (byte)(index / 4 * 85), 128);
+
+    /// <summary>左半分と右半分で色の異なる PNG 画像を作る。</summary>
+    private string CreateSplitImage(string name, int width, int height, Color left, Color right)
+    {
+        byte[] pixels = new byte[width * height * 4];
+        for (int i = 0; i < pixels.Length; i += 4)
+        {
+            Color color = i / 4 % width < width / 2 ? left : right;
+            pixels[i] = color.B;
+            pixels[i + 1] = color.G;
+            pixels[i + 2] = color.R;
+            pixels[i + 3] = 0xFF;
+        }
+
+        BitmapSource bitmap = BitmapSource.Create(width, height, 96, 96, PixelFormats.Bgr32, null, pixels, width * 4);
+        string path = Path.Combine(_temp.Path, name);
+        var encoder = new PngBitmapEncoder();
+        encoder.Frames.Add(BitmapFrame.Create(bitmap));
+        using var stream = File.Create(path);
+        encoder.Save(stream);
+        return path;
+    }
 
     private string CreateImage(string name, int width, int height, Color color, BitmapEncoder encoder)
     {

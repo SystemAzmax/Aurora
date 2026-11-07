@@ -423,6 +423,41 @@ public sealed class SettingsViewModelTests : IDisposable
     }
 
     [Fact]
+    public async Task 一枚表示の表示方法は保存した設定を選択した状態で表示する()
+    {
+        await _settings.UpdateAsync(s => s.WithMonitor(s.GetMonitor("MON-P") with { SingleImageFit = ImageFit.Center }),
+            TestContext.Current.CancellationToken);
+
+        await _sut.InitializeCommand.ExecuteAsync(null);
+
+        Assert.Equal(ImageFit.Center, _sut.SelectedSingleImageFit.Fit);
+        _sut.SelectedMonitor = _sut.Monitors.Single(m => m.Id == "MON-L");
+        Assert.Same(SingleImageFitOption.Windows, _sut.SelectedSingleImageFit);
+        await _rotation.DidNotReceive().ReapplyAsync(Arg.Any<string>(), Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task 一枚表示の表示方法を変えると保存して今の画像を表示し直す()
+    {
+        _rotation.ReapplyAsync(Arg.Any<string>(), Arg.Any<CancellationToken>()).Returns(Changed(Primary));
+        await _sut.InitializeCommand.ExecuteAsync(null);
+
+        _sut.SelectedSingleImageFit = _sut.SingleImageFits.Single(o => o.Fit == ImageFit.Fit);
+
+        Assert.Equal(ImageFit.Fit, _settings.Current.GetMonitor("MON-P").SingleImageFit);
+        await _rotation.Received(1).ReapplyAsync("MON-P", Arg.Any<CancellationToken>());
+        await _rotation.DidNotReceive().NextAsync(Arg.Any<string?>(), Arg.Any<CancellationToken>());
+        Assert.False(_sut.IsStatusError);
+        Assert.Equal("1 枚表示の表示方法を「全体を表示」に変更しました。", _sut.StatusMessage);
+
+        // Windows の設定に戻す
+        _sut.SelectedSingleImageFit = SingleImageFitOption.Windows;
+
+        Assert.Null(_settings.Current.GetMonitor("MON-P").SingleImageFit);
+        await _rotation.Received(2).ReapplyAsync("MON-P", Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
     public async Task 十六分割に切り替えると4分割と共通の区画のフォルダを編集対象にする()
     {
         await _settings.UpdateAsync(s => s.WithMonitor(s.GetMonitor("MON-P").AddTileFolder(2, @"D:\Birds")),

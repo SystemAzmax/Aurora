@@ -3,7 +3,7 @@ using WallpaperChanger.Core.Models;
 namespace WallpaperChanger.Core.Services;
 
 /// <summary>
-/// 分割表示のタイル配置と、各画像の拡大縮小・切り抜きを計算する（描画処理から独立させてテスト可能にする）。
+/// 分割表示のタイル配置と、各画像を枠に収める拡大縮小・切り抜きを計算する（描画処理から独立させてテスト可能にする）。
 /// </summary>
 public static class TileLayout
 {
@@ -35,26 +35,44 @@ public static class TileLayout
     }
 
     /// <summary>
-    /// 元画像をタイル全体を覆うように拡大縮小し、中央を切り抜くための値を返す。
+    /// 元画像を枠（画面またはマス）に指定の方法で収めるための、拡大縮小・切り抜き・配置位置を返す。
+    /// 切り抜いた画像は枠の中央に置く。
     /// </summary>
-    public static FillScaling CalculateFill(int sourceWidth, int sourceHeight, int tileWidth, int tileHeight)
+    public static ImagePlacement CalculatePlacement(int sourceWidth, int sourceHeight, int tileWidth, int tileHeight, ImageFit fit)
     {
         ArgumentOutOfRangeException.ThrowIfNegativeOrZero(sourceWidth);
         ArgumentOutOfRangeException.ThrowIfNegativeOrZero(sourceHeight);
         ArgumentOutOfRangeException.ThrowIfNegativeOrZero(tileWidth);
         ArgumentOutOfRangeException.ThrowIfNegativeOrZero(tileHeight);
 
+        (int scaledWidth, int scaledHeight) = fit switch
+        {
+            ImageFit.Fill => ScaleToFill(sourceWidth, sourceHeight, tileWidth, tileHeight),
+            ImageFit.Fit => ScaleToFit(sourceWidth, sourceHeight, tileWidth, tileHeight),
+            ImageFit.Stretch => (tileWidth, tileHeight),
+            ImageFit.Center => (sourceWidth, sourceHeight),
+            _ => throw new ArgumentOutOfRangeException(nameof(fit), fit, "未対応の表示方法です。"),
+        };
+
+        // 枠からはみ出す分は中央で切り抜き、足りない分は中央に置いて余白を残す
+        int cropWidth = Math.Min(scaledWidth, tileWidth);
+        int cropHeight = Math.Min(scaledHeight, tileHeight);
+        var crop = new PixelRect((scaledWidth - cropWidth) / 2, (scaledHeight - cropHeight) / 2, cropWidth, cropHeight);
+        return new ImagePlacement(scaledWidth, scaledHeight, crop, (tileWidth - cropWidth) / 2, (tileHeight - cropHeight) / 2);
+    }
+
+    /// <summary>枠全体を覆う大きさ（縦横比を保ち、枠の幅・高さ以上にする）。</summary>
+    private static (int Width, int Height) ScaleToFill(int sourceWidth, int sourceHeight, int tileWidth, int tileHeight)
+    {
         double scale = Math.Max((double)tileWidth / sourceWidth, (double)tileHeight / sourceHeight);
-        int scaledWidth = Math.Max(tileWidth, (int)Math.Ceiling(sourceWidth * scale));
-        int scaledHeight = Math.Max(tileHeight, (int)Math.Ceiling(sourceHeight * scale));
+        return (Math.Max(tileWidth, (int)Math.Ceiling(sourceWidth * scale)), Math.Max(tileHeight, (int)Math.Ceiling(sourceHeight * scale)));
+    }
 
-        var crop = new PixelRect(
-            (scaledWidth - tileWidth) / 2,
-            (scaledHeight - tileHeight) / 2,
-            tileWidth,
-            tileHeight);
-
-        return new FillScaling(scaledWidth, scaledHeight, crop);
+    /// <summary>枠に収まる大きさ（縦横比を保ち、枠の幅・高さ以下にする）。</summary>
+    private static (int Width, int Height) ScaleToFit(int sourceWidth, int sourceHeight, int tileWidth, int tileHeight)
+    {
+        double scale = Math.Min((double)tileWidth / sourceWidth, (double)tileHeight / sourceHeight);
+        return (Math.Clamp((int)Math.Round(sourceWidth * scale), 1, tileWidth), Math.Clamp((int)Math.Round(sourceHeight * scale), 1, tileHeight));
     }
 
     private static int[] Sizes(int length, int count, int gap)

@@ -107,6 +107,27 @@ public sealed class JsonSettingsServiceTests : IDisposable
     }
 
     [Fact]
+    public async Task 一枚表示の表示方法を保存して再読み込みできる()
+    {
+        CancellationToken ct = TestContext.Current.CancellationToken;
+        using (JsonSettingsService writer = CreateSut())
+        {
+            await writer.UpdateAsync(
+                s => s
+                    .WithMonitor(MonitorSettings.CreateDefault("FIT") with { SingleImageFit = ImageFit.Fit })
+                    .WithMonitor(MonitorSettings.CreateDefault("WINDOWS")),
+                ct);
+        }
+
+        using JsonSettingsService reader = CreateSut();
+        await reader.LoadAsync(ct);
+
+        Assert.Equal(ImageFit.Fit, reader.Current.GetMonitor("FIT").SingleImageFit);
+        Assert.Null(reader.Current.GetMonitor("WINDOWS").SingleImageFit);
+        Assert.Contains("\"singleImageFit\": \"Fit\"", await File.ReadAllTextAsync(_filePath, ct), StringComparison.Ordinal);
+    }
+
+    [Fact]
     public async Task 保存内容はキャメルケースで列挙型は文字列になる()
     {
         using JsonSettingsService sut = CreateSut();

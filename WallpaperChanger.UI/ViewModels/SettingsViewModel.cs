@@ -72,7 +72,8 @@ public sealed partial class SettingsViewModel : ObservableObject, IDisposable
         SelectedIntervalUnit = IntervalUnitOption.Minutes;
         IntervalValue = AppSettings.DefaultIntervalMinutes;
         IncludeSubfolders = true;
-        Tiles = [.. Enumerable.Range(0, WallpaperLayoutExtensions.QuadrantCount).Select(i => new TileItemViewModel(i))];
+        SelectedSingleImageFit = SingleImageFitOption.Windows;
+        Tiles =[.. Enumerable.Range(0, WallpaperLayoutExtensions.QuadrantCount).Select(i => new TileItemViewModel(i))];
         SelectedTile = Tiles[0];
         _isLoading = false;
 
@@ -244,6 +245,12 @@ public sealed partial class SettingsViewModel : ObservableObject, IDisposable
 
     /// <summary>複数の画像を合成する分割表示（4 分割・16 分割）か。</summary>
     public bool IsSplitLayout => Layout != WallpaperLayout.SingleImage;
+
+    public IReadOnlyList<SingleImageFitOption> SingleImageFits { get; } = SingleImageFitOption.All;
+
+    /// <summary>1 枚表示の表示方法（拡大・全体表示・中央など）。</summary>
+    [ObservableProperty]
+    public partial SingleImageFitOption SelectedSingleImageFit { get; set; }
 
     // ---- 切替設定 ----
 
@@ -623,6 +630,28 @@ public sealed partial class SettingsViewModel : ObservableObject, IDisposable
         });
     }
 
+    partial void OnSelectedSingleImageFitChanged(SingleImageFitOption value)
+    {
+        if (_isLoading || SelectedMonitor is not { } monitor || value is null)
+        {
+            return;
+        }
+
+        _ = ExecuteSafelyAsync("表示方法の変更", async () =>
+        {
+            await UpdateMonitorSettingsAsync(monitor, m => m with { SingleImageFit = value.Fit });
+            string changed = $"1 枚表示の表示方法を「{value.DisplayName}」に変更しました。";
+            ShowInfo(changed);
+
+            // 次の定期実行を待たず、今の画像を新しい表示方法で表示し直す
+            MonitorSettings settings = _settingsService.Current.GetMonitor(monitor.Id);
+            if (settings.Layout == WallpaperLayout.SingleImage && settings.HasAnyFolder())
+            {
+                ReportProblems(await _rotationService.ReapplyAsync(monitor.Id), changed);
+            }
+        });
+    }
+
     partial void OnStartWithWindowsChanged(bool value)
     {
         if (_isLoading)
@@ -806,6 +835,7 @@ public sealed partial class SettingsViewModel : ObservableObject, IDisposable
             IncludeSubfolders = settings.IncludeSubfolders;
             SelectionMode = settings.SelectionMode;
             Layout = settings.Layout;
+            SelectedSingleImageFit = SingleImageFitOption.From(settings.SingleImageFit);
         }
         finally
         {

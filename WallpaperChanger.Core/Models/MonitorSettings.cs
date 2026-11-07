@@ -26,6 +26,12 @@ public sealed record MonitorSettings
     public WallpaperLayout Layout { get; init; } = WallpaperLayout.SingleImage;
 
     /// <summary>
+    /// 1 枚表示の表示方法。null は Windows の「調整方法」の設定のまま（画像をそのまま壁紙にする）。
+    /// Windows の設定は全モニター共通のため、指定した場合はモニターの解像度に合わせた画像を作って壁紙にする。
+    /// </summary>
+    public ImageFit? SingleImageFit { get; init; }
+
+    /// <summary>
     /// 分割表示の区画ごとの設定（左上・右上・左下・右下の順）。足りない分は既定値として扱う。
     /// 4 分割では各マス、16 分割では各区画（2 × 2 の 4 マス）に使う。
     /// </summary>
@@ -64,7 +70,7 @@ public sealed record MonitorSettings
 
     public MonitorSettings RemoveTileFolder(int index, string folder) => WithTile(index, GetTile(index).RemoveFolder(folder));
 
-    /// <summary>別のモニターの設定（フォルダ・表示レイアウト・選び方など）をコピーした新しい設定を返す。モニターの ID と名前はそのまま。</summary>
+    /// <summary>別のモニターの設定（フォルダ・表示レイアウト・表示方法・選び方など）をコピーした新しい設定を返す。モニターの ID と名前はそのまま。</summary>
     public MonitorSettings WithSettingsFrom(MonitorSettings source)
     {
         ArgumentNullException.ThrowIfNull(source);

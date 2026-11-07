@@ -183,6 +183,7 @@ public class AppSettingsTests
             IncludeSubfolders = false,
             SelectionMode = ImageSelectionMode.Sequential,
             Layout = WallpaperLayout.Grid4x4,
+            SingleImageFit = ImageFit.Center,
         };
         MonitorSettings target = MonitorSettings.CreateDefault("DST") with { DisplayName = "Target" };
 

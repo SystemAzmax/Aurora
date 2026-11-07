@@ -43,11 +43,54 @@ public class TileLayoutTests
     public void Fillはタイル全体を覆うように拡大縮小し中央を切り抜く(
         int sw, int sh, int tw, int th, int scaledW, int scaledH, int cropX, int cropY)
     {
-        FillScaling fill = TileLayout.CalculateFill(sw, sh, tw, th);
+        ImagePlacement fill = TileLayout.CalculatePlacement(sw, sh, tw, th, ImageFit.Fill);
 
         Assert.Equal(scaledW, fill.ScaledWidth);
         Assert.Equal(scaledH, fill.ScaledHeight);
         Assert.Equal(new PixelRect(cropX, cropY, tw, th), fill.Crop);
+        Assert.Equal((0, 0), (fill.OffsetX, fill.OffsetY));
+    }
+
+    [Theory]
+    // 横長の画像を正方形の枠へ: 幅を合わせて上下に余白
+    [InlineData(2000, 1000, 500, 500, 500, 250, 0, 125)]
+    // 縦長の画像を横長の枠へ: 高さを合わせて左右に余白
+    [InlineData(1000, 2000, 960, 540, 270, 540, 345, 0)]
+    // 小さい画像も枠に合わせて拡大する
+    [InlineData(160, 90, 1920, 1080, 1920, 1080, 0, 0)]
+    public void Fitは画像全体が収まるように拡大縮小し中央に置く(
+        int sw, int sh, int tw, int th, int scaledW, int scaledH, int offsetX, int offsetY)
+    {
+        ImagePlacement fit = TileLayout.CalculatePlacement(sw, sh, tw, th, ImageFit.Fit);
+
+        Assert.Equal((scaledW, scaledH), (fit.ScaledWidth, fit.ScaledHeight));
+        Assert.Equal(new PixelRect(0, 0, scaledW, scaledH), fit.Crop);
+        Assert.Equal((offsetX, offsetY), (fit.OffsetX, fit.OffsetY));
+    }
+
+    [Fact]
+    public void Stretchは縦横比を変えて枠いっぱいに引き伸ばす()
+    {
+        ImagePlacement stretch = TileLayout.CalculatePlacement(1000, 2000, 960, 540, ImageFit.Stretch);
+
+        Assert.Equal(new ImagePlacement(960, 540, new PixelRect(0, 0, 960, 540), 0, 0), stretch);
+    }
+
+    [Theory]
+    // 枠より小さい画像: 拡大せずに中央に置く
+    [InlineData(100, 50, 400, 300, 0, 0, 100, 50, 150, 125)]
+    // 枠より大きい画像: 縮小せずに中央を切り抜く
+    [InlineData(1000, 800, 400, 300, 300, 250, 400, 300, 0, 0)]
+    // 幅だけはみ出す画像: 左右を切り抜き、上下に余白
+    [InlineData(1000, 100, 400, 300, 300, 0, 400, 100, 0, 100)]
+    public void Centerは拡大縮小せずに中央に置きはみ出しを切り抜く(
+        int sw, int sh, int tw, int th, int cropX, int cropY, int cropW, int cropH, int offsetX, int offsetY)
+    {
+        ImagePlacement center = TileLayout.CalculatePlacement(sw, sh, tw, th, ImageFit.Center);
+
+        Assert.Equal((sw, sh), (center.ScaledWidth, center.ScaledHeight));
+        Assert.Equal(new PixelRect(cropX, cropY, cropW, cropH), center.Crop);
+        Assert.Equal((offsetX, offsetY), (center.OffsetX, center.OffsetY));
     }
 
     [Theory]

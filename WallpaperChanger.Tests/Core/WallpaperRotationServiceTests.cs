@@ -253,6 +253,91 @@ public sealed class WallpaperRotationServiceTests : IDisposable
     }
 
     [Fact]
+    public async Task 一枚表示で表示方法を指定するとモニターの解像度に合わせた画像を作って設定する()
+    {
+        await UseSingleImageFitAsync("MON1", ImageFit.Fit);
+        _wallpaper.GetWallpaperAsync("MON1", Arg.Any<CancellationToken>()).Returns(Images[0]);
+
+        await _sut.NextAsync("MON1", TestContext.Current.CancellationToken);
+
+        await _composer.Received(1).ComposeAsync(
+            Arg.Is<WallpaperCompositionRequest>(r =>
+                r.MonitorId == "MON1" && r.Columns == 1 && r.Rows == 1 && r.Width == 1920 && r.Height == 1080
+                && r.Fit == ImageFit.Fit && r.ImagePaths.SequenceEqual(new[] { Images[1] })),
+            Arg.Any<CancellationToken>());
+        await _wallpaper.Received(1).SetWallpaperAsync("MON1", @"C:\composite\grid.jpg", Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task 分割表示は一枚表示の表示方法に関わらずマスを覆うように合成する()
+    {
+        await UseSingleImageFitAsync("MON1", ImageFit.Center);
+        await UseGridLayoutAsync("MON1");
+
+        await _sut.NextAsync("MON1", TestContext.Current.CancellationToken);
+
+        await _composer.Received(1).ComposeAsync(
+            Arg.Is<WallpaperCompositionRequest>(r => r.Columns == 2 && r.Fit == ImageFit.Fill), Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task 表示し直しは表示方法を指定した一枚表示を同じ画像で作り直す()
+    {
+        CancellationToken ct = TestContext.Current.CancellationToken;
+        await UseSingleImageFitAsync("MON1", ImageFit.Fill);
+        var requests = new List<WallpaperCompositionRequest>();
+        _composer.ComposeAsync(Arg.Do<WallpaperCompositionRequest>(requests.Add), Arg.Any<CancellationToken>())
+            .Returns(@"C:\composite\grid.jpg");
+        await _sut.NextAsync("MON1", ct);
+
+        // 表示方法を変えて表示し直す
+        await UseSingleImageFitAsync("MON1", ImageFit.Fit);
+        WallpaperChangeResult result = await _sut.ReapplyAsync("MON1", ct);
+
+        Assert.True(result.AnyChanged);
+        Assert.Equal(2, requests.Count);
+        Assert.Equal(requests[0].ImagePaths, requests[1].ImagePaths);
+        Assert.Equal(ImageFit.Fit, requests[1].Fit);
+    }
+
+    [Fact]
+    public async Task 表示方法をWindowsの設定に戻して表示し直すと画像をそのまま設定する()
+    {
+        CancellationToken ct = TestContext.Current.CancellationToken;
+        await UseSingleImageFitAsync("MON1", ImageFit.Fill);
+        _wallpaper.GetWallpaperAsync("MON1", Arg.Any<CancellationToken>()).Returns(Images[0]);
+        await _sut.NextAsync("MON1", ct);
+
+        await UseSingleImageFitAsync("MON1", null);
+        await _sut.ReapplyAsync("MON1", ct);
+
+        await _wallpaper.Received(1).SetWallpaperAsync("MON1", Images[1], Arg.Any<CancellationToken>());
+        await _composer.Received(1).ComposeAsync(Arg.Any<WallpaperCompositionRequest>(), Arg.Any<CancellationToken>());
+
+        // 元の画像に戻した後は、解像度が変わっても OS が拡大縮小するため何もしない
+        _wallpaper.ClearReceivedCalls();
+        WallpaperChangeResult again = await _sut.ReapplyAsync("MON1", ct);
+
+        Assert.Equal(WallpaperChangeStatus.NotRequired, Assert.Single(again.Monitors).Status);
+        await _wallpaper.DidNotReceive().SetWallpaperAsync(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task 前の壁紙に戻すときも今の表示方法で作る()
+    {
+        CancellationToken ct = TestContext.Current.CancellationToken;
+        _wallpaper.GetWallpaperAsync("MON1", Arg.Any<CancellationToken>()).Returns(Images[0]);
+        await _sut.NextAsync("MON1", ct);
+        await UseSingleImageFitAsync("MON1", ImageFit.Center);
+
+        await _sut.PreviousAsync("MON1", ct);
+
+        await _composer.Received(1).ComposeAsync(
+            Arg.Is<WallpaperCompositionRequest>(r => r.Fit == ImageFit.Center && r.ImagePaths.SequenceEqual(new[] { Images[0] })),
+            Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
     public async Task 選んだ画像が削除されていたら列挙し直して選び直す()
     {
         // キャッシュには 1.jpg が残っているが、実際には削除済み
@@ -804,6 +889,9 @@ public sealed class WallpaperRotationServiceTests : IDisposable
         var call = _composer.ReceivedCalls().Single(c => c.GetMethodInfo().Name == nameof(IWallpaperComposer.ComposeAsync));
         return ((WallpaperCompositionRequest)call.GetArguments()[0]!).ImagePaths;
     }
+
+    private Task UseSingleImageFitAsync(string monitorId, ImageFit? fit) =>
+        _settings.UpdateAsync(s => s.WithMonitor(s.GetMonitor(monitorId) with { SingleImageFit = fit }));
 
     private Task UseGridLayoutAsync(string monitorId) =>
         _settings.UpdateAsync(s => s.WithMonitor(s.GetMonitor(monitorId) with { Layout = WallpaperLayout.Grid2x2 }));
