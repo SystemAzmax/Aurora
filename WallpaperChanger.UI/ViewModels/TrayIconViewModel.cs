@@ -78,7 +78,12 @@ public sealed partial class TrayIconViewModel : ObservableObject, IDisposable
         ? $"{AppName}\n{progress}"
         : IsPaused
             ? $"{AppName}（一時停止中）"
-            : $"{AppName}（{IntervalUnitOption.Format(_scheduler.Interval)}ごとに切り替え）";
+            : _scheduler.Hold switch
+            {
+                AutoChangeHold.FullScreen => $"{AppName}（全画面のアプリの実行中のため、切り替えを待っています）",
+                AutoChangeHold.OnBattery => $"{AppName}（バッテリー駆動中のため、切り替えを待っています）",
+                _ => $"{AppName}（{IntervalUnitOption.Format(_scheduler.Interval)}ごとに切り替え）",
+            };
 
     // ---- 切り替えの進み具合 ----
 

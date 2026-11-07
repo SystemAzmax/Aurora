@@ -389,7 +389,20 @@ public sealed partial class SettingsViewModel : ObservableObject, IDisposable
 
     public string ScheduleStatusText => IsPaused
         ? "自動切り替えは一時停止中です"
-        : $"{IntervalUnitOption.Format(_scheduler.Interval)}ごとに自動で切り替えます";
+        : _scheduler.Hold switch
+        {
+            AutoChangeHold.FullScreen => "全画面表示のアプリの実行中のため、自動切り替えを待っています（終わったら切り替えます）",
+            AutoChangeHold.OnBattery => "バッテリーで動作中のため、自動切り替えを待っています（電源につなぐと切り替えます）",
+            _ => $"{IntervalUnitOption.Format(_scheduler.Interval)}ごとに自動で切り替えます",
+        };
+
+    /// <summary>全画面表示のアプリやプレゼンテーションの実行中は、自動で切り替えないか。</summary>
+    [ObservableProperty]
+    public partial bool SkipWhenFullScreen { get; set; }
+
+    /// <summary>バッテリーで動作している間は、自動で切り替えないか。</summary>
+    [ObservableProperty]
+    public partial bool SkipOnBattery { get; set; }
 
     // ---- 起動 ----
 
@@ -923,6 +936,28 @@ public sealed partial class SettingsViewModel : ObservableObject, IDisposable
         }
     }
 
+    partial void OnSkipWhenFullScreenChanged(bool value) => UpdateSkipConditions(
+        c => c with { WhenFullScreen = value },
+        value ? "全画面表示のアプリの実行中は、自動で切り替えないようにしました。" : "全画面表示のアプリの実行中も、自動で切り替えるようにしました。");
+
+    partial void OnSkipOnBatteryChanged(bool value) => UpdateSkipConditions(
+        c => c with { OnBattery = value },
+        value ? "バッテリーで動作しているときは、自動で切り替えないようにしました。" : "バッテリーで動作しているときも、自動で切り替えるようにしました。");
+
+    private void UpdateSkipConditions(Func<SkipConditions, SkipConditions> update, string message)
+    {
+        if (_isLoading)
+        {
+            return;
+        }
+
+        _ = ExecuteSafelyAsync("自動切り替えの条件の保存", async () =>
+        {
+            await _settingsService.UpdateAsync(s => s with { SkipConditions = update(s.SkipConditions) });
+            ShowInfo(message);
+        });
+    }
+
     partial void OnIntervalValueChanged(int value) => ApplyInterval();
 
     partial void OnSelectedIntervalUnitChanged(IntervalUnitOption value) => ApplyInterval();
@@ -970,6 +1005,8 @@ public sealed partial class SettingsViewModel : ObservableObject, IDisposable
             IntervalValue = value;
             IntervalError = null;
             IsPaused = _scheduler.IsPaused;
+            SkipWhenFullScreen = _settingsService.Current.SkipConditions.WhenFullScreen;
+            SkipOnBattery = _settingsService.Current.SkipConditions.OnBattery;
         }
         finally
         {

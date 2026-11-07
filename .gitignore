@@ -5,3 +5,4 @@ TestResults/
 .vs/
 *.user
 /.vscode/settings.json
+.vscode/tasks.json

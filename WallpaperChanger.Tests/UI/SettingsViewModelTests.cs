@@ -360,6 +360,36 @@ public sealed class SettingsViewModelTests : IDisposable
     }
 
     [Fact]
+    public async Task 自動切り替えを見合わせる条件を読み込んで保存する()
+    {
+        await _settings.UpdateAsync(s => s with { SkipConditions = new SkipConditions { OnBattery = false } }, TestContext.Current.CancellationToken);
+        await _sut.InitializeCommand.ExecuteAsync(null);
+        Assert.True(_sut.SkipWhenFullScreen);
+        Assert.False(_sut.SkipOnBattery);
+
+        _sut.SkipWhenFullScreen = false;
+        _sut.SkipOnBattery = true;
+
+        Assert.Equal(new SkipConditions { WhenFullScreen = false, OnBattery = true }, _settings.Current.SkipConditions);
+        Assert.Equal("バッテリーで動作しているときは、自動で切り替えないようにしました。", _sut.StatusMessage);
+    }
+
+    [Fact]
+    public async Task 切り替えを待っている間は理由を表示する()
+    {
+        await _sut.InitializeCommand.ExecuteAsync(null);
+        Assert.Equal("2 時間ごとに自動で切り替えます", _sut.ScheduleStatusText);
+
+        _scheduler.Hold.Returns(AutoChangeHold.FullScreen);
+        _scheduler.StateChanged += Raise.Event();
+        Assert.Contains("全画面表示のアプリの実行中のため", _sut.ScheduleStatusText, StringComparison.Ordinal);
+
+        _scheduler.Hold.Returns(AutoChangeHold.OnBattery);
+        _scheduler.StateChanged += Raise.Event();
+        Assert.Contains("バッテリーで動作中のため", _sut.ScheduleStatusText, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public async Task 切り替え間隔を保存し範囲外はエラーを表示する()
     {
         await _sut.InitializeCommand.ExecuteAsync(null);

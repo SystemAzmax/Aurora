@@ -7,6 +7,7 @@ using WallpaperChanger.Infrastructure.History;
 using WallpaperChanger.Infrastructure.Imaging;
 using WallpaperChanger.Infrastructure.Settings;
 using WallpaperChanger.Infrastructure.Startup;
+using WallpaperChanger.Infrastructure.SystemState;
 
 namespace WallpaperChanger.Infrastructure;
 
@@ -54,6 +55,7 @@ public static class InfrastructureServiceCollectionExtensions
         services.AddTransient<IWallpaperComposer, WicWallpaperComposer>();
         services.AddTransient<IStartupRegistrationService, RegistryStartupRegistrationService>();
         services.AddTransient<IWallpaperHistoryStore, JsonWallpaperHistoryStore>();
+        services.AddTransient<ISystemStateProvider, WindowsSystemStateProvider>();
 
         return services;
     }

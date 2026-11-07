@@ -7,11 +7,17 @@ namespace WallpaperChanger.Core.Services;
 /// <summary>
 /// PeriodicTimer を用いて壁紙を定期的に切り替える。
 /// 間隔・一時停止状態は <see cref="ISettingsService"/> を正とし、変更を購読して追従する。
+/// 切り替えの時刻に <see cref="SkipConditions"/>（全画面アプリの実行中・バッテリー駆動中）に当てはまれば、
+/// 当てはまらなくなるまで待ってから切り替える。
 /// </summary>
 public sealed partial class WallpaperScheduler : IWallpaperScheduler, IDisposable
 {
+    /// <summary>切り替えを待っている間に、条件に当てはまらなくなったかを調べる間隔。</summary>
+    internal static readonly TimeSpan HoldCheckInterval = TimeSpan.FromMinutes(1);
+
     private readonly IWallpaperRotationService _rotationService;
     private readonly ISettingsService _settingsService;
+    private readonly ISystemStateProvider _systemState;
     private readonly TimeProvider _timeProvider;
     private readonly ILogger<WallpaperScheduler> _logger;
     private readonly Lock _gate = new();
@@ -21,16 +27,19 @@ public sealed partial class WallpaperScheduler : IWallpaperScheduler, IDisposabl
     private Task? _loopTask;
     private TimeSpan _interval;
     private volatile bool _isPaused;
+    private volatile AutoChangeHold _hold;
     private bool _disposed;
 
     public WallpaperScheduler(
         IWallpaperRotationService rotationService,
         ISettingsService settingsService,
+        ISystemStateProvider systemState,
         TimeProvider timeProvider,
         ILogger<WallpaperScheduler> logger)
     {
         _rotationService = rotationService ?? throw new ArgumentNullException(nameof(rotationService));
         _settingsService = settingsService ?? throw new ArgumentNullException(nameof(settingsService));
+        _systemState = systemState ?? throw new ArgumentNullException(nameof(systemState));
         _timeProvider = timeProvider ?? throw new ArgumentNullException(nameof(timeProvider));
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
 
@@ -53,6 +62,8 @@ public sealed partial class WallpaperScheduler : IWallpaperScheduler, IDisposabl
     }
 
     public bool IsPaused => _isPaused;
+
+    public AutoChangeHold Hold => _hold;
 
     public TimeSpan Interval
     {
@@ -188,18 +199,94 @@ public sealed partial class WallpaperScheduler : IWallpaperScheduler, IDisposabl
                             continue;
                         }
 
+                        HoldResult hold = await WaitWhileHeldAsync(linkedCts.Token).ConfigureAwait(false);
+                        if (hold == HoldResult.Paused)
+                        {
+                            continue;
+                        }
+
                         await ChangeOnScheduleAsync(stopToken).ConfigureAwait(false);
+
+                        if (hold == HoldResult.Waited)
+                        {
+                            // 待っている間に過ぎた切り替えの時刻で続けて切り替えないよう、ここから 1 間隔待つ
+                            ResetTimer();
+                        }
                     }
                 }
                 catch (OperationCanceledException) when (!stopToken.IsCancellationRequested)
                 {
                     // 間隔変更・再開・即時変更によるタイマーのリセット。新しい間隔で待ち直す。
+                    // 切り替えを待っている間なら、待つのもやめる（即時変更で切り替えた後なので、改めて 1 間隔待つ）。
                     LogTimerReset();
+                }
+                finally
+                {
+                    SetHold(AutoChangeHold.None);
                 }
             }
         }
 
         stopToken.ThrowIfCancellationRequested();
+    }
+
+    /// <summary>
+    /// <see cref="SkipConditions"/> に当てはまる間、<see cref="HoldCheckInterval"/> ごとに調べ直して待つ。
+    /// 待っている間の <see cref="Hold"/> は待っている理由になる。
+    /// </summary>
+    private async Task<HoldResult> WaitWhileHeldAsync(CancellationToken cancellationToken)
+    {
+        AutoChangeHold hold = GetHold();
+        if (hold == AutoChangeHold.None)
+        {
+            return HoldResult.NotHeld;
+        }
+
+        LogHeld(hold);
+        while (hold != AutoChangeHold.None)
+        {
+            SetHold(hold);
+            await Task.Delay(HoldCheckInterval, _timeProvider, cancellationToken).ConfigureAwait(false);
+            if (_isPaused)
+            {
+                // 一時停止したら待つのをやめる。再開したときは、そこから 1 間隔待つ
+                SetHold(AutoChangeHold.None);
+                return HoldResult.Paused;
+            }
+
+            hold = GetHold();
+        }
+
+        SetHold(AutoChangeHold.None);
+        LogHoldReleased();
+        return HoldResult.Waited;
+    }
+
+    private AutoChangeHold GetHold()
+    {
+        SkipConditions conditions = _settingsService.Current.SkipConditions;
+        if (conditions.WhenFullScreen && _systemState.IsFullScreenAppRunning())
+        {
+            return AutoChangeHold.FullScreen;
+        }
+
+        if (conditions.OnBattery && _systemState.IsOnBatteryPower())
+        {
+            return AutoChangeHold.OnBattery;
+        }
+
+        return AutoChangeHold.None;
+    }
+
+    private void SetHold(AutoChangeHold hold)
+    {
+        if (_hold == hold)
+        {
+            return;
+        }
+
+        _hold = hold;
+        StateChanged?.Invoke(this, EventArgs.Empty);
     }
 
     private async Task ChangeOnScheduleAsync(CancellationToken stopToken)
@@ -269,6 +356,25 @@ public sealed partial class WallpaperScheduler : IWallpaperScheduler, IDisposabl
 
     [LoggerMessage(Level = LogLevel.Debug, Message = "タイマーをリセットしました")]
     private partial void LogTimerReset();
+
+    [LoggerMessage(Level = LogLevel.Information, Message = "自動切り替えの条件に当てはまるため、切り替えを待ちます (理由: {Hold})")]
+    private partial void LogHeld(AutoChangeHold hold);
+
+    [LoggerMessage(Level = LogLevel.Information, Message = "自動切り替えの条件に当てはまらなくなったため、待っていた切り替えをします")]
+    private partial void LogHoldReleased();
+
+    /// <summary>切り替えの前に、条件に当てはまって待ったかどうか。</summary>
+    private enum HoldResult
+    {
+        /// <summary>条件に当てはまらず、待たなかった。</summary>
+        NotHeld,
+
+        /// <summary>条件に当てはまって待ち、当てはまらなくなった。</summary>
+        Waited,
+
+        /// <summary>待っている間に一時停止した（切り替えない）。</summary>
+        Paused,
+    }
 
     [LoggerMessage(Level = LogLevel.Error, Message = "定期実行による壁紙の変更に失敗しました")]
     private partial void LogScheduledChangeFailed(Exception exception);

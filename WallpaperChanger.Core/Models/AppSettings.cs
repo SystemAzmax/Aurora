@@ -17,6 +17,9 @@ public sealed record AppSettings
     /// <summary>自動切り替えを一時停止しているか。</summary>
     public bool IsPaused { get; init; }
 
+    /// <summary>自動切り替えを見合わせる条件（全画面アプリの実行中・バッテリー駆動中）。</summary>
+    public SkipConditions SkipConditions { get; init; } = new();
+
     /// <summary>モニターごとの設定。</summary>
     public IReadOnlyList<MonitorSettings> Monitors { get; init; } = [];
 
@@ -139,6 +142,7 @@ public sealed record AppSettings
             .Select(m => m.Normalize())],
         ExcludedImages = [.. (ExcludedImages ?? []).Where(p => !string.IsNullOrWhiteSpace(p))],
         Span = (Span ?? new SpanSettings()).Normalize(),
+        SkipConditions = SkipConditions ?? new SkipConditions(),
     };
 
     private static bool IsSameMonitor(string a, string b) =>

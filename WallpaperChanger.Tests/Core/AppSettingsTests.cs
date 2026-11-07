@@ -313,6 +313,21 @@ public class AppSettingsTests
     }
 
     [Fact]
+    public void 自動切り替えを見合わせる条件は既定で全画面アプリの実行中とバッテリー駆動中()
+    {
+        SkipConditions conditions = new AppSettings().SkipConditions;
+
+        Assert.True(conditions.WhenFullScreen);
+        Assert.True(conditions.OnBattery);
+    }
+
+    [Fact]
+    public void Normalizeは自動切り替えを見合わせる条件が無ければ既定値にする()
+    {
+        Assert.Equal(new SkipConditions(), (new AppSettings { SkipConditions = null! }).Normalize().SkipConditions);
+    }
+
+    [Fact]
     public void Normalizeは表示しない画像が無い設定を空にする()
     {
         var settings = new AppSettings { ExcludedImages = null! }.Normalize();

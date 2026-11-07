@@ -16,7 +16,13 @@ public interface IWallpaperScheduler : IAsyncDisposable
     /// <summary>現在の切り替え間隔。</summary>
     TimeSpan Interval { get; }
 
-    /// <summary>一時停止状態や間隔が変化したときに発生する。</summary>
+    /// <summary>
+    /// 自動切り替えの時刻になったが、<see cref="SkipConditions"/> に当てはまるため切り替えを待っている理由。
+    /// 待っていなければ <see cref="AutoChangeHold.None"/>。当てはまらなくなったら切り替える。
+    /// </summary>
+    AutoChangeHold Hold { get; }
+
+    /// <summary>一時停止状態、間隔、切り替えを待っている理由が変化したときに発生する。</summary>
     event EventHandler? StateChanged;
 
     /// <summary>定期実行を開始する。</summary>

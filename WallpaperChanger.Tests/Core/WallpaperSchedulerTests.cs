@@ -14,6 +14,7 @@ public sealed class WallpaperSchedulerTests : IAsyncDisposable
 
     private readonly FakeTimeProvider _time = new();
     private readonly IWallpaperRotationService _rotation = Substitute.For<IWallpaperRotationService>();
+    private readonly ISystemStateProvider _systemState = Substitute.For<ISystemStateProvider>();
     private readonly InMemorySettingsService _settings = new(new AppSettings { IntervalMinutes = 10 });
     private readonly WallpaperScheduler _sut;
     private int _nextCount;
@@ -28,7 +29,7 @@ public sealed class WallpaperSchedulerTests : IAsyncDisposable
             return Task.FromResult(WallpaperChangeResult.Empty);
         });
 
-        _sut = new WallpaperScheduler(_rotation, _settings, _time, NullLogger<WallpaperScheduler>.Instance);
+        _sut = new WallpaperScheduler(_rotation, _settings, _systemState, _time, NullLogger<WallpaperScheduler>.Instance);
     }
 
     public ValueTask DisposeAsync() => _sut.DisposeAsync();
@@ -175,6 +176,135 @@ public sealed class WallpaperSchedulerTests : IAsyncDisposable
 
         await _changed.Task.WaitAsync(WaitTimeout, TestContext.Current.CancellationToken);
         Assert.Equal(2, calls);
+    }
+
+    // ---- 自動切り替えを見合わせる条件 ----
+
+    [Fact]
+    public async Task 全画面アプリの実行中は切り替えを待ち終わったら切り替える()
+    {
+        CancellationToken ct = TestContext.Current.CancellationToken;
+        _systemState.IsFullScreenAppRunning().Returns(true);
+        int stateChanges = 0;
+        _sut.StateChanged += (_, _) => Interlocked.Increment(ref stateChanges);
+        _sut.Start();
+        await WaitForTimerAsync();
+
+        _time.Advance(TimeSpan.FromMinutes(10));
+        await WaitUntilAsync(() => _sut.Hold == AutoChangeHold.FullScreen);
+        await WaitForTimerAsync();
+        _time.Advance(WallpaperScheduler.HoldCheckInterval);
+        await Task.Delay(100, ct);
+        Assert.Equal(0, _nextCount);
+        Assert.Equal(AutoChangeHold.FullScreen, _sut.Hold);
+
+        _systemState.IsFullScreenAppRunning().Returns(false);
+        await WaitForTimerAsync();
+        _time.Advance(WallpaperScheduler.HoldCheckInterval);
+
+        await _changed.Task.WaitAsync(WaitTimeout, ct);
+        Assert.Equal(1, _nextCount);
+        await WaitUntilAsync(() => _sut.Hold == AutoChangeHold.None);
+        Assert.Equal(3, Volatile.Read(ref stateChanges)); // 開始、待ち始め、待ち終わり
+    }
+
+    [Fact]
+    public async Task バッテリー駆動中は切り替えを待つ()
+    {
+        _systemState.IsOnBatteryPower().Returns(true);
+        _sut.Start();
+        await WaitForTimerAsync();
+
+        _time.Advance(TimeSpan.FromMinutes(10));
+
+        await WaitUntilAsync(() => _sut.Hold == AutoChangeHold.OnBattery);
+        Assert.Equal(0, _nextCount);
+    }
+
+    [Fact]
+    public async Task 条件を無効にしていれば全画面アプリの実行中やバッテリー駆動中も切り替える()
+    {
+        CancellationToken ct = TestContext.Current.CancellationToken;
+        _systemState.IsFullScreenAppRunning().Returns(true);
+        _systemState.IsOnBatteryPower().Returns(true);
+        await _settings.UpdateAsync(s => s with { SkipConditions = new SkipConditions { WhenFullScreen = false, OnBattery = false } }, ct);
+        _sut.Start();
+        await WaitForTimerAsync();
+
+        _time.Advance(TimeSpan.FromMinutes(10));
+
+        await _changed.Task.WaitAsync(WaitTimeout, ct);
+        Assert.Equal(AutoChangeHold.None, _sut.Hold);
+    }
+
+    [Fact]
+    public async Task 待った後の切り替えから1間隔待つ()
+    {
+        CancellationToken ct = TestContext.Current.CancellationToken;
+        _systemState.IsFullScreenAppRunning().Returns(true);
+        _sut.Start();
+        await WaitForTimerAsync();
+        _time.Advance(TimeSpan.FromMinutes(10));
+        await WaitUntilAsync(() => _sut.Hold == AutoChangeHold.FullScreen);
+
+        // 次の切り替えの時刻（20 分）を過ぎるまで待たせる
+        for (int i = 0; i < 12; i++)
+        {
+            await WaitForTimerAsync();
+            _time.Advance(WallpaperScheduler.HoldCheckInterval);
+        }
+
+        _systemState.IsFullScreenAppRunning().Returns(false);
+        await WaitForTimerAsync();
+        _time.Advance(WallpaperScheduler.HoldCheckInterval);
+        await _changed.Task.WaitAsync(WaitTimeout, ct);
+
+        // 過ぎた時刻の分を続けて切り替えない
+        _changed = NewSignal();
+        await WaitForTimerAsync();
+        _time.Advance(TimeSpan.FromMinutes(9));
+        await Task.Delay(100, ct);
+        Assert.Equal(1, _nextCount);
+
+        _time.Advance(TimeSpan.FromMinutes(1));
+        await _changed.Task.WaitAsync(WaitTimeout, ct);
+        Assert.Equal(2, _nextCount);
+    }
+
+    [Fact]
+    public async Task 待っている間に一時停止すると切り替えない()
+    {
+        CancellationToken ct = TestContext.Current.CancellationToken;
+        _systemState.IsOnBatteryPower().Returns(true);
+        _sut.Start();
+        await WaitForTimerAsync();
+        _time.Advance(TimeSpan.FromMinutes(10));
+        await WaitUntilAsync(() => _sut.Hold == AutoChangeHold.OnBattery);
+
+        await _sut.PauseAsync(ct);
+        _systemState.IsOnBatteryPower().Returns(false);
+        await WaitForTimerAsync();
+        _time.Advance(WallpaperScheduler.HoldCheckInterval);
+
+        await WaitUntilAsync(() => _sut.Hold == AutoChangeHold.None);
+        await Task.Delay(100, ct);
+        Assert.Equal(0, _nextCount);
+    }
+
+    [Fact]
+    public async Task 待っている間に即時変更すると待つのをやめる()
+    {
+        CancellationToken ct = TestContext.Current.CancellationToken;
+        _systemState.IsFullScreenAppRunning().Returns(true);
+        _sut.Start();
+        await WaitForTimerAsync();
+        _time.Advance(TimeSpan.FromMinutes(10));
+        await WaitUntilAsync(() => _sut.Hold == AutoChangeHold.FullScreen);
+
+        await _sut.ChangeNowAsync(ct);
+
+        await WaitUntilAsync(() => _sut.Hold == AutoChangeHold.None);
+        Assert.Equal(1, _nextCount);
     }
 
     [Fact]

@@ -85,6 +85,15 @@ public sealed class TrayIconViewModelTests : IDisposable
     }
 
     [Fact]
+    public void 切り替えを待っている間はツールチップに理由を表示する()
+    {
+        _scheduler.Hold.Returns(AutoChangeHold.FullScreen);
+        _scheduler.StateChanged += Raise.Event();
+
+        Assert.Equal("壁紙チェンジャー（全画面のアプリの実行中のため、切り替えを待っています）", _sut.ToolTipText);
+    }
+
+    [Fact]
     public void 設定と終了()
     {
         _sut.ShowSettingsCommand.Execute(null);

@@ -207,6 +207,36 @@ public sealed class JsonSettingsServiceTests : IDisposable
     }
 
     [Fact]
+    public async Task 自動切り替えを見合わせる条件を保存して読み込む()
+    {
+        CancellationToken ct = TestContext.Current.CancellationToken;
+        using (JsonSettingsService writer = CreateSut())
+        {
+            await writer.UpdateAsync(
+                s => s with { SkipConditions = new SkipConditions { WhenFullScreen = false, OnBattery = true } }, ct);
+        }
+
+        using JsonSettingsService reader = CreateSut();
+        await reader.LoadAsync(ct);
+
+        Assert.Equal(new SkipConditions { WhenFullScreen = false, OnBattery = true }, reader.Current.SkipConditions);
+    }
+
+    [Fact]
+    public async Task 自動切り替えを見合わせる条件が無いファイルは既定値で読み込む()
+    {
+        CancellationToken ct = TestContext.Current.CancellationToken;
+        Directory.CreateDirectory(Path.GetDirectoryName(_filePath)!);
+        await File.WriteAllTextAsync(_filePath, """{ "intervalMinutes": 30 }""", ct);
+
+        using JsonSettingsService sut = CreateSut();
+        await sut.LoadAsync(ct);
+
+        Assert.True(sut.Current.SkipConditions.WhenFullScreen);
+        Assert.True(sut.Current.SkipConditions.OnBattery);
+    }
+
+    [Fact]
     public async Task 保存内容はキャメルケースで列挙型は文字列になる()
     {
         using JsonSettingsService sut = CreateSut();
