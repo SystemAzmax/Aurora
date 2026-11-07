@@ -29,20 +29,20 @@ public sealed partial class TileItemViewModel : ObservableObject
 
     public bool HasOwnFolders => Folders.Count > 0;
 
-    /// <summary>未設定のときに黒で表示されるか（他のマスに専用フォルダがある場合）。</summary>
+    /// <summary>未設定のときに空きマス（画像なし）として表示されるか（他のマスに専用フォルダがある場合）。</summary>
     public bool IsBlank { get; private set; }
 
-    /// <summary>マスに表示する概要（例: 「Photos ほか 1 件」「未設定（黒）」）。</summary>
+    /// <summary>マスに表示する概要（例: 「Photos ほか 1 件」「未設定（空き）」）。</summary>
     public string Summary => Folders.Count switch
     {
-        0 when IsBlank => "未設定（黒）",
+        0 when IsBlank => "未設定（空き）",
         0 => "未設定",
         1 => GetFolderName(Folders[0]),
         _ => $"{GetFolderName(Folders[0])} ほか {Folders.Count - 1} 件",
     };
 
     /// <param name="folders">このマス専用のフォルダ。</param>
-    /// <param name="isBlankWhenEmpty">専用フォルダが無い場合に黒で表示されるか。</param>
+    /// <param name="isBlankWhenEmpty">専用フォルダが無い場合に空きマスとして表示されるか。</param>
     public void SetFolders(IEnumerable<string> folders, bool isBlankWhenEmpty)
     {
         Folders.Clear();

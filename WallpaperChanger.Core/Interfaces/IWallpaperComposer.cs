@@ -6,12 +6,15 @@ namespace WallpaperChanger.Core.Interfaces;
 /// 分割表示用、または表示方法を指定した 1 枚表示用の合成リクエスト。
 /// </summary>
 /// <param name="MonitorId">対象モニター（出力ファイル名の決定に使う）。</param>
-/// <param name="ImagePaths">タイルに配置する画像（左上から右方向、次の行へ、の順）。null のマスは黒で塗る。</param>
+/// <param name="ImagePaths">タイルに配置する画像（左上から右方向、次の行へ、の順）。null のマスは <paramref name="EmptyColor"/> で塗る。</param>
 /// <param name="Columns">列数。</param>
 /// <param name="Rows">行数。</param>
 /// <param name="Width">出力画像の幅（モニターの解像度）。</param>
 /// <param name="Height">出力画像の高さ（モニターの解像度）。</param>
-/// <param name="Fit">各画像をマスに収める方法。余白は画像の無いマスと同じ色で塗る。</param>
+/// <param name="Fit">各画像をマスに収める方法。余白は <paramref name="EmptyColor"/> で塗る。</param>
+/// <param name="Gap">マスの間隔（ピクセル）。</param>
+/// <param name="GapColor">マスの間隔の色（0xRRGGBB）。</param>
+/// <param name="EmptyColor">画像の無いマスと、画像がマスを覆わない余白の色（0xRRGGBB）。</param>
 public sealed record WallpaperCompositionRequest(
     string MonitorId,
     IReadOnlyList<string?> ImagePaths,
@@ -19,7 +22,10 @@ public sealed record WallpaperCompositionRequest(
     int Rows,
     int Width,
     int Height,
-    ImageFit Fit = ImageFit.Fill);
+    ImageFit Fit = ImageFit.Fill,
+    int Gap = 0,
+    int GapColor = 0x000000,
+    int EmptyColor = 0x000000);
 
 /// <summary>
 /// 画像をモニターの解像度の 1 枚の壁紙画像に合成する。

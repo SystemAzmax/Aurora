@@ -128,6 +128,42 @@ public sealed class JsonSettingsServiceTests : IDisposable
     }
 
     [Fact]
+    public async Task 分割表示の収め方と間隔と色を保存して再読み込みできる()
+    {
+        CancellationToken ct = TestContext.Current.CancellationToken;
+        using (JsonSettingsService writer = CreateSut())
+        {
+            await writer.UpdateAsync(
+                s => s.WithMonitor(MonitorSettings.CreateDefault("M") with
+                {
+                    TileStyle = new TileStyle { Fit = ImageFit.Fit, Gap = 0, GapColor = 0xFFFFFF, EmptyColor = 0x808080 },
+                }),
+                ct);
+        }
+
+        using JsonSettingsService reader = CreateSut();
+        await reader.LoadAsync(ct);
+
+        MonitorSettings monitor = reader.Current.GetMonitor("M");
+        Assert.Equal(new TileStyle { Fit = ImageFit.Fit, Gap = 0, GapColor = 0xFFFFFF, EmptyColor = 0x808080 }, monitor.TileStyle);
+    }
+
+    [Fact]
+    public async Task 分割表示の見た目の設定が無いファイルは既定値で読み込む()
+    {
+        CancellationToken ct = TestContext.Current.CancellationToken;
+        Directory.CreateDirectory(Path.GetDirectoryName(_filePath)!);
+        await File.WriteAllTextAsync(_filePath, """{ "monitors": [ { "monitorId": "M", "layout": "Grid2x2" } ] }""", ct);
+
+        using JsonSettingsService sut = CreateSut();
+        await sut.LoadAsync(ct);
+
+        // この設定を追加する前の設定ファイルでも、今までと同じ見た目（4 px・濃い灰色の間隔、黒の空きマス）になる
+        TileStyle style = sut.Current.GetMonitor("M").TileStyle;
+        Assert.Equal((ImageFit.Fill, 4, 0x202020, 0x000000), (style.Fit, style.Gap, style.GapColor, style.EmptyColor));
+    }
+
+    [Fact]
     public async Task 保存内容はキャメルケースで列挙型は文字列になる()
     {
         using JsonSettingsService sut = CreateSut();

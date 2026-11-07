@@ -458,6 +458,67 @@ public sealed class SettingsViewModelTests : IDisposable
     }
 
     [Fact]
+    public async Task 分割表示の収め方と間隔と色は保存した設定を選択した状態で表示する()
+    {
+        await _settings.UpdateAsync(s => s.WithMonitor(s.GetMonitor("MON-P") with
+        {
+            Layout = WallpaperLayout.Grid2x2,
+            TileStyle = new TileStyle { Fit = ImageFit.Fit, Gap = 10, GapColor = 0xFFFFFF, EmptyColor = 0x123456 }, // 空きマスは用意した色に無い色
+        }), TestContext.Current.CancellationToken);
+
+        await _sut.InitializeCommand.ExecuteAsync(null);
+
+        Assert.True(_sut.IsTileFitWhole);
+        Assert.False(_sut.IsTileFill);
+        Assert.Equal(10, _sut.TileGap);
+        Assert.Equal("10 px", _sut.TileGapText);
+        Assert.Equal("白", _sut.SelectedTileGapColor?.DisplayName);
+        Assert.Equal("#123456", _sut.SelectedEmptyTileColor?.DisplayName);
+        Assert.Contains(_sut.SelectedEmptyTileColor, _sut.EmptyTileColors);
+
+        // 設定の無いモニターは既定値
+        _sut.SelectedMonitor = _sut.Monitors.Single(m => m.Id == "MON-L");
+        Assert.True(_sut.IsTileFill);
+        Assert.Equal(TileStyle.DefaultGap, _sut.TileGap);
+        Assert.Equal("濃い灰色", _sut.SelectedTileGapColor?.DisplayName);
+        Assert.Equal("黒", _sut.SelectedEmptyTileColor?.DisplayName);
+        Assert.Same(TileColorOption.Presets, _sut.EmptyTileColors);
+        await _rotation.DidNotReceive().ReapplyAsync(Arg.Any<string>(), Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task 分割表示の収め方と間隔と色を変えると保存して今の画像を表示し直す()
+    {
+        _rotation.ReapplyAsync(Arg.Any<string>(), Arg.Any<CancellationToken>()).Returns(Changed(Primary));
+        await _settings.UpdateAsync(s => s.WithMonitor(s.GetMonitor("MON-P") with { Layout = WallpaperLayout.Grid2x2 }),
+            TestContext.Current.CancellationToken);
+        await _sut.InitializeCommand.ExecuteAsync(null);
+
+        _sut.IsTileFitWhole = true;
+        _sut.TileGap = 0;
+        _sut.SelectedTileGapColor = TileColorOption.Presets.Single(c => c.DisplayName == "白");
+        _sut.SelectedEmptyTileColor = TileColorOption.Presets.Single(c => c.DisplayName == "灰色");
+
+        Assert.Equal(
+            new TileStyle { Fit = ImageFit.Fit, Gap = 0, GapColor = 0xFFFFFF, EmptyColor = 0x808080 },
+            _settings.Current.GetMonitor("MON-P").TileStyle);
+        await _rotation.Received(4).ReapplyAsync("MON-P", Arg.Any<CancellationToken>());
+        await _rotation.DidNotReceive().NextAsync(Arg.Any<string?>(), Arg.Any<CancellationToken>());
+        Assert.Equal("空きマス・余白の色を「灰色」に変更しました。", _sut.StatusMessage);
+    }
+
+    [Fact]
+    public async Task 一枚表示のときに分割表示の見た目を変えても表示し直さない()
+    {
+        await _sut.InitializeCommand.ExecuteAsync(null);
+
+        _sut.TileGap = 16;
+
+        Assert.Equal(16, _settings.Current.GetMonitor("MON-P").TileStyle.Gap);
+        await _rotation.DidNotReceive().ReapplyAsync(Arg.Any<string>(), Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
     public async Task 十六分割に切り替えると4分割と共通の区画のフォルダを編集対象にする()
     {
         await _settings.UpdateAsync(s => s.WithMonitor(s.GetMonitor("MON-P").AddTileFolder(2, @"D:\Birds")),
@@ -472,7 +533,7 @@ public sealed class SettingsViewModelTests : IDisposable
         Assert.True(_sut.IsSplitLayout);
         Assert.Same(_sut.Tiles[0].Folders, _sut.EditingFolders);
         Assert.Equal("左上 の区画のフォルダ", _sut.EditingTargetText);
-        Assert.Equal("未設定（この区画は黒で表示）", _sut.EmptyFoldersMessage);
+        Assert.Equal("未設定（この区画は空きマスとして表示）", _sut.EmptyFoldersMessage);
         Assert.Equal("16 分割表示に切り替えました。", _sut.StatusMessage);
         await _rotation.Received(1).NextAsync("MON-P", Arg.Any<CancellationToken>());
 
@@ -565,8 +626,8 @@ public sealed class SettingsViewModelTests : IDisposable
         Assert.Equal([@"C:\Wallpapers"], saved.Folders);
         Assert.Equal([@"D:\Cats"], _sut.EditingFolders);
         Assert.Equal("Cats", _sut.Tiles[3].Summary);
-        // 1 つのマスに専用フォルダができたので、他の未設定のマスは黒で表示される
-        Assert.Equal("未設定（黒）", _sut.Tiles[0].Summary);
+        // 1 つのマスに専用フォルダができたので、他の未設定のマスは空きマスとして表示される
+        Assert.Equal("未設定（空き）", _sut.Tiles[0].Summary);
         Assert.True(_sut.Tiles[0].IsBlank);
         Assert.Same(_sut.Tiles[3], _sut.SelectedTile);
         _folderPicker.Received(1).PickFolders(Arg.Is<string>(t => t.Contains("右下", StringComparison.Ordinal)));
@@ -607,7 +668,7 @@ public sealed class SettingsViewModelTests : IDisposable
         await _sut.AddFolderCommand.ExecuteAsync(null);
         _sut.SelectedTile = _sut.Tiles[1];
 
-        Assert.Equal("未設定（このマスは黒で表示）", _sut.EmptyFoldersMessage);
+        Assert.Equal("未設定（このマスは空きマスとして表示）", _sut.EmptyFoldersMessage);
     }
 
     [Fact]
@@ -622,8 +683,8 @@ public sealed class SettingsViewModelTests : IDisposable
 
         await _sut.RemoveFolderCommand.ExecuteAsync(null);
 
-        Assert.Equal("未設定（黒）", _sut.Tiles[1].Summary);
-        Assert.Contains("黒で表示", _sut.StatusMessage, StringComparison.Ordinal);
+        Assert.Equal("未設定（空き）", _sut.Tiles[1].Summary);
+        Assert.Contains("空きマスとして表示", _sut.StatusMessage, StringComparison.Ordinal);
         await _rotation.Received(1).NextAsync("MON-P", Arg.Any<CancellationToken>());
     }
 

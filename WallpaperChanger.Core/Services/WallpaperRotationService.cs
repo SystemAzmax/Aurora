@@ -448,10 +448,11 @@ public sealed partial class WallpaperRotationService : IWallpaperRotationService
     {
         // 1 枚表示は、表示方法を指定していなければ画像をそのまま渡し、Windows の「調整方法」で表示させる。
         // Windows の設定は全モニター共通のため、指定していればモニターの解像度に合わせた画像を作る
-        ImageFit? singleImageFit = selection.IsSingleImage ? _settingsService.Current.GetMonitor(monitor.Id).SingleImageFit : null;
+        MonitorSettings settings = _settingsService.Current.GetMonitor(monitor.Id);
+        ImageFit? singleImageFit = selection.IsSingleImage ? settings.SingleImageFit : null;
         string wallpaperPath = selection.IsSingleImage && singleImageFit is null
             ? selection.Images[0]!
-            : await ComposeAsync(monitor, selection, singleImageFit ?? ImageFit.Fill, cancellationToken).ConfigureAwait(false);
+            : await ComposeAsync(monitor, selection, settings, cancellationToken).ConfigureAwait(false);
 
         await _wallpaperService.SetWallpaperAsync(monitor.Id, wallpaperPath, cancellationToken).ConfigureAwait(false);
         if (singleImageFit is null)
@@ -467,11 +468,20 @@ public sealed partial class WallpaperRotationService : IWallpaperRotationService
         WallpaperChanged?.Invoke(this, new WallpaperChangedEventArgs(monitor.Id, wallpaperPath, selection));
     }
 
-    private Task<string> ComposeAsync(MonitorInfo monitor, WallpaperSelection selection, ImageFit fit, CancellationToken cancellationToken)
+    /// <summary>
+    /// 組の画像を、モニターの解像度の 1 枚に合成する。
+    /// 1 枚表示は表示方法に合わせて（余白は黒）、分割表示はモニターの設定の収め方・間隔・色で合成する。
+    /// </summary>
+    private Task<string> ComposeAsync(
+        MonitorInfo monitor, WallpaperSelection selection, MonitorSettings settings, CancellationToken cancellationToken)
     {
         (int columns, int rows) = selection.Layout.GetGridSize();
-        var request = new WallpaperCompositionRequest(
-            monitor.Id, selection.Images, columns, rows, monitor.Width, monitor.Height, fit);
+        WallpaperCompositionRequest request = selection.IsSingleImage
+            ? new(monitor.Id, selection.Images, columns, rows, monitor.Width, monitor.Height,
+                Fit: settings.SingleImageFit ?? ImageFit.Fill)
+            : new(monitor.Id, selection.Images, columns, rows, monitor.Width, monitor.Height,
+                Fit: settings.TileStyle.Fit, Gap: settings.TileStyle.Gap, GapColor: settings.TileStyle.GapColor,
+                EmptyColor: settings.TileStyle.EmptyColor);
         return _composer.ComposeAsync(request, cancellationToken);
     }
 

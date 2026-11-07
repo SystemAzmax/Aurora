@@ -31,6 +31,9 @@ public sealed record MonitorSettings
     /// </summary>
     public ImageFit? SingleImageFit { get; init; }
 
+    /// <summary>分割表示の見た目（マスへの収め方・間隔・色）。</summary>
+    public TileStyle TileStyle { get; init; } = new();
+
     /// <summary>
     /// 分割表示の区画ごとの設定（左上・右上・左下・右下の順）。足りない分は既定値として扱う。
     /// 4 分割では各マス、16 分割では各区画（2 × 2 の 4 マス）に使う。
@@ -106,10 +109,12 @@ public sealed record MonitorSettings
     private bool AnyQuadrantHasFolders =>
         Enumerable.Range(0, WallpaperLayoutExtensions.QuadrantCount).Any(i => GetTile(i).Folders.Count > 0);
 
-    /// <summary>読み込んだ設定の null を補正する。</summary>
+    /// <summary>読み込んだ設定の null と範囲外の値を補正する。</summary>
     internal MonitorSettings Normalize() => this with
     {
         Folders = Folders ?? [],
+        SingleImageFit = SingleImageFit is { } fit && !Enum.IsDefined(fit) ? null : SingleImageFit,
+        TileStyle = (TileStyle ?? new TileStyle()).Normalize(),
         Tiles = [.. (Tiles ?? []).Select(t => (t ?? new TileSettings()) with { Folders = t?.Folders ?? [] })],
     };
 }

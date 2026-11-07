@@ -209,9 +209,63 @@
                                       IsChecked="{Binding IncludeSubfolders}" VerticalAlignment="Center" />
                         </DockPanel>
 
-                        <TextBlock Style="{StaticResource CaptionTextStyle}" Margin="0,10,0,0"
-                                   Visibility="{Binding IsSplitLayout, Converter={StaticResource BooleanToVisibilityConverter}}"
-                                   Text="分割表示では各画像をマスいっぱいに拡大し、はみ出した部分は中央で切り抜きます。" />
+                        <!-- 分割表示の見た目（マスへの収め方・間隔・色） -->
+                        <StackPanel Margin="0,14,0,0"
+                                    Visibility="{Binding IsSplitLayout, Converter={StaticResource BooleanToVisibilityConverter}}">
+                            <TextBlock Text="マスへの収め方" Margin="0,0,0,6" />
+                            <RadioButton GroupName="TileFit" Margin="0,0,0,6" IsChecked="{Binding IsTileFill}">
+                                <StackPanel>
+                                    <TextBlock Text="マスを埋める" />
+                                    <TextBlock Text="マスいっぱいに拡大し、はみ出した部分は中央で切り抜きます" Style="{StaticResource CaptionTextStyle}" />
+                                </StackPanel>
+                            </RadioButton>
+                            <RadioButton GroupName="TileFit" IsChecked="{Binding IsTileFitWhole}">
+                                <StackPanel>
+                                    <TextBlock Text="全体を表示" />
+                                    <TextBlock Text="写真の端が切れないよう画像全体をマスに収め、余白は「空きマス・余白の色」で塗ります" Style="{StaticResource CaptionTextStyle}" />
+                                </StackPanel>
+                            </RadioButton>
+
+                            <Grid Margin="0,14,0,0">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="Auto" />
+                                    <ColumnDefinition Width="*" />
+                                </Grid.ColumnDefinitions>
+                                <Grid.RowDefinitions>
+                                    <RowDefinition Height="Auto" />
+                                    <RowDefinition Height="Auto" />
+                                    <RowDefinition Height="Auto" />
+                                </Grid.RowDefinitions>
+                                <Grid.Resources>
+                                    <DataTemplate x:Key="TileColorTemplate" DataType="{x:Type vm:TileColorOption}">
+                                        <StackPanel Orientation="Horizontal">
+                                            <Border Width="16" Height="16" Margin="0,0,8,0" CornerRadius="3" BorderThickness="1"
+                                                    BorderBrush="{DynamicResource CardStrokeColorDefaultBrush}" Background="{Binding Brush}" />
+                                            <TextBlock Text="{Binding DisplayName}" VerticalAlignment="Center" />
+                                        </StackPanel>
+                                    </DataTemplate>
+                                </Grid.Resources>
+
+                                <TextBlock Grid.Row="0" Grid.Column="0" Text="間隔" VerticalAlignment="Center" Margin="0,0,16,0" />
+                                <StackPanel Grid.Row="0" Grid.Column="1" Orientation="Horizontal">
+                                    <!-- 動かしている間に何度も合成し直さないよう、止めてから反映する -->
+                                    <Slider Width="200" VerticalAlignment="Center" Minimum="0" Maximum="{x:Static vm:SettingsViewModel.MaxTileGap}"
+                                            TickFrequency="1" IsSnapToTickEnabled="True" IsMoveToPointEnabled="True"
+                                            Value="{Binding TileGap, Delay=500}" />
+                                    <TextBlock Text="{Binding TileGapText}" VerticalAlignment="Center" Margin="12,0,0,0" />
+                                </StackPanel>
+
+                                <TextBlock Grid.Row="1" Grid.Column="0" Text="間隔の色" VerticalAlignment="Center" Margin="0,10,16,0" />
+                                <ComboBox Grid.Row="1" Grid.Column="1" Width="200" Margin="0,10,0,0" HorizontalAlignment="Left"
+                                          ItemsSource="{Binding TileGapColors}" SelectedItem="{Binding SelectedTileGapColor}"
+                                          ItemTemplate="{StaticResource TileColorTemplate}" />
+
+                                <TextBlock Grid.Row="2" Grid.Column="0" Text="空きマス・余白の色" VerticalAlignment="Center" Margin="0,10,16,0" />
+                                <ComboBox Grid.Row="2" Grid.Column="1" Width="200" Margin="0,10,0,0" HorizontalAlignment="Left"
+                                          ItemsSource="{Binding EmptyTileColors}" SelectedItem="{Binding SelectedEmptyTileColor}"
+                                          ItemTemplate="{StaticResource TileColorTemplate}" />
+                            </Grid>
+                        </StackPanel>
 
                         <!-- 1 枚表示の表示方法（Windows の「調整方法」は全モニター共通のため、モニターごとに選べるようにする） -->
                         <StackPanel Margin="0,14,0,0"
@@ -316,7 +370,7 @@
                     <StackPanel>
                         <TextBlock Text="ほかのモニターの設定をコピー" Style="{StaticResource SectionTitleStyle}" />
                         <TextBlock Style="{StaticResource CaptionTextStyle}" Margin="0,0,0,10"
-                                   Text="買い替えたモニターなどに、前のモニター（接続していないモニターを含む）の壁紙フォルダ・表示レイアウト・表示方法・選び方をコピーします。同じ型番のモニターの接続先を変えた場合は、自動で引き継ぎます。" />
+                                   Text="買い替えたモニターなどに、前のモニター（接続していないモニターを含む）の壁紙フォルダ・表示レイアウト・表示方法・選び方などをコピーします。同じ型番のモニターの接続先を変えた場合は、自動で引き継ぎます。" />
                         <StackPanel Orientation="Horizontal">
                             <ComboBox Width="320" VerticalAlignment="Center"
                                       ItemsSource="{Binding CopySources}" DisplayMemberPath="Label"

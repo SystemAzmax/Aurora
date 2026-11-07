@@ -59,11 +59,11 @@ internal sealed partial class WicWallpaperComposer : IWallpaperComposer
     private string Compose(WallpaperCompositionRequest request, CancellationToken cancellationToken)
     {
         IReadOnlyList<PixelRect> tiles = TileLayout.CalculateTiles(
-            request.Width, request.Height, request.Columns, request.Rows, _options.TileGap);
+            request.Width, request.Height, request.Columns, request.Rows, request.Gap);
 
         int stride = request.Width * BytesPerPixel;
         byte[] pixels = new byte[stride * request.Height];
-        FillBackground(pixels, _options.BackgroundColor);
+        FillBackground(pixels, request.GapColor);
         DrawTiles(request, tiles, pixels, stride, cancellationToken);
 
         var composite = BitmapSource.Create(
@@ -98,7 +98,7 @@ internal sealed partial class WicWallpaperComposer : IWallpaperComposer
                 if (imagePath is null)
                 {
                     // 画像を置かないマスは塗りつぶす（間隔部分と見分けられるよう別の色にする）
-                    FillRect(pixels, stride, tile, _options.EmptyTileColor);
+                    FillRect(pixels, stride, tile, request.EmptyColor);
                     return;
                 }
 
@@ -106,7 +106,7 @@ internal sealed partial class WicWallpaperComposer : IWallpaperComposer
                 if (tileImage.PixelWidth < tile.Width || tileImage.PixelHeight < tile.Height)
                 {
                     // 全体表示・中央表示で画像がマスを覆わない部分は、画像の無いマスと同じ色にする
-                    FillRect(pixels, stride, tile, _options.EmptyTileColor);
+                    FillRect(pixels, stride, tile, request.EmptyColor);
                 }
 
                 int offset = ((tile.Y + offsetY) * stride) + ((tile.X + offsetX) * BytesPerPixel);

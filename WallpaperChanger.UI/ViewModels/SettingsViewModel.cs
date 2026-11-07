@@ -73,6 +73,9 @@ public sealed partial class SettingsViewModel : ObservableObject, IDisposable
         IntervalValue = AppSettings.DefaultIntervalMinutes;
         IncludeSubfolders = true;
         SelectedSingleImageFit = SingleImageFitOption.Windows;
+        TileGap = TileStyle.DefaultGap;
+        TileGapColors = TileColorOption.OptionsFor(TileStyle.DefaultGapColor);
+        EmptyTileColors = TileColorOption.OptionsFor(TileStyle.DefaultEmptyColor);
         Tiles =[.. Enumerable.Range(0, WallpaperLayoutExtensions.QuadrantCount).Select(i => new TileItemViewModel(i))];
         SelectedTile = Tiles[0];
         _isLoading = false;
@@ -172,12 +175,12 @@ public sealed partial class SettingsViewModel : ObservableObject, IDisposable
     /// <summary>壁紙フォルダ欄の説明。</summary>
     public string FolderCaption => Layout switch
     {
-        WallpaperLayout.Grid2x2 => "マスを選んでフォルダを設定します。どのマスも未設定なら 1 枚表示のフォルダから 4 枚を選び、1 つでも設定すると未設定のマスは黒になります。",
-        WallpaperLayout.Grid4x4 => "区画（4 マスずつ）を選んでフォルダを設定します。どの区画も未設定なら 1 枚表示のフォルダから 16 枚を選び、1 つでも設定すると未設定の区画は黒になります。4 分割のマスの設定と共通です。",
+        WallpaperLayout.Grid2x2 => "マスを選んでフォルダを設定します。どのマスも未設定なら 1 枚表示のフォルダから 4 枚を選び、1 つでも設定すると、未設定のマスは空きマス（画像を置かず「空きマス・余白の色」で塗る）になります。",
+        WallpaperLayout.Grid4x4 => "区画（4 マスずつ）を選んでフォルダを設定します。どの区画も未設定なら 1 枚表示のフォルダから 16 枚を選び、1 つでも設定すると、未設定の区画は空きマス（画像を置かず「空きマス・余白の色」で塗る）になります。4 分割のマスの設定と共通です。",
         _ => "このモニターに表示する画像のフォルダ（JPG / JPEG / PNG / BMP / WEBP）",
     };
 
-    /// <summary>いずれかのマス（区画）に専用フォルダがあるか（あれば未設定のマス（区画）は黒になる）。</summary>
+    /// <summary>いずれかのマス（区画）に専用フォルダがあるか（あれば未設定のマス（区画）は空きマスになる）。</summary>
     private bool AnyTileHasFolders => Tiles.Any(t => t.HasOwnFolders);
 
     /// <summary>画面の文言で使う、フォルダを設定する単位の呼び方。</summary>
@@ -200,7 +203,7 @@ public sealed partial class SettingsViewModel : ObservableObject, IDisposable
 
     public string EmptyFoldersMessage => (IsSplitLayout, AnyTileHasFolders) switch
     {
-        (true, true) => $"未設定（この{TileUnit}は黒で表示）",
+        (true, true) => $"未設定（この{TileUnit}は空きマスとして表示）",
         (true, false) => "未設定（1 枚表示のフォルダから選ぶ）",
         _ => "フォルダが登録されていません。「追加」から登録してください。",
     };
@@ -251,6 +254,64 @@ public sealed partial class SettingsViewModel : ObservableObject, IDisposable
     /// <summary>1 枚表示の表示方法（拡大・全体表示・中央など）。</summary>
     [ObservableProperty]
     public partial SingleImageFitOption SelectedSingleImageFit { get; set; }
+
+    // ---- 分割表示の見た目 ----
+
+    /// <summary>分割表示で、各画像をマスに収める方法。</summary>
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(IsTileFill))]
+    [NotifyPropertyChangedFor(nameof(IsTileFitWhole))]
+    public partial ImageFit TileFit { get; set; }
+
+    /// <summary>マスを覆うように拡大し、はみ出した部分を切り抜くか。</summary>
+    public bool IsTileFill
+    {
+        get => TileFit == ImageFit.Fill;
+        set
+        {
+            if (value)
+            {
+                TileFit = ImageFit.Fill;
+            }
+        }
+    }
+
+    /// <summary>画像全体をマスに収め、余白を残すか。</summary>
+    public bool IsTileFitWhole
+    {
+        get => TileFit == ImageFit.Fit;
+        set
+        {
+            if (value)
+            {
+                TileFit = ImageFit.Fit;
+            }
+        }
+    }
+
+    /// <summary>間隔のスライダーの上限（Slider.Maximum が double のため double で返す）。</summary>
+    public static double MaxTileGap => TileStyle.MaxGap;
+
+    /// <summary>マスの間隔（ピクセル）。</summary>
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(TileGapText))]
+    public partial int TileGap { get; set; }
+
+    public string TileGapText => $"{TileGap} px";
+
+    /// <summary>マスの間隔の色の選択肢。</summary>
+    [ObservableProperty]
+    public partial IReadOnlyList<TileColorOption> TileGapColors { get; set; }
+
+    [ObservableProperty]
+    public partial TileColorOption? SelectedTileGapColor { get; set; }
+
+    /// <summary>空きマスと余白の色の選択肢。</summary>
+    [ObservableProperty]
+    public partial IReadOnlyList<TileColorOption> EmptyTileColors { get; set; }
+
+    [ObservableProperty]
+    public partial TileColorOption? SelectedEmptyTileColor { get; set; }
 
     // ---- 切替設定 ----
 
@@ -482,7 +543,7 @@ public sealed partial class SettingsViewModel : ObservableObject, IDisposable
             string removed = (tile.HasOwnFolders, AnyTileHasFolders) switch
             {
                 (true, _) => $"{tile.Position}の{TileUnit}からフォルダを削除しました。",
-                (false, true) => $"{tile.Position}の{TileUnit}は未設定になり、黒で表示します。",
+                (false, true) => $"{tile.Position}の{TileUnit}は未設定になり、空きマスとして表示します。",
                 _ => $"すべての{TileUnit}が未設定になったため、1 枚表示のフォルダから {Layout.GetTileCount()} 枚を選びます。",
             };
             ShowInfo(removed);
@@ -632,22 +693,65 @@ public sealed partial class SettingsViewModel : ObservableObject, IDisposable
 
     partial void OnSelectedSingleImageFitChanged(SingleImageFitOption value)
     {
-        if (_isLoading || SelectedMonitor is not { } monitor || value is null)
+        if (value is not null)
+        {
+            ChangeAppearance(
+                "表示方法の変更", m => m with { SingleImageFit = value.Fit },
+                $"1 枚表示の表示方法を「{value.DisplayName}」に変更しました。", forSplitLayout: false);
+        }
+    }
+
+    partial void OnTileFitChanged(ImageFit value) => ChangeAppearance(
+        "マスへの収め方の変更", m => m with { TileStyle = m.TileStyle with { Fit = value } },
+        value == ImageFit.Fit ? "マスに画像全体を表示するようにしました。" : "マスを埋めるように表示するようにしました。",
+        forSplitLayout: true);
+
+    partial void OnTileGapChanged(int value) => ChangeAppearance(
+        "マスの間隔の変更", m => m with { TileStyle = m.TileStyle with { Gap = Math.Clamp(value, 0, TileStyle.MaxGap) } },
+        $"マスの間隔を {value} px に変更しました。", forSplitLayout: true);
+
+    partial void OnSelectedTileGapColorChanged(TileColorOption? value)
+    {
+        if (value is not null)
+        {
+            ChangeAppearance(
+                "間隔の色の変更", m => m with { TileStyle = m.TileStyle with { GapColor = value.Rgb } },
+                $"マスの間隔の色を「{value.DisplayName}」に変更しました。", forSplitLayout: true);
+        }
+    }
+
+    partial void OnSelectedEmptyTileColorChanged(TileColorOption? value)
+    {
+        if (value is not null)
+        {
+            ChangeAppearance(
+                "空きマス・余白の色の変更", m => m with { TileStyle = m.TileStyle with { EmptyColor = value.Rgb } },
+                $"空きマス・余白の色を「{value.DisplayName}」に変更しました。", forSplitLayout: true);
+        }
+    }
+
+    /// <summary>
+    /// 表示の見た目（1 枚表示の表示方法、分割表示の収め方・間隔・色）の変更を保存し、今の画像のまま表示し直す。
+    /// </summary>
+    /// <param name="forSplitLayout">分割表示の設定か（false は 1 枚表示の設定）。今のレイアウトで使う設定のときだけ表示し直す。</param>
+    private void ChangeAppearance(string operation, Func<MonitorSettings, MonitorSettings> update, string message, bool forSplitLayout)
+    {
+        if (_isLoading || SelectedMonitor is not { } monitor)
         {
             return;
         }
 
-        _ = ExecuteSafelyAsync("表示方法の変更", async () =>
+        _ = ExecuteSafelyAsync(operation, async () =>
         {
-            await UpdateMonitorSettingsAsync(monitor, m => m with { SingleImageFit = value.Fit });
-            string changed = $"1 枚表示の表示方法を「{value.DisplayName}」に変更しました。";
-            ShowInfo(changed);
+            await UpdateMonitorSettingsAsync(monitor, update);
+            ShowInfo(message);
 
-            // 次の定期実行を待たず、今の画像を新しい表示方法で表示し直す
+            // 次の定期実行を待たず、今の画像を新しい見た目で表示し直す
             MonitorSettings settings = _settingsService.Current.GetMonitor(monitor.Id);
-            if (settings.Layout == WallpaperLayout.SingleImage && settings.HasAnyFolder())
+            bool isSplitLayout = settings.Layout != WallpaperLayout.SingleImage;
+            if (isSplitLayout == forSplitLayout && settings.HasAnyFolder())
             {
-                ReportProblems(await _rotationService.ReapplyAsync(monitor.Id), changed);
+                ReportProblems(await _rotationService.ReapplyAsync(monitor.Id), message);
             }
         });
     }
@@ -825,7 +929,7 @@ public sealed partial class SettingsViewModel : ObservableObject, IDisposable
                 Folders.Add(folder);
             }
 
-            // 1 つでもマスに専用フォルダがあれば、未設定のマスは黒で表示される
+            // 1 つでもマスに専用フォルダがあれば、未設定のマスは空きマスとして表示される
             bool anyTileHasFolders = Tiles.Any(t => settings.GetTile(t.Index).Folders.Count > 0);
             foreach (TileItemViewModel tile in Tiles)
             {
@@ -836,6 +940,13 @@ public sealed partial class SettingsViewModel : ObservableObject, IDisposable
             SelectionMode = settings.SelectionMode;
             Layout = settings.Layout;
             SelectedSingleImageFit = SingleImageFitOption.From(settings.SingleImageFit);
+            TileStyle style = settings.TileStyle;
+            TileFit = style.Fit;
+            TileGap = style.Gap;
+            TileGapColors = TileColorOption.OptionsFor(style.GapColor);
+            SelectedTileGapColor = TileGapColors.First(c => c.Rgb == style.GapColor);
+            EmptyTileColors = TileColorOption.OptionsFor(style.EmptyColor);
+            SelectedEmptyTileColor = EmptyTileColors.First(c => c.Rgb == style.EmptyColor);
         }
         finally
         {

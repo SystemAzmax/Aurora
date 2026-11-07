@@ -281,6 +281,39 @@ public sealed class WallpaperRotationServiceTests : IDisposable
     }
 
     [Fact]
+    public async Task 分割表示はモニターの設定の収め方と間隔と色で合成する()
+    {
+        await _settings.UpdateAsync(s => s.WithMonitor(s.GetMonitor("MON1") with
+        {
+            Layout = WallpaperLayout.Grid4x4,
+            TileStyle = new TileStyle { Fit = ImageFit.Fit, Gap = 12, GapColor = 0x123456, EmptyColor = 0xABCDEF },
+        }), TestContext.Current.CancellationToken);
+
+        await _sut.NextAsync("MON1", TestContext.Current.CancellationToken);
+
+        await _composer.Received(1).ComposeAsync(
+            Arg.Is<WallpaperCompositionRequest>(r =>
+                r.Columns == 4 && r.Fit == ImageFit.Fit && r.Gap == 12 && r.GapColor == 0x123456 && r.EmptyColor == 0xABCDEF),
+            Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task 一枚表示は分割表示の間隔と色を使わず余白を黒にする()
+    {
+        await _settings.UpdateAsync(s => s.WithMonitor(s.GetMonitor("MON1") with
+        {
+            SingleImageFit = ImageFit.Fit,
+            TileStyle = new TileStyle { Gap = 12, GapColor = 0x123456, EmptyColor = 0xABCDEF },
+        }), TestContext.Current.CancellationToken);
+
+        await _sut.NextAsync("MON1", TestContext.Current.CancellationToken);
+
+        await _composer.Received(1).ComposeAsync(
+            Arg.Is<WallpaperCompositionRequest>(r => r.Columns == 1 && r.Gap == 0 && r.EmptyColor == 0x000000),
+            Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
     public async Task 表示し直しは表示方法を指定した一枚表示を同じ画像で作り直す()
     {
         CancellationToken ct = TestContext.Current.CancellationToken;

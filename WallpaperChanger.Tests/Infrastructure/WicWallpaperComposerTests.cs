@@ -37,10 +37,11 @@ public sealed class WicWallpaperComposerTests : IDisposable
             CreateImage("blue.bmp", 100, 400, Colors.Blue, new BmpBitmapEncoder()),
             CreateImage("white.png", 1920, 1080, Colors.White, new PngBitmapEncoder()),
         ];
-        WicWallpaperComposer sut = CreateSut(gap: 10);
+        WicWallpaperComposer sut = CreateSut();
 
         string output = await sut.ComposeAsync(
-            new WallpaperCompositionRequest("MON1", images, 2, 2, 800, 600), TestContext.Current.CancellationToken);
+            new WallpaperCompositionRequest("MON1", images, 2, 2, 800, 600, Gap: 10, GapColor: 0x202020),
+            TestContext.Current.CancellationToken);
 
         BitmapSource result = Load(output);
         Assert.Equal(800, result.PixelWidth);
@@ -59,7 +60,7 @@ public sealed class WicWallpaperComposerTests : IDisposable
     public async Task 一枚表示の画面を埋める表示では画面全体を覆い余白を残さない()
     {
         string red = CreateImage("red.png", 60, 40, Colors.Red, new PngBitmapEncoder());
-        WicWallpaperComposer sut = CreateSut(gap: 10);
+        WicWallpaperComposer sut = CreateSut();
 
         // 60×40 を 200×100 に: 幅に合わせて 200×133 に拡大し、上下を切り抜く
         string output = await sut.ComposeAsync(
@@ -75,7 +76,7 @@ public sealed class WicWallpaperComposerTests : IDisposable
     public async Task 一枚表示の全体表示では画像全体を収めて余白を黒にする()
     {
         string red = CreateImage("red.png", 60, 40, Colors.Red, new PngBitmapEncoder());
-        WicWallpaperComposer sut = CreateSut(gap: 10);
+        WicWallpaperComposer sut = CreateSut();
 
         // 60×40 を 200×100 に: 高さに合わせて 150×100 に拡大し、左右に 25 ずつ余白
         string output = await sut.ComposeAsync(
@@ -93,7 +94,7 @@ public sealed class WicWallpaperComposerTests : IDisposable
     public async Task 一枚表示の引き伸ばしでは縦横比を変えて画面いっぱいにする()
     {
         string red = CreateImage("red.png", 60, 40, Colors.Red, new PngBitmapEncoder());
-        WicWallpaperComposer sut = CreateSut(gap: 10);
+        WicWallpaperComposer sut = CreateSut();
 
         string output = await sut.ComposeAsync(
             new WallpaperCompositionRequest("MON1", [red], 1, 1, 200, 100, ImageFit.Stretch), TestContext.Current.CancellationToken);
@@ -107,7 +108,7 @@ public sealed class WicWallpaperComposerTests : IDisposable
     public async Task 一枚表示の中央表示では拡大せずに中央に置き余白を黒にする()
     {
         string red = CreateImage("red.png", 60, 40, Colors.Red, new PngBitmapEncoder());
-        WicWallpaperComposer sut = CreateSut(gap: 10);
+        WicWallpaperComposer sut = CreateSut();
 
         // 60×40 のまま、200×100 の中央（左上が (70, 30)）に置く
         string output = await sut.ComposeAsync(
@@ -127,7 +128,7 @@ public sealed class WicWallpaperComposerTests : IDisposable
     {
         // 左半分が赤、右半分が青の 400×100 の画像を 200×100 の中央に置くと、中央の 200 ピクセル分だけが見える
         string image = CreateSplitImage("split.png", 400, 100, Colors.Red, Colors.Blue);
-        WicWallpaperComposer sut = CreateSut(gap: 0);
+        WicWallpaperComposer sut = CreateSut();
 
         string output = await sut.ComposeAsync(
             new WallpaperCompositionRequest("MON1", [image], 1, 1, 200, 100, ImageFit.Center), TestContext.Current.CancellationToken);
@@ -143,10 +144,11 @@ public sealed class WicWallpaperComposerTests : IDisposable
     public async Task 画像の無いマスは真っ黒に塗る()
     {
         string red = CreateImage("red.png", 64, 64, Colors.Red, new PngBitmapEncoder());
-        WicWallpaperComposer sut = CreateSut(gap: 10);
+        WicWallpaperComposer sut = CreateSut();
 
         string output = await sut.ComposeAsync(
-            new WallpaperCompositionRequest("MON1", [red, null, null, red], 2, 2, 400, 200), TestContext.Current.CancellationToken);
+            new WallpaperCompositionRequest("MON1", [red, null, null, red], 2, 2, 400, 200, Gap: 10, GapColor: 0x202020),
+            TestContext.Current.CancellationToken);
 
         BitmapSource result = Load(output);
         AssertColor(result, 100, 50, Colors.Red);
@@ -157,10 +159,63 @@ public sealed class WicWallpaperComposerTests : IDisposable
     }
 
     [Fact]
+    public async Task 間隔と空きマスの色を指定できる()
+    {
+        string red = CreateImage("red.png", 64, 64, Colors.Red, new PngBitmapEncoder());
+        WicWallpaperComposer sut = CreateSut();
+
+        string output = await sut.ComposeAsync(
+            new WallpaperCompositionRequest("MON1", [red, null, null, red], 2, 2, 400, 200, Gap: 20, GapColor: 0x0000FF, EmptyColor: 0xFFFFFF),
+            TestContext.Current.CancellationToken);
+
+        BitmapSource result = Load(output);
+        AssertColor(result, 90, 45, Colors.Red);
+        AssertColor(result, 310, 45, Colors.White);
+        AssertColor(result, 200, 45, Colors.Blue);  // 縦の間隔
+        AssertColor(result, 90, 100, Colors.Blue);  // 横の間隔
+    }
+
+    [Fact]
+    public async Task 間隔を0にするとマスどうしが接する()
+    {
+        string red = CreateImage("red.png", 64, 64, Colors.Red, new PngBitmapEncoder());
+        WicWallpaperComposer sut = CreateSut();
+
+        string output = await sut.ComposeAsync(
+            new WallpaperCompositionRequest("MON1", [red], 2, 2, 400, 200, Gap: 0, GapColor: 0x0000FF),
+            TestContext.Current.CancellationToken);
+
+        BitmapSource result = Load(output);
+        AssertColor(result, 199, 100, Colors.Red);
+        AssertColor(result, 200, 99, Colors.Red);
+    }
+
+    [Fact]
+    public async Task 分割表示の全体表示ではマスごとに画像全体を収め余白を空きマスの色で塗る()
+    {
+        // 横長の画像（120×40）を、間隔なしの 2×2（各マス 200×200）に収める: 200×67 になり、上下に余白
+        string red = CreateImage("wide.png", 120, 40, Colors.Red, new PngBitmapEncoder());
+        WicWallpaperComposer sut = CreateSut();
+
+        string output = await sut.ComposeAsync(
+            new WallpaperCompositionRequest("MON1", [red], 2, 2, 400, 400, ImageFit.Fit, EmptyColor: 0xFFFFFF),
+            TestContext.Current.CancellationToken);
+
+        BitmapSource result = Load(output);
+        foreach ((int left, int top) in new[] { (0, 0), (200, 0), (0, 200), (200, 200) })
+        {
+            AssertColor(result, left + 100, top + 100, Colors.Red);
+            AssertColor(result, left + 5, top + 100, Colors.Red);
+            AssertColor(result, left + 100, top + 20, Colors.White);
+            AssertColor(result, left + 100, top + 180, Colors.White);
+        }
+    }
+
+    [Fact]
     public async Task 画像が4枚未満なら繰り返して配置する()
     {
         string red = CreateImage("red.png", 64, 64, Colors.Red, new PngBitmapEncoder());
-        WicWallpaperComposer sut = CreateSut(gap: 0);
+        WicWallpaperComposer sut = CreateSut();
 
         string output = await sut.ComposeAsync(
             new WallpaperCompositionRequest("MON1", [red], 2, 2, 200, 100), TestContext.Current.CancellationToken);
@@ -186,7 +241,7 @@ public sealed class WicWallpaperComposerTests : IDisposable
         int orientation, string topLeft, string topRight, string bottomLeft, string bottomRight)
     {
         string image = CreateQuadrantJpeg($"oriented{orientation}.jpg", orientation);
-        WicWallpaperComposer sut = CreateSut(gap: 0);
+        WicWallpaperComposer sut = CreateSut();
 
         // 縦横が入れ替わる向きは縦長の 1 マスに、それ以外は横長の 1 マスに、拡大縮小せずに収まる大きさで合成する
         (int width, int height) = orientation >= 5 ? (100, 200) : (200, 100);
@@ -204,7 +259,7 @@ public sealed class WicWallpaperComposerTests : IDisposable
     public async Task 十六分割では並行して読み込んだ画像をそれぞれのマスに配置する()
     {
         string[] images = [.. Enumerable.Range(0, 16).Select(i => CreateImage($"tile{i}.png", 64, 64, TileColor(i), new PngBitmapEncoder()))];
-        WicWallpaperComposer sut = CreateSut(gap: 0);
+        WicWallpaperComposer sut = CreateSut();
 
         string output = await sut.ComposeAsync(
             new WallpaperCompositionRequest("MON1", images, 4, 4, 400, 400), TestContext.Current.CancellationToken);
@@ -224,11 +279,11 @@ public sealed class WicWallpaperComposerTests : IDisposable
         [
             .. Enumerable.Range(0, 16).Select(i => i == 5 ? null : CreateImage($"tile{i}.jpg", 300 + (i * 37), 200 + (i * 23), TileColor(i), new JpegBitmapEncoder())),
         ];
-        var request = new WallpaperCompositionRequest("MON1", images, 4, 4, 1280, 720);
+        var request = new WallpaperCompositionRequest("MON1", images, 4, 4, 1280, 720, Gap: 4);
 
-        string sequential = await CreateSut(gap: 4, maxParallelTileLoads: 1).ComposeAsync(request, ct);
+        string sequential = await CreateSut(maxParallelTileLoads: 1).ComposeAsync(request, ct);
         _time.Advance(TimeSpan.FromSeconds(1));
-        string parallel = await CreateSut(gap: 4, maxParallelTileLoads: 4).ComposeAsync(request, ct);
+        string parallel = await CreateSut(maxParallelTileLoads: 4).ComposeAsync(request, ct);
 
         Assert.Equal(await File.ReadAllBytesAsync(sequential, ct), await File.ReadAllBytesAsync(parallel, ct));
     }
@@ -238,7 +293,7 @@ public sealed class WicWallpaperComposerTests : IDisposable
     {
         string broken = _temp.CreateFile("broken.jpg", "not an image");
         string[] images = [.. Enumerable.Range(0, 16).Select(i => i == 9 ? broken : CreateImage($"tile{i}.png", 64, 64, TileColor(i), new PngBitmapEncoder()))];
-        WicWallpaperComposer sut = CreateSut(gap: 0);
+        WicWallpaperComposer sut = CreateSut();
 
         var ex = await Assert.ThrowsAsync<InvalidOperationException>(() => sut.ComposeAsync(
             new WallpaperCompositionRequest("MON1", images, 4, 4, 400, 400), TestContext.Current.CancellationToken));
@@ -250,7 +305,7 @@ public sealed class WicWallpaperComposerTests : IDisposable
     public async Task 読み込めない画像はパス付きの例外になる()
     {
         string broken = _temp.CreateFile("broken.jpg", "not an image");
-        WicWallpaperComposer sut = CreateSut(gap: 0);
+        WicWallpaperComposer sut = CreateSut();
 
         var ex = await Assert.ThrowsAsync<InvalidOperationException>(() => sut.ComposeAsync(
             new WallpaperCompositionRequest("MON1", [broken], 2, 2, 200, 100), TestContext.Current.CancellationToken));
@@ -262,7 +317,7 @@ public sealed class WicWallpaperComposerTests : IDisposable
     public async Task ピクセル数が上限を超える画像はデコードせず理由付きの例外になる()
     {
         string image = CreateImage("big.png", 100, 100, Colors.Red, new PngBitmapEncoder());
-        WicWallpaperComposer sut = CreateSut(gap: 0, new ImageSourceLimits { MaxPixelCount = (100 * 100) - 1 });
+        WicWallpaperComposer sut = CreateSut(new ImageSourceLimits { MaxPixelCount = (100 * 100) - 1 });
 
         var ex = await Assert.ThrowsAnyAsync<InvalidOperationException>(() => sut.ComposeAsync(
             new WallpaperCompositionRequest("MON1", [image], 2, 2, 200, 100), TestContext.Current.CancellationToken));
@@ -276,7 +331,7 @@ public sealed class WicWallpaperComposerTests : IDisposable
     public async Task ファイルサイズが上限を超える画像は理由付きの例外になる()
     {
         string image = CreateImage("big.png", 64, 64, Colors.Red, new PngBitmapEncoder());
-        WicWallpaperComposer sut = CreateSut(gap: 0, new ImageSourceLimits { MaxFileBytes = new FileInfo(image).Length - 1 });
+        WicWallpaperComposer sut = CreateSut(new ImageSourceLimits { MaxFileBytes = new FileInfo(image).Length - 1 });
 
         var ex = await Assert.ThrowsAnyAsync<InvalidOperationException>(() => sut.ComposeAsync(
             new WallpaperCompositionRequest("MON1", [image], 2, 2, 200, 100), TestContext.Current.CancellationToken));
@@ -290,7 +345,7 @@ public sealed class WicWallpaperComposerTests : IDisposable
     {
         string image = CreateImage("exact.png", 100, 100, Colors.Red, new PngBitmapEncoder());
         WicWallpaperComposer sut = CreateSut(
-            gap: 0, new ImageSourceLimits { MaxPixelCount = 100 * 100, MaxFileBytes = new FileInfo(image).Length });
+            new ImageSourceLimits { MaxPixelCount = 100 * 100, MaxFileBytes = new FileInfo(image).Length });
 
         string output = await sut.ComposeAsync(
             new WallpaperCompositionRequest("MON1", [image], 2, 2, 200, 100), TestContext.Current.CancellationToken);
@@ -302,7 +357,7 @@ public sealed class WicWallpaperComposerTests : IDisposable
     public async Task 毎回別名で保存し古い合成画像は指定数だけ残す()
     {
         string red = CreateImage("red.png", 64, 64, Colors.Red, new PngBitmapEncoder());
-        WicWallpaperComposer sut = CreateSut(gap: 0);
+        WicWallpaperComposer sut = CreateSut();
         var request = new WallpaperCompositionRequest("MON1", [red], 2, 2, 100, 100);
         var outputs = new List<string>();
 
@@ -323,7 +378,7 @@ public sealed class WicWallpaperComposerTests : IDisposable
     public async Task 別のモニターの合成画像は削除しない()
     {
         string red = CreateImage("red.png", 64, 64, Colors.Red, new PngBitmapEncoder());
-        WicWallpaperComposer sut = CreateSut(gap: 0);
+        WicWallpaperComposer sut = CreateSut();
 
         string other = await sut.ComposeAsync(new("MON2", [red], 2, 2, 100, 100), TestContext.Current.CancellationToken);
         for (int i = 0; i < 4; i++)
@@ -340,7 +395,7 @@ public sealed class WicWallpaperComposerTests : IDisposable
     {
         CancellationToken ct = TestContext.Current.CancellationToken;
         string red = CreateImage("red.png", 64, 64, Colors.Red, new PngBitmapEncoder());
-        WicWallpaperComposer sut = CreateSut(gap: 0);
+        WicWallpaperComposer sut = CreateSut();
         string connectedOld = await sut.ComposeAsync(new("MON1", [red], 2, 2, 100, 100), ct);
         string disconnectedOld = await sut.ComposeAsync(new("MON2", [red], 2, 2, 100, 100), ct);
         string disconnectedRecent = await sut.ComposeAsync(new("MON3", [red], 2, 2, 100, 100), ct);
@@ -359,18 +414,17 @@ public sealed class WicWallpaperComposerTests : IDisposable
     [Fact]
     public void 合成画像の保存先が無くても後片付けは例外にならない()
     {
-        WicWallpaperComposer sut = CreateSut(gap: 0);
+        WicWallpaperComposer sut = CreateSut();
 
         sut.DeleteDisconnectedMonitorFiles(["MON1"]);
 
         Assert.False(Directory.Exists(_outputDirectory));
     }
 
-    private WicWallpaperComposer CreateSut(int gap, ImageSourceLimits? limits = null, int maxParallelTileLoads = 4) => new(
+    private WicWallpaperComposer CreateSut(ImageSourceLimits? limits = null, int maxParallelTileLoads = 4) => new(
         Options.Create(new WallpaperCompositionOptions
         {
             OutputDirectory = _outputDirectory,
-            TileGap = gap,
             MaxParallelTileLoads = maxParallelTileLoads,
         }),
         Options.Create(limits ?? new ImageSourceLimits()),

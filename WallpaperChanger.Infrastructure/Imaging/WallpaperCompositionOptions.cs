@@ -13,17 +13,6 @@ public sealed class WallpaperCompositionOptions
     /// <summary>合成画像の保存先。</summary>
     public string OutputDirectory { get; set; } = DefaultOutputDirectory;
 
-    /// <summary>タイル間の間隔（ピクセル）。</summary>
-    public int TileGap { get; set; } = 4;
-
-    /// <summary>間隔部分の色（0xRRGGBB）。</summary>
-    public int BackgroundColor { get; set; } = 0x202020;
-
-    /// <summary>
-    /// 画像の無い部分の色（0xRRGGBB）。フォルダ未設定のマスと、全体表示・中央表示で画像が覆わない余白に使う。既定は真っ黒（0x000000）。
-    /// </summary>
-    public int EmptyTileColor { get; set; }
-
     /// <summary>
     /// マスの画像を同時に読み込む数。16 分割では 1 枚ずつ読むと時間がかかるため、並行して読み込む。
     /// 大きな画像はデコード中に多くのメモリを使うため、上げすぎない。

@@ -135,6 +135,30 @@ public class AppSettingsTests
         Assert.Equal(AppSettings.MaxIntervalMinutes, settings.IntervalMinutes);
     }
 
+    [Theory]
+    [InlineData(-5, 0)]
+    [InlineData(1000, TileStyle.MaxGap)]
+    public void Normalizeは範囲外のマスの間隔と色と収め方を補正する(int gap, int expectedGap)
+    {
+        var settings = new AppSettings().WithMonitor(MonitorSettings.CreateDefault("M") with
+        {
+            TileStyle = new TileStyle { Gap = gap, GapColor = unchecked((int)0xFF123456), EmptyColor = -1, Fit = (ImageFit)99 },
+            SingleImageFit = (ImageFit)99,
+        }).Normalize();
+
+        MonitorSettings monitor = settings.GetMonitor("M");
+        Assert.Equal(new TileStyle { Gap = expectedGap, GapColor = 0x123456, EmptyColor = 0xFFFFFF, Fit = ImageFit.Fill }, monitor.TileStyle);
+        Assert.Null(monitor.SingleImageFit);
+    }
+
+    [Fact]
+    public void Normalizeは分割表示の見た目が無い設定を既定値にする()
+    {
+        var settings = new AppSettings().WithMonitor(MonitorSettings.CreateDefault("M") with { TileStyle = null! }).Normalize();
+
+        Assert.Equal(new TileStyle(), settings.GetMonitor("M").TileStyle);
+    }
+
     [Fact]
     public void MoveMonitorは設定を新しいIDに移し移し先の設定を置き換える()
     {
@@ -184,6 +208,7 @@ public class AppSettingsTests
             SelectionMode = ImageSelectionMode.Sequential,
             Layout = WallpaperLayout.Grid4x4,
             SingleImageFit = ImageFit.Center,
+            TileStyle = new TileStyle { Fit = ImageFit.Fit, Gap = 0, GapColor = 0xFFFFFF, EmptyColor = 0x808080 },
         };
         MonitorSettings target = MonitorSettings.CreateDefault("DST") with { DisplayName = "Target" };
 
