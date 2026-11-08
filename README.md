@@ -18,6 +18,7 @@ Windows 10 / 11 向けのマルチディスプレイ対応壁紙チェンジャ�
 - 分割表示（4 分割 / 16 分割）: IDesktopWallpaper は 1 モニター 1 枚のため、`WicWallpaperComposer` が 4 枚・16 枚をモニター解像度の 1 枚に合成して設定する（保存先 `%LOCALAPPDATA%\WallpaperChanger\Composites`、モニターごとに最新 3 枚を保持）。フォルダは左上・右上・左下・右下の 4 単位で指定でき（`MonitorSettings.Tiles`）、4 分割では各マス、16 分割では 2 × 2 の 4 マスずつの区画に適用する（両レイアウトで設定を共有）。マスへの収め方（埋める / 全体を表示）・間隔・間隔の色・空きマスと余白の色は、モニターごとに設定できる（`MonitorSettings.TileStyle`）。
 - スパン（複数モニターにまたがる 1 枚表示）: 表示レイアウトに「スパン」を選んだモニターどうしで、1 枚の画像を各モニターの位置（`MonitorInfo.Bounds`）に合わせて切り分けて表示する（Windows の「スパン」は全モニター共通のため使わない）。フォルダ・選び方・収め方はスパン専用の設定（`AppSettings.Span`）で、履歴はスパン全体で 1 つ持つ。
 - 自動切り替えを見合わせる条件: 全画面表示のアプリ（`SHQueryUserNotificationState`）やバッテリー駆動（`GetSystemPowerStatus`）の間は、定期実行の切り替えを待ち、当てはまらなくなったら切り替える（`AppSettings.SkipConditions`、既定で両方有効）。手動の切り替えは止めない。
+- 表示言語: 日本語（既定）と英語。文言は `WallpaperChanger.UI/Resources/Strings.resx`（日本語）と `Strings.en.resx`（英語）にあり、ビルド時に生成される `Strings` クラスから参照する（XAML は `{x:Static res:Strings.Xxx}`）。文言を足すときは両方のファイルに同じキーで書く（英語が無い・埋め込む値の番号が違う場合はテストが失敗する）。Infrastructure で作る画面向けの文言は `WallpaperChanger.Infrastructure/Resources/Strings.resx` にある。言語の変更はアプリの再起動後に反映し、ログは常に日本語で書く。
 - 1 枚表示の表示方法: 既定（`MonitorSettings.SingleImageFit` が null）では画像をそのまま設定し、Windows の「調整方法」で表示させる。Windows の調整方法は全モニター共通のため、モニターごとに「画面を埋める」「全体を表示」「引き伸ばす」「中央に表示」を選んだ場合は、分割表示と同じ `WicWallpaperComposer` でモニター解像度の画像を作って設定する（余白は黒）。
 
 ## ビルド・実行・テスト

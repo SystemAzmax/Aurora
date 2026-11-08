@@ -1,12 +1,13 @@
 ﻿<Window x:Class="WallpaperChanger.UI.Views.SettingsWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:res="clr-namespace:WallpaperChanger.UI.Resources"
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         xmlns:vm="clr-namespace:WallpaperChanger.UI.ViewModels"
         mc:Ignorable="d"
         d:DataContext="{d:DesignInstance Type=vm:SettingsViewModel, IsDesignTimeCreatable=False}"
-        Title="壁紙チェンジャー - 設定"
+        Title="{x:Static res:Strings.SettingsWindowTitle}"
         Icon="pack://application:,,,/WallpaperChanger;component/Resources/AppIcon.ico"
         Width="1000" Height="700" MinWidth="820" MinHeight="560"
         WindowStartupLocation="CenterScreen"
@@ -26,14 +27,14 @@
         <!-- ===== 左側: モニター一覧 ===== -->
         <DockPanel Grid.Row="0" Grid.Column="0" Margin="16,20,8,16">
             <DockPanel DockPanel.Dock="Top" Margin="8,0,0,12">
-                <Button DockPanel.Dock="Right" Content="識別" Tag="&#xE7F4;" Style="{StaticResource IconButtonStyle}"
+                <Button DockPanel.Dock="Right" Content="{x:Static res:Strings.Identify}" Tag="&#xE7F4;" Style="{StaticResource IconButtonStyle}"
                         MinWidth="0" Margin="0" VerticalAlignment="Center"
-                        ToolTip="各モニターの画面に番号を表示します"
+                        ToolTip="{x:Static res:Strings.IdentifyToolTip}"
                         Command="{Binding IdentifyMonitorsCommand}" />
-                <TextBlock Text="モニター" Style="{StaticResource PageTitleStyle}" Margin="0" VerticalAlignment="Center" />
+                <TextBlock Text="{x:Static res:Strings.Monitors}" Style="{StaticResource PageTitleStyle}" Margin="0" VerticalAlignment="Center" />
             </DockPanel>
 
-            <Button DockPanel.Dock="Bottom" Content="モニターを再検出" Tag="&#xE72C;"
+            <Button DockPanel.Dock="Bottom" Content="{x:Static res:Strings.DetectMonitors}" Tag="&#xE72C;"
                     Style="{StaticResource IconButtonStyle}" HorizontalAlignment="Stretch" Margin="0,12,0,0"
                     Command="{Binding RefreshMonitorsCommand}" />
 
@@ -68,13 +69,13 @@
         <ScrollViewer Grid.Row="0" Grid.Column="1" VerticalScrollBarVisibility="Auto" Padding="8,20,24,4">
             <StackPanel>
                 <TextBlock Style="{StaticResource PageTitleStyle}">
-                    <Run Text="{Binding SelectedMonitor.DisplayName, Mode=OneWay, FallbackValue=モニター未選択}" />
+                    <Run Text="{Binding SelectedMonitor.DisplayName, Mode=OneWay, FallbackValue={x:Static res:Strings.NoMonitorSelected}}" />
                 </TextBlock>
 
                 <!-- 壁紙フォルダ（1 枚表示 / 4 分割 / 16 分割をここで切り替え、同じ一覧でフォルダを編集する） -->
                 <Border Style="{StaticResource CardStyle}" IsEnabled="{Binding HasSelectedMonitor}">
                     <StackPanel>
-                        <TextBlock Text="壁紙フォルダ" Style="{StaticResource SectionTitleStyle}" />
+                        <TextBlock Text="{x:Static res:Strings.WallpaperFolders}" Style="{StaticResource SectionTitleStyle}" />
 
                         <!-- 表示レイアウトの切り替え（狭いウィンドウでは折り返す） -->
                         <WrapPanel Margin="0,0,0,6">
@@ -84,8 +85,8 @@
                                     <Border Width="48" Height="27" Margin="0,0,10,0" CornerRadius="3"
                                             Background="{DynamicResource AccentFillColorDefaultBrush}" />
                                     <StackPanel VerticalAlignment="Center">
-                                        <TextBlock Text="1 枚表示" />
-                                        <TextBlock Text="画面全体に 1 枚" Style="{StaticResource CaptionTextStyle}" />
+                                        <TextBlock Text="{x:Static res:Strings.LayoutSingle}" />
+                                        <TextBlock Text="{x:Static res:Strings.LayoutSingleDescription}" Style="{StaticResource CaptionTextStyle}" />
                                     </StackPanel>
                                 </StackPanel>
                             </RadioButton>
@@ -99,8 +100,8 @@
                                         <Border Margin="1,1,0,0" CornerRadius="0,0,2,0" Background="{DynamicResource AccentFillColorDefaultBrush}" />
                                     </UniformGrid>
                                     <StackPanel VerticalAlignment="Center">
-                                        <TextBlock Text="4 分割表示" />
-                                        <TextBlock Text="2 × 2 で 4 枚を同時に表示" Style="{StaticResource CaptionTextStyle}" />
+                                        <TextBlock Text="{x:Static res:Strings.LayoutGrid2x2}" />
+                                        <TextBlock Text="{x:Static res:Strings.LayoutGrid2x2Description}" Style="{StaticResource CaptionTextStyle}" />
                                     </StackPanel>
                                 </StackPanel>
                             </RadioButton>
@@ -126,8 +127,8 @@
                                         <Border Margin="0.5" Background="{DynamicResource AccentFillColorDefaultBrush}" />
                                     </UniformGrid>
                                     <StackPanel VerticalAlignment="Center">
-                                        <TextBlock Text="16 分割表示" />
-                                        <TextBlock Text="4 × 4 で 16 枚を同時に表示" Style="{StaticResource CaptionTextStyle}" />
+                                        <TextBlock Text="{x:Static res:Strings.LayoutGrid4x4}" />
+                                        <TextBlock Text="{x:Static res:Strings.LayoutGrid4x4Description}" Style="{StaticResource CaptionTextStyle}" />
                                     </StackPanel>
                                 </StackPanel>
                             </RadioButton>
@@ -148,8 +149,8 @@
                                                 Background="{DynamicResource AccentFillColorDefaultBrush}" />
                                     </Grid>
                                     <StackPanel VerticalAlignment="Center">
-                                        <TextBlock Text="スパン" />
-                                        <TextBlock Text="複数のモニターにまたがって 1 枚を表示" Style="{StaticResource CaptionTextStyle}" />
+                                        <TextBlock Text="{x:Static res:Strings.LayoutSpan}" />
+                                        <TextBlock Text="{x:Static res:Strings.LayoutSpanDescription}" Style="{StaticResource CaptionTextStyle}" />
                                     </StackPanel>
                                 </StackPanel>
                             </RadioButton>
@@ -166,7 +167,7 @@
                             <!-- 分割表示: 編集するマス（16 分割では区画）の選択 -->
                             <ListBox Grid.Column="0" Margin="0,0,16,0"
                                      ItemsSource="{Binding Tiles}" SelectedItem="{Binding SelectedTile}"
-                                     Width="232" Height="136" Padding="0" BorderThickness="0" Background="Transparent"
+                                     Width="264" Height="136" Padding="0" BorderThickness="0" Background="Transparent"
                                      VerticalAlignment="Top"
                                      ScrollViewer.HorizontalScrollBarVisibility="Disabled"
                                      ScrollViewer.VerticalScrollBarVisibility="Disabled"
@@ -186,10 +187,12 @@
                                 </ListBox.ItemContainerStyle>
                                 <ListBox.ItemTemplate>
                                     <DataTemplate DataType="{x:Type vm:TileItemViewModel}">
-                                        <Border CornerRadius="4" BorderThickness="1" Padding="8,6"
+                                        <!-- 英語の位置の名前（Bottom right など）も収まるよう、一覧の幅を広めにし、左右の余白は狭くする -->
+                                        <Border CornerRadius="4" BorderThickness="1" Padding="4,6"
                                                 BorderBrush="{DynamicResource CardStrokeColorDefaultBrush}">
                                             <StackPanel VerticalAlignment="Center">
-                                                <TextBlock Text="{Binding Position}" FontWeight="SemiBold" HorizontalAlignment="Center" />
+                                                <TextBlock Text="{Binding Position}" FontWeight="SemiBold" HorizontalAlignment="Center"
+                                                           TextTrimming="CharacterEllipsis" />
                                                 <TextBlock Text="{Binding Summary}" Style="{StaticResource CaptionTextStyle}"
                                                            TextWrapping="NoWrap" TextTrimming="CharacterEllipsis"
                                                            HorizontalAlignment="Center" ToolTip="{Binding Summary}" />
@@ -223,28 +226,28 @@
                         </Grid>
 
                         <DockPanel Margin="0,12,0,0" LastChildFill="False">
-                            <Button Content="追加" Tag="&#xE710;" Style="{StaticResource IconButtonStyle}"
+                            <Button Content="{x:Static res:Strings.Add}" Tag="&#xE710;" Style="{StaticResource IconButtonStyle}"
                                     Command="{Binding AddFolderCommand}" />
-                            <Button Content="削除" Tag="&#xE74D;" Style="{StaticResource IconButtonStyle}"
+                            <Button Content="{x:Static res:Strings.Remove}" Tag="&#xE74D;" Style="{StaticResource IconButtonStyle}"
                                     Command="{Binding RemoveFolderCommand}" />
-                            <CheckBox DockPanel.Dock="Right" Content="サブフォルダも検索する"
+                            <CheckBox DockPanel.Dock="Right" Content="{x:Static res:Strings.IncludeSubfolders}"
                                       IsChecked="{Binding IncludeSubfolders}" VerticalAlignment="Center" />
                         </DockPanel>
 
                         <!-- 分割表示の見た目（マスへの収め方・間隔・色） -->
                         <StackPanel Margin="0,14,0,0"
                                     Visibility="{Binding IsSplitLayout, Converter={StaticResource BooleanToVisibilityConverter}}">
-                            <TextBlock Text="マスへの収め方" Margin="0,0,0,6" />
+                            <TextBlock Text="{x:Static res:Strings.TileFit}" Margin="0,0,0,6" />
                             <RadioButton GroupName="TileFit" Margin="0,0,0,6" IsChecked="{Binding IsTileFill}">
                                 <StackPanel>
-                                    <TextBlock Text="マスを埋める" />
-                                    <TextBlock Text="マスいっぱいに拡大し、はみ出した部分は中央で切り抜きます" Style="{StaticResource CaptionTextStyle}" />
+                                    <TextBlock Text="{x:Static res:Strings.TileFitFill}" />
+                                    <TextBlock Text="{x:Static res:Strings.TileFitFillDescription}" Style="{StaticResource CaptionTextStyle}" />
                                 </StackPanel>
                             </RadioButton>
                             <RadioButton GroupName="TileFit" IsChecked="{Binding IsTileFitWhole}">
                                 <StackPanel>
-                                    <TextBlock Text="全体を表示" />
-                                    <TextBlock Text="写真の端が切れないよう画像全体をマスに収め、余白は「空きマス・余白の色」で塗ります" Style="{StaticResource CaptionTextStyle}" />
+                                    <TextBlock Text="{x:Static res:Strings.FitWhole}" />
+                                    <TextBlock Text="{x:Static res:Strings.TileFitFitDescription}" Style="{StaticResource CaptionTextStyle}" />
                                 </StackPanel>
                             </RadioButton>
 
@@ -268,7 +271,7 @@
                                     </DataTemplate>
                                 </Grid.Resources>
 
-                                <TextBlock Grid.Row="0" Grid.Column="0" Text="間隔" VerticalAlignment="Center" Margin="0,0,16,0" />
+                                <TextBlock Grid.Row="0" Grid.Column="0" Text="{x:Static res:Strings.TileGap}" VerticalAlignment="Center" Margin="0,0,16,0" />
                                 <StackPanel Grid.Row="0" Grid.Column="1" Orientation="Horizontal">
                                     <!-- 動かしている間に何度も合成し直さないよう、止めてから反映する -->
                                     <Slider Width="200" VerticalAlignment="Center" Minimum="0" Maximum="{x:Static vm:SettingsViewModel.MaxTileGap}"
@@ -277,12 +280,12 @@
                                     <TextBlock Text="{Binding TileGapText}" VerticalAlignment="Center" Margin="12,0,0,0" />
                                 </StackPanel>
 
-                                <TextBlock Grid.Row="1" Grid.Column="0" Text="間隔の色" VerticalAlignment="Center" Margin="0,10,16,0" />
+                                <TextBlock Grid.Row="1" Grid.Column="0" Text="{x:Static res:Strings.GapColor}" VerticalAlignment="Center" Margin="0,10,16,0" />
                                 <ComboBox Grid.Row="1" Grid.Column="1" Width="200" Margin="0,10,0,0" HorizontalAlignment="Left"
                                           ItemsSource="{Binding TileGapColors}" SelectedItem="{Binding SelectedTileGapColor}"
                                           ItemTemplate="{StaticResource TileColorTemplate}" />
 
-                                <TextBlock Grid.Row="2" Grid.Column="0" Text="空きマス・余白の色" VerticalAlignment="Center" Margin="0,10,16,0" />
+                                <TextBlock Grid.Row="2" Grid.Column="0" Text="{x:Static res:Strings.EmptyColor}" VerticalAlignment="Center" Margin="0,10,16,0" />
                                 <ComboBox Grid.Row="2" Grid.Column="1" Width="200" Margin="0,10,0,0" HorizontalAlignment="Left"
                                           ItemsSource="{Binding EmptyTileColors}" SelectedItem="{Binding SelectedEmptyTileColor}"
                                           ItemTemplate="{StaticResource TileColorTemplate}" />
@@ -292,28 +295,28 @@
                         <!-- スパンの収め方（スパンを選んだモニターで共通） -->
                         <StackPanel Margin="0,14,0,0"
                                     Visibility="{Binding IsSpanLayout, Converter={StaticResource BooleanToVisibilityConverter}}">
-                            <TextBlock Text="収め方（スパンで共通）" Margin="0,0,0,6" />
+                            <TextBlock Text="{x:Static res:Strings.SpanFit}" Margin="0,0,0,6" />
                             <RadioButton GroupName="SpanFit" Margin="0,0,0,6" IsChecked="{Binding IsSpanFill}">
                                 <StackPanel>
-                                    <TextBlock Text="モニター全体を埋める" />
-                                    <TextBlock Text="スパンを選んだモニター全体を覆うように拡大し、はみ出した部分は中央で切り抜きます" Style="{StaticResource CaptionTextStyle}" />
+                                    <TextBlock Text="{x:Static res:Strings.SpanFitFill}" />
+                                    <TextBlock Text="{x:Static res:Strings.SpanFitFillDescription}" Style="{StaticResource CaptionTextStyle}" />
                                 </StackPanel>
                             </RadioButton>
                             <RadioButton GroupName="SpanFit" IsChecked="{Binding IsSpanFitWhole}">
                                 <StackPanel>
-                                    <TextBlock Text="全体を表示" />
-                                    <TextBlock Text="画像全体がスパンを選んだモニター全体に収まるように拡大縮小し、余白は黒で表示します" Style="{StaticResource CaptionTextStyle}" />
+                                    <TextBlock Text="{x:Static res:Strings.FitWhole}" />
+                                    <TextBlock Text="{x:Static res:Strings.SpanFitFitDescription}" Style="{StaticResource CaptionTextStyle}" />
                                 </StackPanel>
                             </RadioButton>
                             <TextBlock Style="{StaticResource CaptionTextStyle}" Margin="0,10,0,0"
-                                       Text="モニターの配置（Windows の「ディスプレイ」設定の位置）に合わせて切り分けます。モニターの縁の幅は考慮しません。" />
+                                       Text="{x:Static res:Strings.SpanNote}" />
                         </StackPanel>
 
                         <!-- 1 枚表示の表示方法（Windows の「調整方法」は全モニター共通のため、モニターごとに選べるようにする） -->
                         <StackPanel Margin="0,14,0,0"
                                     Visibility="{Binding IsSingleImageLayout, Converter={StaticResource BooleanToVisibilityConverter}}">
                             <StackPanel Orientation="Horizontal">
-                                <TextBlock Text="表示方法" VerticalAlignment="Center" Margin="0,0,12,0" />
+                                <TextBlock Text="{x:Static res:Strings.SingleImageFit}" VerticalAlignment="Center" Margin="0,0,12,0" />
                                 <ComboBox Width="240" VerticalAlignment="Center"
                                           ItemsSource="{Binding SingleImageFits}" DisplayMemberPath="DisplayName"
                                           SelectedItem="{Binding SelectedSingleImageFit}" />
@@ -327,13 +330,13 @@
                 <!-- プレビュー -->
                 <Border Style="{StaticResource CardStyle}" IsEnabled="{Binding HasSelectedMonitor}">
                     <StackPanel>
-                        <TextBlock Text="プレビュー（現在の壁紙）" Style="{StaticResource SectionTitleStyle}" />
+                        <TextBlock Text="{x:Static res:Strings.PreviewTitle}" Style="{StaticResource SectionTitleStyle}" />
                         <Border Height="220" CornerRadius="6" ClipToBounds="True"
                                 Background="{DynamicResource SubtleFillColorSecondaryBrush}">
                             <Grid>
                                 <Image Source="{Binding PreviewImage}" Stretch="Uniform"
                                        RenderOptions.BitmapScalingMode="HighQuality" />
-                                <TextBlock Text="プレビューを表示できません" Style="{StaticResource CaptionTextStyle}"
+                                <TextBlock Text="{x:Static res:Strings.PreviewUnavailable}" Style="{StaticResource CaptionTextStyle}"
                                            HorizontalAlignment="Center" VerticalAlignment="Center" Visibility="{Binding PreviewImage, Converter={StaticResource NullToVisibleConverter}}" />
                             </Grid>
                         </Border>
@@ -341,9 +344,9 @@
                                    TextTrimming="CharacterEllipsis" TextWrapping="NoWrap" Margin="0,8,0,0"
                                    ToolTip="{Binding CurrentWallpaperPath}" />
                         <StackPanel Orientation="Horizontal" Margin="0,12,0,0">
-                            <Button Content="前の壁紙" Tag="&#xE892;" Style="{StaticResource IconButtonStyle}"
+                            <Button Content="{x:Static res:Strings.PreviousWallpaper}" Tag="&#xE892;" Style="{StaticResource IconButtonStyle}"
                                     Command="{Binding PreviousSelectedMonitorCommand}" />
-                            <Button Content="次の壁紙" Tag="&#xE893;" Style="{StaticResource IconButtonStyle}"
+                            <Button Content="{x:Static res:Strings.NextWallpaper}" Tag="&#xE893;" Style="{StaticResource IconButtonStyle}"
                                     Command="{Binding ChangeSelectedMonitorNowCommand}" />
                         </StackPanel>
                     </StackPanel>
@@ -352,15 +355,15 @@
                 <!-- 切替設定（全モニター共通） -->
                 <Border Style="{StaticResource CardStyle}">
                     <StackPanel>
-                        <TextBlock Text="切替設定（全モニター共通）" Style="{StaticResource SectionTitleStyle}" />
+                        <TextBlock Text="{x:Static res:Strings.ScheduleTitle}" Style="{StaticResource SectionTitleStyle}" />
                         <StackPanel Orientation="Horizontal">
-                            <TextBlock Text="切り替え間隔" VerticalAlignment="Center" Margin="0,0,12,0" />
+                            <TextBlock Text="{x:Static res:Strings.Interval}" VerticalAlignment="Center" Margin="0,0,12,0" />
                             <TextBox Width="88" HorizontalContentAlignment="Right" VerticalAlignment="Center"
                                      Text="{Binding IntervalValue, UpdateSourceTrigger=PropertyChanged, Delay=600}" />
                             <ComboBox Width="100" Margin="8,0,0,0" VerticalAlignment="Center"
                                       ItemsSource="{Binding IntervalUnits}" DisplayMemberPath="DisplayName"
                                       SelectedItem="{Binding SelectedIntervalUnit}" />
-                            <TextBlock Text="（1 分～24 時間）" Style="{StaticResource CaptionTextStyle}"
+                            <TextBlock Text="{x:Static res:Strings.IntervalRange}" Style="{StaticResource CaptionTextStyle}"
                                        VerticalAlignment="Center" Margin="12,0,0,0" />
                         </StackPanel>
                         <TextBlock Text="{Binding IntervalError}" Margin="0,6,0,0" TextWrapping="Wrap"
@@ -369,15 +372,15 @@
                         <!-- 自動切り替えを見合わせる条件（手動の切り替えは止めない） -->
                         <CheckBox IsChecked="{Binding SkipWhenFullScreen}" Margin="0,14,0,0">
                             <StackPanel>
-                                <TextBlock Text="全画面表示のアプリの実行中は切り替えない" />
-                                <TextBlock Text="ゲームや動画の全画面表示、プレゼンテーションの間は待ち、終わってから切り替えます"
+                                <TextBlock Text="{x:Static res:Strings.SkipWhenFullScreen}" />
+                                <TextBlock Text="{x:Static res:Strings.SkipWhenFullScreenDescription}"
                                            Style="{StaticResource CaptionTextStyle}" TextWrapping="Wrap" />
                             </StackPanel>
                         </CheckBox>
                         <CheckBox IsChecked="{Binding SkipOnBattery}" Margin="0,8,0,0">
                             <StackPanel>
-                                <TextBlock Text="バッテリーで動作しているときは切り替えない" />
-                                <TextBlock Text="ノート PC などが電源につながっていない間は待ち、つないでから切り替えます"
+                                <TextBlock Text="{x:Static res:Strings.SkipOnBattery}" />
+                                <TextBlock Text="{x:Static res:Strings.SkipOnBatteryDescription}"
                                            Style="{StaticResource CaptionTextStyle}" TextWrapping="Wrap" />
                             </StackPanel>
                         </CheckBox>
@@ -396,8 +399,8 @@
                                     </Style>
                                 </Button.Style>
                             </Button>
-                            <Button Content="全壁紙を更新" Tag="&#xE72C;" Style="{StaticResource AccentIconButtonStyle}"
-                                    ToolTip="壁紙フォルダを読み込み直して、全モニターの壁紙を選び直します"
+                            <Button Content="{x:Static res:Strings.RefreshAllWallpapers}" Tag="&#xE72C;" Style="{StaticResource AccentIconButtonStyle}"
+                                    ToolTip="{x:Static res:Strings.RefreshAllWallpapersToolTip}"
                                     Command="{Binding RefreshAllWallpapersCommand}" />
                         </StackPanel>
                     </StackPanel>
@@ -406,20 +409,20 @@
                 <!-- ランダム設定 -->
                 <Border Style="{StaticResource CardStyle}" IsEnabled="{Binding HasSelectedMonitor}">
                     <StackPanel>
-                        <TextBlock Text="ランダム設定" Style="{StaticResource SectionTitleStyle}" />
-                        <TextBlock Text="スパンを選んだモニターで共通の設定です。" Style="{StaticResource CaptionTextStyle}" Margin="0,0,0,10"
+                        <TextBlock Text="{x:Static res:Strings.SelectionTitle}" Style="{StaticResource SectionTitleStyle}" />
+                        <TextBlock Text="{x:Static res:Strings.SelectionSpanNote}" Style="{StaticResource CaptionTextStyle}" Margin="0,0,0,10"
                                    Visibility="{Binding IsSpanLayout, Converter={StaticResource BooleanToVisibilityConverter}}" />
                         <RadioButton GroupName="SelectionMode" Margin="0,0,0,6"
                                      IsChecked="{Binding IsRandomSelection}">
                             <StackPanel>
-                                <TextBlock Text="ランダム" />
-                                <TextBlock Text="フォルダ内の画像から無作為に選びます" Style="{StaticResource CaptionTextStyle}" />
+                                <TextBlock Text="{x:Static res:Strings.SelectionRandom}" />
+                                <TextBlock Text="{x:Static res:Strings.SelectionRandomDescription}" Style="{StaticResource CaptionTextStyle}" />
                             </StackPanel>
                         </RadioButton>
                         <RadioButton GroupName="SelectionMode" IsChecked="{Binding IsSequentialSelection}">
                             <StackPanel>
-                                <TextBlock Text="順送り" />
-                                <TextBlock Text="ファイルパスの順に 1 枚ずつ切り替えます" Style="{StaticResource CaptionTextStyle}" />
+                                <TextBlock Text="{x:Static res:Strings.SelectionSequential}" />
+                                <TextBlock Text="{x:Static res:Strings.SelectionSequentialDescription}" Style="{StaticResource CaptionTextStyle}" />
                             </StackPanel>
                         </RadioButton>
                     </StackPanel>
@@ -428,17 +431,17 @@
                 <!-- ほかのモニターの設定をコピー（買い替えたモニターなど、自動で引き継げない場合に使う） -->
                 <Border Style="{StaticResource CardStyle}" IsEnabled="{Binding HasSelectedMonitor}">
                     <StackPanel>
-                        <TextBlock Text="ほかのモニターの設定をコピー" Style="{StaticResource SectionTitleStyle}" />
+                        <TextBlock Text="{x:Static res:Strings.CopySettingsTitle}" Style="{StaticResource SectionTitleStyle}" />
                         <TextBlock Style="{StaticResource CaptionTextStyle}" Margin="0,0,0,10"
-                                   Text="買い替えたモニターなどに、前のモニター（接続していないモニターを含む）の壁紙フォルダ・表示レイアウト・表示方法・選び方などをコピーします。同じ型番のモニターの接続先を変えた場合は、自動で引き継ぎます。" />
+                                   Text="{x:Static res:Strings.CopySettingsDescription}" />
                         <StackPanel Orientation="Horizontal">
                             <ComboBox Width="320" VerticalAlignment="Center"
                                       ItemsSource="{Binding CopySources}" DisplayMemberPath="Label"
                                       SelectedItem="{Binding SelectedCopySource}" />
-                            <Button Content="コピー" Tag="&#xE8C8;" Style="{StaticResource IconButtonStyle}" Margin="8,0,0,0"
+                            <Button Content="{x:Static res:Strings.Copy}" Tag="&#xE8C8;" Style="{StaticResource IconButtonStyle}" Margin="8,0,0,0"
                                     Command="{Binding CopySettingsCommand}" />
                         </StackPanel>
-                        <TextBlock Text="コピーできる設定がありません（壁紙フォルダを設定したモニターがありません）"
+                        <TextBlock Text="{x:Static res:Strings.NoCopySources}"
                                    Style="{StaticResource CaptionTextStyle}" Margin="0,6,0,0"
                                    Visibility="{Binding CopySources.Count, Converter={StaticResource ZeroToVisibleConverter}, FallbackValue=Visible}" />
                     </StackPanel>
@@ -447,9 +450,9 @@
                 <!-- 表示しない画像（アプリ全体の設定） -->
                 <Border Style="{StaticResource CardStyle}">
                     <StackPanel>
-                        <TextBlock Text="表示しない画像（全モニター共通）" Style="{StaticResource SectionTitleStyle}" />
+                        <TextBlock Text="{x:Static res:Strings.ExcludedImagesTitle}" Style="{StaticResource SectionTitleStyle}" />
                         <TextBlock Style="{StaticResource CaptionTextStyle}" Margin="0,0,0,10"
-                                   Text="トレイのメニューの「この画像を表示しない」で指定した画像です。壁紙フォルダにあっても表示しません。" />
+                                   Text="{x:Static res:Strings.ExcludedImagesDescription}" />
                         <Grid>
                             <ListBox ItemsSource="{Binding ExcludedImages}" SelectedItem="{Binding SelectedExcludedImage}"
                                      Height="112" ScrollViewer.HorizontalScrollBarVisibility="Disabled">
@@ -462,14 +465,14 @@
                                     </DataTemplate>
                                 </ListBox.ItemTemplate>
                             </ListBox>
-                            <TextBlock Text="表示しない画像はありません" Style="{StaticResource CaptionTextStyle}"
+                            <TextBlock Text="{x:Static res:Strings.NoExcludedImages}" Style="{StaticResource CaptionTextStyle}"
                                        HorizontalAlignment="Center" VerticalAlignment="Center" IsHitTestVisible="False"
                                        Visibility="{Binding ExcludedImages.Count, Converter={StaticResource ZeroToVisibleConverter}, FallbackValue=Visible}" />
                         </Grid>
                         <StackPanel Orientation="Horizontal" Margin="0,12,0,0">
-                            <Button Content="表示に戻す" Tag="&#xE7A7;" Style="{StaticResource IconButtonStyle}"
+                            <Button Content="{x:Static res:Strings.RestoreExcludedImage}" Tag="&#xE7A7;" Style="{StaticResource IconButtonStyle}"
                                     Command="{Binding RestoreExcludedImageCommand}" />
-                            <Button Content="場所を開く" Tag="&#xE838;" Style="{StaticResource IconButtonStyle}"
+                            <Button Content="{x:Static res:Strings.OpenLocation}" Tag="&#xE838;" Style="{StaticResource IconButtonStyle}"
                                     Command="{Binding ShowExcludedImageInFolderCommand}" />
                         </StackPanel>
                     </StackPanel>
@@ -478,21 +481,32 @@
                 <!-- 起動・ログ（アプリ全体の設定） -->
                 <Border Style="{StaticResource CardStyle}">
                     <StackPanel>
-                        <TextBlock Text="起動とログ" Style="{StaticResource SectionTitleStyle}" />
+                        <TextBlock Text="{x:Static res:Strings.StartupAndLogTitle}" Style="{StaticResource SectionTitleStyle}" />
                         <CheckBox IsChecked="{Binding StartWithWindows}">
                             <StackPanel>
-                                <TextBlock Text="Windows の起動時に自動的に開始する" />
-                                <TextBlock Text="サインインすると、タスクトレイに常駐して壁紙の自動切り替えを始めます"
+                                <TextBlock Text="{x:Static res:Strings.StartWithWindows}" />
+                                <TextBlock Text="{x:Static res:Strings.StartWithWindowsDescription}"
                                            Style="{StaticResource CaptionTextStyle}" />
                             </StackPanel>
                         </CheckBox>
+                        <!-- 表示言語（再起動後に反映）。今の言語が読めなくても見つけられるよう、見出しに両方の言語を書く -->
                         <DockPanel Margin="0,16,0,0" LastChildFill="True">
-                            <Button DockPanel.Dock="Right" Content="ログフォルダを開く" Tag="&#xE838;"
+                            <ComboBox DockPanel.Dock="Right" Width="160" Margin="12,0,0,0" VerticalAlignment="Center"
+                                      ItemsSource="{Binding Languages}" DisplayMemberPath="DisplayName"
+                                      SelectedItem="{Binding SelectedLanguage}" />
+                            <StackPanel VerticalAlignment="Center">
+                                <TextBlock Text="{x:Static res:Strings.DisplayLanguage}" />
+                                <TextBlock Text="{x:Static res:Strings.DisplayLanguageDescription}"
+                                           Style="{StaticResource CaptionTextStyle}" TextWrapping="Wrap" />
+                            </StackPanel>
+                        </DockPanel>
+                        <DockPanel Margin="0,16,0,0" LastChildFill="True">
+                            <Button DockPanel.Dock="Right" Content="{x:Static res:Strings.OpenLogFolder}" Tag="&#xE838;"
                                     Style="{StaticResource IconButtonStyle}" Margin="12,0,0,0" VerticalAlignment="Center"
                                     Command="{Binding OpenLogFolderCommand}" />
                             <StackPanel VerticalAlignment="Center">
-                                <TextBlock Text="ログ" />
-                                <TextBlock Text="{Binding LogDirectory, StringFormat=動作の記録を {0} に保存しています（14 日分）}"
+                                <TextBlock Text="{x:Static res:Strings.Log}" />
+                                <TextBlock Text="{Binding LogDirectory, StringFormat={x:Static res:Strings.LogDirectoryFormat}}"
                                            Style="{StaticResource CaptionTextStyle}" />
                             </StackPanel>
                         </DockPanel>

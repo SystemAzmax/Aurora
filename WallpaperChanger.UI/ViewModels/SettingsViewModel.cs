@@ -5,6 +5,7 @@ using CommunityToolkit.Mvvm.Input;
 using Microsoft.Extensions.Logging;
 using WallpaperChanger.Core.Interfaces;
 using WallpaperChanger.Core.Models;
+using WallpaperChanger.UI.Resources;
 using WallpaperChanger.UI.Services;
 
 namespace WallpaperChanger.UI.ViewModels;
@@ -73,6 +74,7 @@ public sealed partial class SettingsViewModel : ObservableObject, IDisposable
         IntervalValue = AppSettings.DefaultIntervalMinutes;
         IncludeSubfolders = true;
         SelectedSingleImageFit = SingleImageFitOption.Windows;
+        SelectedLanguage = LanguageOption.From(Localizer.CurrentLanguage);
         TileGap = TileStyle.DefaultGap;
         TileGapColors = TileColorOption.OptionsFor(TileStyle.DefaultGapColor);
         EmptyTileColors = TileColorOption.OptionsFor(TileStyle.DefaultEmptyColor);
@@ -179,10 +181,10 @@ public sealed partial class SettingsViewModel : ObservableObject, IDisposable
     /// <summary>壁紙フォルダ欄の説明。</summary>
     public string FolderCaption => Layout switch
     {
-        WallpaperLayout.Grid2x2 => "マスを選んでフォルダを設定します。どのマスも未設定なら 1 枚表示のフォルダから 4 枚を選び、1 つでも設定すると、未設定のマスは空きマス（画像を置かず「空きマス・余白の色」で塗る）になります。",
-        WallpaperLayout.Grid4x4 => "区画（4 マスずつ）を選んでフォルダを設定します。どの区画も未設定なら 1 枚表示のフォルダから 16 枚を選び、1 つでも設定すると、未設定の区画は空きマス（画像を置かず「空きマス・余白の色」で塗る）になります。4 分割のマスの設定と共通です。",
-        WallpaperLayout.Span => $"スパンを選んだモニター（接続中の {SpanMonitorCount} 台）をまとめて、1 枚の画像を各モニターの位置に合わせて分けて表示します。フォルダ・サブフォルダの検索・選び方・収め方は、スパンを選んだモニターで共通です。",
-        _ => "このモニターに表示する画像のフォルダ（JPG / JPEG / PNG / BMP / WEBP）",
+        WallpaperLayout.Grid2x2 => Strings.FolderCaptionGrid2x2,
+        WallpaperLayout.Grid4x4 => Strings.FolderCaptionGrid4x4,
+        WallpaperLayout.Span => Localizer.Format(Strings.FolderCaptionSpanFormat, SpanMonitorCount),
+        _ => Strings.FolderCaptionSingle,
     };
 
     /// <summary>表示レイアウトにスパンを選んでいる、接続中のモニターの数。</summary>
@@ -192,7 +194,10 @@ public sealed partial class SettingsViewModel : ObservableObject, IDisposable
     private bool AnyTileHasFolders => Tiles.Any(t => t.HasOwnFolders);
 
     /// <summary>画面の文言で使う、フォルダを設定する単位の呼び方。</summary>
-    private string TileUnit => Layout == WallpaperLayout.Grid4x4 ? "区画" : "マス";
+    private string TileUnit => Layout == WallpaperLayout.Grid4x4 ? Strings.TileUnitSection : Strings.TileUnitTile;
+
+    /// <summary>画面の文言で使う、マス（区画）の呼び方（例: 「左上のマス」）。</summary>
+    private string DescribeTile(TileItemViewModel tile) => Localizer.Format(Strings.TileTargetFormat, tile.Position, TileUnit);
 
     /// <summary>分割表示で編集中のマス（区画）。</summary>
     [ObservableProperty]
@@ -207,13 +212,13 @@ public sealed partial class SettingsViewModel : ObservableObject, IDisposable
     public ObservableCollection<string>? EditingFolders => IsSplitLayout ? SelectedTile?.Folders : IsSpanLayout ? SpanFolders : Folders;
 
     /// <summary>分割表示で編集対象のマス（区画）を示す見出し。</summary>
-    public string? EditingTargetText => IsSplitLayout && SelectedTile is { } tile ? $"{tile.Position} の{TileUnit}のフォルダ" : null;
+    public string? EditingTargetText => IsSplitLayout && SelectedTile is { } tile ? Localizer.Format(Strings.EditingTargetFormat, tile.Position, TileUnit) : null;
 
     public string EmptyFoldersMessage => (IsSplitLayout, AnyTileHasFolders) switch
     {
-        (true, true) => $"未設定（この{TileUnit}は空きマスとして表示）",
-        (true, false) => "未設定（1 枚表示のフォルダから選ぶ）",
-        _ => "フォルダが登録されていません。「追加」から登録してください。",
+        (true, true) => Localizer.Format(Strings.EmptyFoldersBlankFormat, TileUnit),
+        (true, false) => Strings.EmptyFoldersUseSingle,
+        _ => Strings.EmptyFolders,
     };
 
     public bool IsSingleImageLayout
@@ -385,15 +390,15 @@ public sealed partial class SettingsViewModel : ObservableObject, IDisposable
     [NotifyPropertyChangedFor(nameof(ScheduleStatusText))]
     public partial bool IsPaused { get; set; }
 
-    public string PauseButtonText => IsPaused ? "再開" : "一時停止";
+    public string PauseButtonText => IsPaused ? Strings.Resume : Strings.Pause;
 
     public string ScheduleStatusText => IsPaused
-        ? "自動切り替えは一時停止中です"
+        ? Strings.SchedulePaused
         : _scheduler.Hold switch
         {
-            AutoChangeHold.FullScreen => "全画面表示のアプリの実行中のため、自動切り替えを待っています（終わったら切り替えます）",
-            AutoChangeHold.OnBattery => "バッテリーで動作中のため、自動切り替えを待っています（電源につなぐと切り替えます）",
-            _ => $"{IntervalUnitOption.Format(_scheduler.Interval)}ごとに自動で切り替えます",
+            AutoChangeHold.FullScreen => Strings.ScheduleHeldFullScreen,
+            AutoChangeHold.OnBattery => Strings.ScheduleHeldOnBattery,
+            _ => Localizer.Format(Strings.ScheduleIntervalFormat, IntervalUnitOption.Format(_scheduler.Interval)),
         };
 
     /// <summary>全画面表示のアプリやプレゼンテーションの実行中は、自動で切り替えないか。</summary>
@@ -409,6 +414,15 @@ public sealed partial class SettingsViewModel : ObservableObject, IDisposable
     /// <summary>Windows へのサインイン時に自動起動するか（レジストリの登録状態を表示・変更する）。</summary>
     [ObservableProperty]
     public partial bool StartWithWindows { get; set; }
+
+    // ---- 表示言語 ----
+
+    /// <summary>表示言語の選択肢。</summary>
+    public IReadOnlyList<LanguageOption> Languages { get; } = LanguageOption.All;
+
+    /// <summary>設定の表示言語。変更はアプリの再起動後に反映する。</summary>
+    [ObservableProperty]
+    public partial LanguageOption SelectedLanguage { get; set; }
 
     // ---- 表示しない画像 ----
 
@@ -470,24 +484,24 @@ public sealed partial class SettingsViewModel : ObservableObject, IDisposable
     // ---- コマンド ----
 
     [RelayCommand]
-    private Task InitializeAsync() => ExecuteSafelyAsync("設定の読み込み", async () =>
+    private Task InitializeAsync() => ExecuteSafelyAsync(Strings.OperationLoadSettings, async () =>
     {
         LoadGlobalSettings();
         await LoadMonitorsAsync();
     });
 
     [RelayCommand]
-    private Task RefreshMonitorsAsync() => ExecuteSafelyAsync("モニターの再検出", async () =>
+    private Task RefreshMonitorsAsync() => ExecuteSafelyAsync(Strings.OperationDetectMonitors, async () =>
     {
         await LoadMonitorsAsync();
-        ShowInfo($"{Monitors.Count} 台のモニターを検出しました。");
+        ShowInfo(Localizer.Format(Strings.MonitorsDetectedFormat, Monitors.Count));
     });
 
     /// <summary>ログファイルの保存先（画面に表示する）。</summary>
     public string LogDirectory => _logDirectory.LogDirectory;
 
     [RelayCommand]
-    private Task OpenLogFolderAsync() => ExecuteSafelyAsync("ログフォルダを開く処理", () =>
+    private Task OpenLogFolderAsync() => ExecuteSafelyAsync(Strings.OperationOpenLogFolder, () =>
     {
         _folderLauncher.OpenFolder(_logDirectory.LogDirectory);
         return Task.CompletedTask;
@@ -495,7 +509,7 @@ public sealed partial class SettingsViewModel : ObservableObject, IDisposable
 
     /// <summary>選択中の画像を表示しない画像から外し、再び壁紙の候補にする。</summary>
     [RelayCommand(CanExecute = nameof(HasSelectedExcludedImage))]
-    private Task RestoreExcludedImageAsync() => ExecuteSafelyAsync("表示しない画像の解除", async () =>
+    private Task RestoreExcludedImageAsync() => ExecuteSafelyAsync(Strings.OperationRestoreExcludedImage, async () =>
     {
         if (SelectedExcludedImage is not { } image)
         {
@@ -503,11 +517,11 @@ public sealed partial class SettingsViewModel : ObservableObject, IDisposable
         }
 
         await _settingsService.UpdateAsync(s => s.RemoveExcludedImage(image));
-        ShowInfo($"{System.IO.Path.GetFileName(image)} を再び表示するようにしました。");
+        ShowInfo(Localizer.Format(Strings.ImageRestoredFormat, System.IO.Path.GetFileName(image)));
     });
 
     [RelayCommand(CanExecute = nameof(HasSelectedExcludedImage))]
-    private Task ShowExcludedImageInFolderAsync() => ExecuteSafelyAsync("画像の場所を開く処理", () =>
+    private Task ShowExcludedImageInFolderAsync() => ExecuteSafelyAsync(Strings.OperationShowImageInFolder, () =>
     {
         if (SelectedExcludedImage is { } image)
         {
@@ -521,7 +535,7 @@ public sealed partial class SettingsViewModel : ObservableObject, IDisposable
 
     /// <summary>各モニターの画面に、一覧と同じ番号を一定時間表示する。</summary>
     [RelayCommand(AllowConcurrentExecutions = true)]
-    private Task IdentifyMonitorsAsync() => ExecuteSafelyAsync("モニターの識別", async () =>
+    private Task IdentifyMonitorsAsync() => ExecuteSafelyAsync(Strings.OperationIdentifyMonitors, async () =>
     {
         MonitorIdentification[] monitors =
         [
@@ -541,7 +555,7 @@ public sealed partial class SettingsViewModel : ObservableObject, IDisposable
     /// スパンではスパンのフォルダが対象。
     /// </summary>
     [RelayCommand(CanExecute = nameof(HasSelectedMonitor))]
-    private Task AddFolderAsync() => ExecuteSafelyAsync("フォルダの追加", async () =>
+    private Task AddFolderAsync() => ExecuteSafelyAsync(Strings.OperationAddFolder, async () =>
     {
         if (SelectedMonitor is not { } monitor)
         {
@@ -550,7 +564,7 @@ public sealed partial class SettingsViewModel : ObservableObject, IDisposable
 
         if (IsSpanLayout)
         {
-            IReadOnlyList<string> spanFolders = _folderPicker.PickFolders("スパンで表示するフォルダを選択");
+            IReadOnlyList<string> spanFolders = _folderPicker.PickFolders(Strings.PickSpanFolders);
             if (spanFolders.Count == 0)
             {
                 return;
@@ -558,7 +572,7 @@ public sealed partial class SettingsViewModel : ObservableObject, IDisposable
 
             bool wasSpanEmpty = SpanFolders.Count == 0;
             await UpdateSpanSettingsAsync(s => spanFolders.Aggregate(s, (current, folder) => current.AddFolder(folder)));
-            string addedSpan = $"スパンのフォルダを {spanFolders.Count} 件追加しました。";
+            string addedSpan = Localizer.Format(Strings.SpanFoldersAddedFormat, spanFolders.Count);
             ShowInfo(addedSpan);
 
             // 初めてフォルダを登録したときは、次の定期実行を待たずに壁紙を反映する
@@ -577,14 +591,14 @@ public sealed partial class SettingsViewModel : ObservableObject, IDisposable
                 return;
             }
 
-            IReadOnlyList<string> tileFolders = _folderPicker.PickFolders($"{tile.Position}の{TileUnit}に表示するフォルダを選択");
+            IReadOnlyList<string> tileFolders = _folderPicker.PickFolders(Localizer.Format(Strings.PickTileFoldersFormat, DescribeTile(tile)));
             if (tileFolders.Count == 0)
             {
                 return;
             }
 
             await UpdateMonitorSettingsAsync(monitor, m => tileFolders.Aggregate(m, (current, folder) => current.AddTileFolder(tile.Index, folder)));
-            string added = $"{tile.Position}の{TileUnit}に {tileFolders.Count} 件のフォルダを追加しました。";
+            string added = Localizer.Format(Strings.TileFoldersAddedFormat, DescribeTile(tile), tileFolders.Count);
             ShowInfo(added);
 
             // 設定したフォルダの画像をすぐに確認できるよう表示し直す
@@ -592,7 +606,7 @@ public sealed partial class SettingsViewModel : ObservableObject, IDisposable
             return;
         }
 
-        IReadOnlyList<string> folders = _folderPicker.PickFolders("壁紙フォルダを選択");
+        IReadOnlyList<string> folders = _folderPicker.PickFolders(Strings.PickWallpaperFolders);
         if (folders.Count == 0)
         {
             return;
@@ -600,7 +614,7 @@ public sealed partial class SettingsViewModel : ObservableObject, IDisposable
 
         bool wasEmpty = Folders.Count == 0;
         await UpdateMonitorSettingsAsync(monitor, m => folders.Aggregate(m, (current, folder) => current.AddFolder(folder)));
-        string addedFolders = $"{folders.Count} 件のフォルダを追加しました。";
+        string addedFolders = Localizer.Format(Strings.FoldersAddedFormat, folders.Count);
         ShowInfo(addedFolders);
 
         // 初めてフォルダを登録したモニターは、次の定期実行を待たずに壁紙を反映する
@@ -615,7 +629,7 @@ public sealed partial class SettingsViewModel : ObservableObject, IDisposable
     /// スパンではスパンのフォルダが対象。
     /// </summary>
     [RelayCommand(CanExecute = nameof(CanRemoveFolder))]
-    private Task RemoveFolderAsync() => ExecuteSafelyAsync("フォルダの削除", async () =>
+    private Task RemoveFolderAsync() => ExecuteSafelyAsync(Strings.OperationRemoveFolder, async () =>
     {
         if (SelectedMonitor is not { } monitor || SelectedFolder is not { } folder)
         {
@@ -625,7 +639,7 @@ public sealed partial class SettingsViewModel : ObservableObject, IDisposable
         if (IsSpanLayout)
         {
             await UpdateSpanSettingsAsync(s => s.RemoveFolder(folder));
-            ShowInfo("スパンのフォルダを削除しました。");
+            ShowInfo(Strings.SpanFolderRemoved);
             return;
         }
 
@@ -639,9 +653,9 @@ public sealed partial class SettingsViewModel : ObservableObject, IDisposable
             await UpdateMonitorSettingsAsync(monitor, m => m.RemoveTileFolder(tile.Index, folder));
             string removed = (tile.HasOwnFolders, AnyTileHasFolders) switch
             {
-                (true, _) => $"{tile.Position}の{TileUnit}からフォルダを削除しました。",
-                (false, true) => $"{tile.Position}の{TileUnit}は未設定になり、空きマスとして表示します。",
-                _ => $"すべての{TileUnit}が未設定になったため、1 枚表示のフォルダから {Layout.GetTileCount()} 枚を選びます。",
+                (true, _) => Localizer.Format(Strings.TileFolderRemovedFormat, DescribeTile(tile)),
+                (false, true) => Localizer.Format(Strings.TileBecameBlankFormat, DescribeTile(tile)),
+                _ => Localizer.Format(Strings.AllTilesUnsetFormat, TileUnit, Layout.GetTileCount()),
             };
             ShowInfo(removed);
 
@@ -655,26 +669,26 @@ public sealed partial class SettingsViewModel : ObservableObject, IDisposable
         }
 
         await UpdateMonitorSettingsAsync(monitor, m => m.RemoveFolder(folder));
-        ShowInfo("フォルダを削除しました。");
+        ShowInfo(Strings.FolderRemoved);
     });
 
     private bool CanRemoveFolder() => SelectedMonitor is not null && SelectedFolder is not null;
 
     [RelayCommand(CanExecute = nameof(CanChangeSelectedMonitor))]
-    private Task ChangeSelectedMonitorNowAsync() => ExecuteSafelyAsync("壁紙の変更", async () =>
+    private Task ChangeSelectedMonitorNowAsync() => ExecuteSafelyAsync(Strings.OperationChangeWallpaper, async () =>
     {
         if (SelectedMonitor is { } monitor && !ReportProblems(await _rotationService.NextAsync(monitor.Id)))
         {
-            ShowInfo($"{DescribeTarget(monitor)} の壁紙を変更しました。");
+            ShowInfo(Localizer.Format(Strings.WallpaperChangedForFormat, DescribeTarget(monitor)));
         }
     });
 
     [RelayCommand(CanExecute = nameof(CanChangeSelectedMonitor))]
-    private Task PreviousSelectedMonitorAsync() => ExecuteSafelyAsync("前の壁紙への切り替え", async () =>
+    private Task PreviousSelectedMonitorAsync() => ExecuteSafelyAsync(Strings.OperationPreviousWallpaper, async () =>
     {
         if (SelectedMonitor is { } monitor && !ReportProblems(await _rotationService.PreviousAsync(monitor.Id)))
         {
-            ShowInfo($"{DescribeTarget(monitor)} の壁紙を前の壁紙に戻しました。");
+            ShowInfo(Localizer.Format(Strings.WallpaperRevertedForFormat, DescribeTarget(monitor)));
         }
     });
 
@@ -682,7 +696,7 @@ public sealed partial class SettingsViewModel : ObservableObject, IDisposable
 
     /// <summary>コピー元のモニターの設定（フォルダ・表示レイアウト・選び方など）を、選択中のモニターにコピーして表示し直す。</summary>
     [RelayCommand(CanExecute = nameof(CanCopySettings))]
-    private Task CopySettingsAsync() => ExecuteSafelyAsync("設定のコピー", async () =>
+    private Task CopySettingsAsync() => ExecuteSafelyAsync(Strings.OperationCopySettings, async () =>
     {
         if (SelectedMonitor is not { } monitor || SelectedCopySource is not { } source)
         {
@@ -692,7 +706,7 @@ public sealed partial class SettingsViewModel : ObservableObject, IDisposable
         WallpaperLayout oldLayout = _settingsService.Current.GetMonitor(monitor.Id).Layout;
         MonitorSettings from = _settingsService.Current.GetMonitor(source.MonitorId);
         await UpdateMonitorSettingsAsync(monitor, m => m.WithSettingsFrom(from));
-        string copied = $"{source.Name} の設定を {monitor.DisplayName} にコピーしました。";
+        string copied = Localizer.Format(Strings.SettingsCopiedFormat, source.Name, monitor.DisplayName);
         ShowInfo(copied);
 
         // コピーした設定の画像を、次の定期実行を待たずに表示する
@@ -708,17 +722,17 @@ public sealed partial class SettingsViewModel : ObservableObject, IDisposable
     /// 変更を監視できないネットワーク共有のフォルダでも、追加した画像をすぐに候補に入れられるようにする。
     /// </summary>
     [RelayCommand(CanExecute = nameof(CanChangeWallpaper))]
-    private Task RefreshAllWallpapersAsync() => ExecuteSafelyAsync("全壁紙の更新", async () =>
+    private Task RefreshAllWallpapersAsync() => ExecuteSafelyAsync(Strings.OperationRefreshAllWallpapers, async () =>
     {
         WallpaperChangeResult result = await _scheduler.RefreshNowAsync();
         if (!ReportProblems(result))
         {
-            ShowInfo("壁紙フォルダを読み込み直して、全モニターの壁紙を更新しました。");
+            ShowInfo(Strings.AllWallpapersRefreshed);
         }
     });
 
     [RelayCommand]
-    private Task TogglePauseAsync() => ExecuteSafelyAsync("一時停止状態の変更", async () =>
+    private Task TogglePauseAsync() => ExecuteSafelyAsync(Strings.OperationTogglePause, async () =>
     {
         if (IsPaused)
         {
@@ -739,14 +753,14 @@ public sealed partial class SettingsViewModel : ObservableObject, IDisposable
     {
         LoadMonitorSettings(value);
         RemoveFolderCommand.NotifyCanExecuteChanged();
-        _ = ExecuteSafelyAsync("プレビューの更新", RefreshPreviewAsync);
+        _ = ExecuteSafelyAsync(Strings.OperationRefreshPreview, RefreshPreviewAsync);
     }
 
     partial void OnIncludeSubfoldersChanged(bool value)
     {
         if (!_isLoading && SelectedMonitor is { } monitor)
         {
-            _ = ExecuteSafelyAsync("サブフォルダ設定の保存", () => IsSpanMonitor(monitor.Id)
+            _ = ExecuteSafelyAsync(Strings.OperationSaveIncludeSubfolders, () => IsSpanMonitor(monitor.Id)
                 ? UpdateSpanSettingsAsync(s => s with { IncludeSubfolders = value })
                 : UpdateMonitorSettingsAsync(monitor, m => m with { IncludeSubfolders = value }));
         }
@@ -756,7 +770,7 @@ public sealed partial class SettingsViewModel : ObservableObject, IDisposable
     {
         if (!_isLoading && SelectedMonitor is { } monitor)
         {
-            _ = ExecuteSafelyAsync("選択方法の保存", () => IsSpanMonitor(monitor.Id)
+            _ = ExecuteSafelyAsync(Strings.OperationSaveSelectionMode, () => IsSpanMonitor(monitor.Id)
                 ? UpdateSpanSettingsAsync(s => s with { SelectionMode = value })
                 : UpdateMonitorSettingsAsync(monitor, m => m with { SelectionMode = value }));
         }
@@ -772,15 +786,15 @@ public sealed partial class SettingsViewModel : ObservableObject, IDisposable
             return;
         }
 
-        _ = ExecuteSafelyAsync("表示レイアウトの変更", async () =>
+        _ = ExecuteSafelyAsync(Strings.OperationChangeLayout, async () =>
         {
             await UpdateMonitorSettingsAsync(monitor, m => m with { Layout = newValue });
             string switched = newValue switch
             {
-                WallpaperLayout.Grid2x2 => "4 分割表示に切り替えました。",
-                WallpaperLayout.Grid4x4 => "16 分割表示に切り替えました。",
-                WallpaperLayout.Span => $"スパン（複数モニターにまたがる 1 枚表示）に切り替えました。スパンを選んだモニターは {SpanMonitorCount} 台です。",
-                _ => "1 枚表示に切り替えました。",
+                WallpaperLayout.Grid2x2 => Strings.LayoutChangedGrid2x2,
+                WallpaperLayout.Grid4x4 => Strings.LayoutChangedGrid4x4,
+                WallpaperLayout.Span => Localizer.Format(Strings.LayoutChangedSpanFormat, SpanMonitorCount),
+                _ => Strings.LayoutChangedSingle,
             };
             ShowInfo(switched);
 
@@ -822,27 +836,27 @@ public sealed partial class SettingsViewModel : ObservableObject, IDisposable
         if (value is not null)
         {
             ChangeAppearance(
-                "表示方法の変更", m => m with { SingleImageFit = value.Fit },
-                $"1 枚表示の表示方法を「{value.DisplayName}」に変更しました。", l => l == WallpaperLayout.SingleImage);
+                Strings.OperationChangeSingleImageFit, m => m with { SingleImageFit = value.Fit },
+                Localizer.Format(Strings.SingleImageFitChangedFormat, value.DisplayName), l => l == WallpaperLayout.SingleImage);
         }
     }
 
     partial void OnTileFitChanged(ImageFit value) => ChangeAppearance(
-        "マスへの収め方の変更", m => m with { TileStyle = m.TileStyle with { Fit = value } },
-        value == ImageFit.Fit ? "マスに画像全体を表示するようにしました。" : "マスを埋めるように表示するようにしました。",
+        Strings.OperationChangeTileFit, m => m with { TileStyle = m.TileStyle with { Fit = value } },
+        value == ImageFit.Fit ? Strings.TileFitChangedFit : Strings.TileFitChangedFill,
         l => l.IsSplit());
 
     partial void OnTileGapChanged(int value) => ChangeAppearance(
-        "マスの間隔の変更", m => m with { TileStyle = m.TileStyle with { Gap = Math.Clamp(value, 0, TileStyle.MaxGap) } },
-        $"マスの間隔を {value} px に変更しました。", l => l.IsSplit());
+        Strings.OperationChangeTileGap, m => m with { TileStyle = m.TileStyle with { Gap = Math.Clamp(value, 0, TileStyle.MaxGap) } },
+        Localizer.Format(Strings.TileGapChangedFormat, value), l => l.IsSplit());
 
     partial void OnSelectedTileGapColorChanged(TileColorOption? value)
     {
         if (value is not null)
         {
             ChangeAppearance(
-                "間隔の色の変更", m => m with { TileStyle = m.TileStyle with { GapColor = value.Rgb } },
-                $"マスの間隔の色を「{value.DisplayName}」に変更しました。", l => l.IsSplit());
+                Strings.OperationChangeGapColor, m => m with { TileStyle = m.TileStyle with { GapColor = value.Rgb } },
+                Localizer.Format(Strings.GapColorChangedFormat, value.DisplayName), l => l.IsSplit());
         }
     }
 
@@ -851,8 +865,8 @@ public sealed partial class SettingsViewModel : ObservableObject, IDisposable
         if (value is not null)
         {
             ChangeAppearance(
-                "空きマス・余白の色の変更", m => m with { TileStyle = m.TileStyle with { EmptyColor = value.Rgb } },
-                $"空きマス・余白の色を「{value.DisplayName}」に変更しました。", l => l.IsSplit());
+                Strings.OperationChangeEmptyColor, m => m with { TileStyle = m.TileStyle with { EmptyColor = value.Rgb } },
+                Localizer.Format(Strings.EmptyColorChangedFormat, value.DisplayName), l => l.IsSplit());
         }
     }
 
@@ -863,12 +877,12 @@ public sealed partial class SettingsViewModel : ObservableObject, IDisposable
             return;
         }
 
-        _ = ExecuteSafelyAsync("スパンの収め方の変更", async () =>
+        _ = ExecuteSafelyAsync(Strings.OperationChangeSpanFit, async () =>
         {
             await UpdateSpanSettingsAsync(s => s with { Fit = value });
             string changed = value == ImageFit.Fit
-                ? "スパンで画像全体を表示するようにしました。"
-                : "スパンでモニター全体を埋めるように表示するようにしました。";
+                ? Strings.SpanFitChangedFit
+                : Strings.SpanFitChangedFill;
             ShowInfo(changed);
 
             // 今の画像のまま、新しい収め方で作り直す
@@ -917,32 +931,51 @@ public sealed partial class SettingsViewModel : ObservableObject, IDisposable
             if (value)
             {
                 _startupRegistration.Enable();
-                ShowInfo("Windows の起動時に自動的に開始するようにしました。");
+                ShowInfo(Strings.StartupEnabled);
             }
             else
             {
                 _startupRegistration.Disable();
-                ShowInfo("Windows の起動時に自動的に開始しないようにしました。");
+                ShowInfo(Strings.StartupDisabled);
             }
         }
         catch (Exception ex) when (ex is UnauthorizedAccessException or System.Security.SecurityException or System.IO.IOException
                                        or InvalidOperationException)
         {
-            LogOperationFailed(ex, "自動起動の設定");
-            ShowError($"自動起動の設定に失敗しました。{ErrorMessages.Describe(ex)}");
+            LogOperationFailed(ex, Strings.OperationStartupRegistration);
+            ShowError(Localizer.Format(Strings.StartupRegistrationFailedFormat, ErrorMessages.Describe(ex)));
 
             // チェックの表示を実際の登録状態に戻す
             LoadStartupState();
         }
     }
 
+    partial void OnSelectedLanguageChanged(LanguageOption value)
+    {
+        if (_isLoading || value is null)
+        {
+            return;
+        }
+
+        _ = ExecuteSafelyAsync(Strings.OperationSaveLanguage, async () =>
+        {
+            await _settingsService.UpdateAsync(s => s with { Language = value.Language });
+
+            // 選んだ言語が読める人に伝わるよう、変更した先の言語で案内する
+            string format = value.Language == Localizer.CurrentLanguage
+                ? Localizer.Get(nameof(Strings.LanguageChangedBackFormat), value.Language)
+                : Localizer.Get(nameof(Strings.LanguageChangedRestartFormat), value.Language);
+            ShowInfo(Localizer.Format(format, value.DisplayName));
+        });
+    }
+
     partial void OnSkipWhenFullScreenChanged(bool value) => UpdateSkipConditions(
         c => c with { WhenFullScreen = value },
-        value ? "全画面表示のアプリの実行中は、自動で切り替えないようにしました。" : "全画面表示のアプリの実行中も、自動で切り替えるようにしました。");
+        value ? Strings.SkipWhenFullScreenEnabled : Strings.SkipWhenFullScreenDisabled);
 
     partial void OnSkipOnBatteryChanged(bool value) => UpdateSkipConditions(
         c => c with { OnBattery = value },
-        value ? "バッテリーで動作しているときは、自動で切り替えないようにしました。" : "バッテリーで動作しているときも、自動で切り替えるようにしました。");
+        value ? Strings.SkipOnBatteryEnabled : Strings.SkipOnBatteryDisabled);
 
     private void UpdateSkipConditions(Func<SkipConditions, SkipConditions> update, string message)
     {
@@ -951,7 +984,7 @@ public sealed partial class SettingsViewModel : ObservableObject, IDisposable
             return;
         }
 
-        _ = ExecuteSafelyAsync("自動切り替えの条件の保存", async () =>
+        _ = ExecuteSafelyAsync(Strings.OperationSaveSkipConditions, async () =>
         {
             await _settingsService.UpdateAsync(s => s with { SkipConditions = update(s.SkipConditions) });
             ShowInfo(message);
@@ -973,7 +1006,7 @@ public sealed partial class SettingsViewModel : ObservableObject, IDisposable
         long totalMinutes = (long)IntervalValue * SelectedIntervalUnit.MinutesPerUnit;
         if (totalMinutes is < AppSettings.MinIntervalMinutes or > AppSettings.MaxIntervalMinutes)
         {
-            IntervalError = "切り替え間隔は 1 分～24 時間の範囲で指定してください。";
+            IntervalError = Strings.IntervalOutOfRange;
             return;
         }
 
@@ -985,11 +1018,11 @@ public sealed partial class SettingsViewModel : ObservableObject, IDisposable
             return;
         }
 
-        _ = ExecuteSafelyAsync("切り替え間隔の保存", async () =>
+        _ = ExecuteSafelyAsync(Strings.OperationSaveInterval, async () =>
         {
             await _settingsService.UpdateAsync(s => s.WithInterval(minutes));
             OnPropertyChanged(nameof(ScheduleStatusText));
-            ShowInfo($"切り替え間隔を {IntervalUnitOption.Format(TimeSpan.FromMinutes(minutes))} に変更しました。");
+            ShowInfo(Localizer.Format(Strings.IntervalChangedFormat, IntervalUnitOption.Format(TimeSpan.FromMinutes(minutes))));
         });
     }
 
@@ -1007,6 +1040,7 @@ public sealed partial class SettingsViewModel : ObservableObject, IDisposable
             IsPaused = _scheduler.IsPaused;
             SkipWhenFullScreen = _settingsService.Current.SkipConditions.WhenFullScreen;
             SkipOnBattery = _settingsService.Current.SkipConditions.OnBattery;
+            SelectedLanguage = LanguageOption.From(_settingsService.Current.Language);
         }
         finally
         {
@@ -1027,8 +1061,8 @@ public sealed partial class SettingsViewModel : ObservableObject, IDisposable
         catch (Exception ex) when (ex is UnauthorizedAccessException or System.Security.SecurityException or System.IO.IOException)
         {
             // 読み取れない場合も他の設定は使えるよう、未登録として表示してエラーを伝える
-            LogOperationFailed(ex, "自動起動の状態の取得");
-            ShowError($"自動起動の状態を取得できませんでした。{ErrorMessages.Describe(ex)}");
+            LogOperationFailed(ex, Strings.OperationStartupRegistration);
+            ShowError(Localizer.Format(Strings.StartupStateUnavailableFormat, ErrorMessages.Describe(ex)));
             isEnabled = false;
         }
 
@@ -1160,7 +1194,7 @@ public sealed partial class SettingsViewModel : ObservableObject, IDisposable
 
             foreach (MonitorSettings saved in settings.Monitors.Where(s => s.HasFolderSettings && !IsConnected(s.MonitorId)))
             {
-                string name = saved.DisplayName ?? MonitorHardwareId.FromMonitorId(saved.MonitorId) ?? "名前の分からないモニター";
+                string name = saved.DisplayName ?? MonitorHardwareId.FromMonitorId(saved.MonitorId) ?? Strings.UnknownMonitorName;
                 CopySources.Add(new MonitorCopySourceViewModel(saved.MonitorId, name, IsConnected: false));
             }
         }
@@ -1184,7 +1218,7 @@ public sealed partial class SettingsViewModel : ObservableObject, IDisposable
 
     /// <summary>切り替えの結果の文言で使う、切り替えた対象の呼び方。スパンでは参加するモニターすべてが変わる。</summary>
     private string DescribeTarget(MonitorItemViewModel monitor) =>
-        IsSpanMonitor(monitor.Id) ? "スパン（複数モニター）" : monitor.DisplayName;
+        IsSpanMonitor(monitor.Id) ? Strings.SpanTargetName : monitor.DisplayName;
 
     private async Task UpdateMonitorSettingsAsync(MonitorItemViewModel monitor, Func<MonitorSettings, MonitorSettings> update)
     {
@@ -1225,7 +1259,7 @@ public sealed partial class SettingsViewModel : ObservableObject, IDisposable
             return;
         }
 
-        CurrentWallpaperPath = path ?? "（単色の背景）";
+        CurrentWallpaperPath = path ?? Strings.SolidColorBackground;
         PreviewImage = image;
     }
 
@@ -1243,7 +1277,7 @@ public sealed partial class SettingsViewModel : ObservableObject, IDisposable
         {
             // 画面操作の失敗でアプリを終了させず、ログと画面下部のメッセージでユーザーに伝える
             LogOperationFailed(ex, operation);
-            ShowError($"{operation}に失敗しました。{ErrorMessages.Describe(ex)}");
+            ShowError(Localizer.Format(Strings.OperationFailed, operation, ErrorMessages.Describe(ex)));
         }
     }
 
@@ -1259,7 +1293,7 @@ public sealed partial class SettingsViewModel : ObservableObject, IDisposable
             return false;
         }
 
-        ShowError(precedingMessage is null ? problem : $"{precedingMessage}{problem}");
+        ShowError(precedingMessage is null ? problem : precedingMessage + Strings.ProblemSentenceSeparator + problem);
         return true;
     }
 
@@ -1280,7 +1314,7 @@ public sealed partial class SettingsViewModel : ObservableObject, IDisposable
         {
             if (!_disposed && string.Equals(SelectedMonitor?.Id, e.MonitorId, StringComparison.OrdinalIgnoreCase))
             {
-                _ = ExecuteSafelyAsync("プレビューの更新", RefreshPreviewAsync);
+                _ = ExecuteSafelyAsync(Strings.OperationRefreshPreview, RefreshPreviewAsync);
             }
         });
 
@@ -1302,7 +1336,7 @@ public sealed partial class SettingsViewModel : ObservableObject, IDisposable
                 return;
             }
 
-            _ = ExecuteSafelyAsync("モニター一覧の更新", async () =>
+            _ = ExecuteSafelyAsync(Strings.OperationUpdateMonitors, async () =>
             {
                 await LoadMonitorsAsync();
                 ShowInfo(DescribeConfigurationChange(e));
@@ -1314,28 +1348,31 @@ public sealed partial class SettingsViewModel : ObservableObject, IDisposable
         var parts = new List<string>();
         if (e.Added.Count > 0)
         {
-            parts.Add($"接続: {string.Join("、", e.Added.Select(m => m.DisplayName))}");
+            parts.Add(Localizer.Format(Strings.MonitorsAddedFormat, JoinNames(e.Added.Select(m => m.DisplayName))));
         }
 
         if (e.Inherited.Count > 0)
         {
-            parts.Add($"前の設定を引き継ぎ: {string.Join("、", e.Inherited.Select(m => m.DisplayName))}");
+            parts.Add(Localizer.Format(Strings.MonitorsInheritedFormat, JoinNames(e.Inherited.Select(m => m.DisplayName))));
         }
 
         if (e.Removed.Count > 0)
         {
-            parts.Add($"切断: {string.Join("、", e.Removed.Select(m => m.DisplayName))}");
+            parts.Add(Localizer.Format(Strings.MonitorsRemovedFormat, JoinNames(e.Removed.Select(m => m.DisplayName))));
         }
 
         if (e.Resized.Count > 0)
         {
-            parts.Add($"解像度の変更: {string.Join("、", e.Resized.Select(m => $"{m.DisplayName}（{m.ResolutionText}）"))}");
+            parts.Add(Localizer.Format(Strings.MonitorsResizedFormat, JoinNames(e.Resized.Select(
+                m => Localizer.Format(Strings.MonitorWithResolutionFormat, m.DisplayName, m.ResolutionText)))));
         }
 
         return parts.Count > 0
-            ? $"モニター構成の変更を検出しました。{string.Join(" / ", parts)}"
-            : "モニターの配置の変更を検出しました。";
+            ? Localizer.Format(Strings.MonitorConfigurationChangedFormat, string.Join(Strings.ReasonSeparator, parts))
+            : Strings.MonitorPositionsChanged;
     }
+
+    private static string JoinNames(IEnumerable<string> names) => string.Join(Strings.ListSeparator, names);
 
     /// <summary>トレイのメニューから表示しない画像を加えた場合や、接続先を変えたモニターに設定を引き継いだ場合も、一覧に反映する。</summary>
     private async void OnSettingsChanged(object? sender, AppSettings settings) =>

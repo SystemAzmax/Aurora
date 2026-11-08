@@ -3,6 +3,7 @@ using System.Runtime.InteropServices;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using WallpaperChanger.Infrastructure.DesktopWallpaper.Interop;
+using WallpaperChanger.Infrastructure.Resources;
 
 namespace WallpaperChanger.Infrastructure.DesktopWallpaper;
 
@@ -119,8 +120,8 @@ internal sealed partial class DesktopWallpaperComHost : IDisposable
 
     private void OnCallTimedOut(WorkItem item, StaWorker worker)
     {
-        item.Fail(new TimeoutException(
-            $"IDesktopWallpaper の呼び出しが {_callTimeout.TotalSeconds:0.#} 秒以内に完了しませんでした。エクスプローラーが応答していない可能性があります。"));
+        item.Fail(new TimeoutException(InfrastructureLocalization.Format(
+            Strings.DesktopWallpaperCallTimedOut, _callTimeout.TotalSeconds)));
 
         int pendingCount;
         lock (_gate)

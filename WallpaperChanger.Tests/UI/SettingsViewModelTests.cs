@@ -360,6 +360,25 @@ public sealed class SettingsViewModelTests : IDisposable
     }
 
     [Fact]
+    public async Task 表示言語を保存し変更した先の言語で再起動を案内する()
+    {
+        await _sut.InitializeCommand.ExecuteAsync(null);
+        Assert.Equal(AppLanguage.Japanese, _sut.SelectedLanguage.Language);
+        Assert.Equal(["日本語", "English"], _sut.Languages.Select(l => l.DisplayName));
+
+        _sut.SelectedLanguage = LanguageOption.From(AppLanguage.English);
+
+        Assert.Equal(AppLanguage.English, _settings.Current.Language);
+        Assert.StartsWith("Changed the language to \"English\". Restart the app", _sut.StatusMessage, StringComparison.Ordinal);
+
+        // 今の言語に戻したときは、再起動は要らない
+        _sut.SelectedLanguage = LanguageOption.From(AppLanguage.Japanese);
+
+        Assert.Equal(AppLanguage.Japanese, _settings.Current.Language);
+        Assert.Equal("表示言語を「日本語」に戻しました。", _sut.StatusMessage);
+    }
+
+    [Fact]
     public async Task 自動切り替えを見合わせる条件を読み込んで保存する()
     {
         await _settings.UpdateAsync(s => s with { SkipConditions = new SkipConditions { OnBattery = false } }, TestContext.Current.CancellationToken);

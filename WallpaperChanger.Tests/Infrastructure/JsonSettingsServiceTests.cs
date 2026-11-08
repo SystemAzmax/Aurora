@@ -237,6 +237,30 @@ public sealed class JsonSettingsServiceTests : IDisposable
     }
 
     [Fact]
+    public async Task 表示言語を保存して読み込み無いファイルは日本語で読み込む()
+    {
+        CancellationToken ct = TestContext.Current.CancellationToken;
+        using (JsonSettingsService writer = CreateSut())
+        {
+            await writer.UpdateAsync(s => s with { Language = AppLanguage.English }, ct);
+        }
+
+        string json = await File.ReadAllTextAsync(_filePath, ct);
+        Assert.Contains("\"English\"", json, StringComparison.Ordinal);
+
+        using (JsonSettingsService reader = CreateSut())
+        {
+            await reader.LoadAsync(ct);
+            Assert.Equal(AppLanguage.English, reader.Current.Language);
+        }
+
+        await File.WriteAllTextAsync(_filePath, """{ "intervalMinutes": 30 }""", ct);
+        using JsonSettingsService old = CreateSut();
+        await old.LoadAsync(ct);
+        Assert.Equal(AppLanguage.Japanese, old.Current.Language);
+    }
+
+    [Fact]
     public async Task 保存内容はキャメルケースで列挙型は文字列になる()
     {
         using JsonSettingsService sut = CreateSut();

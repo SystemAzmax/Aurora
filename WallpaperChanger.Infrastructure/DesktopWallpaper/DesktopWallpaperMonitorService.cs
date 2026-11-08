@@ -3,6 +3,7 @@ using Microsoft.Extensions.Logging;
 using WallpaperChanger.Core.Interfaces;
 using WallpaperChanger.Core.Models;
 using WallpaperChanger.Infrastructure.DesktopWallpaper.Interop;
+using WallpaperChanger.Infrastructure.Resources;
 
 namespace WallpaperChanger.Infrastructure.DesktopWallpaper;
 
@@ -87,8 +88,8 @@ internal sealed partial class DesktopWallpaperMonitorService(
         string name = display switch
         {
             { FriendlyName.Length: > 0 } => display.FriendlyName,
-            { IsInternal: true } => "内蔵ディスプレイ",
-            _ => $"ディスプレイ {number}",
+            { IsInternal: true } => Strings.InternalDisplayName,
+            _ => InfrastructureLocalization.Format(Strings.DisplayNameWithNumber, number),
         };
 
         int width = display is { Width: > 0 } ? display.Width : bounds.Width;

@@ -5,6 +5,7 @@ using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using WallpaperChanger.Core.Interfaces;
 using WallpaperChanger.Core.Models;
+using WallpaperChanger.UI.Resources;
 using WallpaperChanger.UI.Services;
 
 namespace WallpaperChanger.UI.ViewModels;
@@ -14,9 +15,10 @@ namespace WallpaperChanger.UI.ViewModels;
 /// </summary>
 public sealed partial class TrayIconViewModel : ObservableObject, IDisposable
 {
-    private const string AppName = "壁紙チェンジャー";
-    private const string ChangedPopupText = "壁紙を切り替えました";
-    private static readonly string[] QuadrantNames = ["左上", "右上", "左下", "右下"];
+    private static readonly string[] QuadrantNames =
+        [Strings.QuadrantTopLeft, Strings.QuadrantTopRight, Strings.QuadrantBottomLeft, Strings.QuadrantBottomRight];
+
+    private static string AppName => Strings.AppName;
 
     /// <summary>メニューから始めた切り替えが終わった後、終わったことを伝える表示を残す時間。</summary>
     internal static readonly TimeSpan CompletedPopupDuration = TimeSpan.FromSeconds(2);
@@ -35,7 +37,7 @@ public sealed partial class TrayIconViewModel : ObservableObject, IDisposable
     private int _progressPopupVersion;
 
     /// <summary>メニューから始めた切り替えが終わったときに、トレイの近くに表示する文言。</summary>
-    private string _completedPopupText = ChangedPopupText;
+    private string _completedPopupText = Strings.WallpaperChanged;
 
     public TrayIconViewModel(
         IWallpaperRotationService rotationService,
@@ -72,17 +74,17 @@ public sealed partial class TrayIconViewModel : ObservableObject, IDisposable
     [NotifyPropertyChangedFor(nameof(ToolTipText))]
     public partial bool IsPaused { get; set; }
 
-    public string PauseMenuHeader => IsPaused ? "再開" : "一時停止";
+    public string PauseMenuHeader => IsPaused ? Strings.Resume : Strings.Pause;
 
     public string ToolTipText => ChangeProgressText is { } progress
         ? $"{AppName}\n{progress}"
         : IsPaused
-            ? $"{AppName}（一時停止中）"
+            ? Localizer.Format(Strings.TrayToolTipPausedFormat, AppName)
             : _scheduler.Hold switch
             {
-                AutoChangeHold.FullScreen => $"{AppName}（全画面のアプリの実行中のため、切り替えを待っています）",
-                AutoChangeHold.OnBattery => $"{AppName}（バッテリー駆動中のため、切り替えを待っています）",
-                _ => $"{AppName}（{IntervalUnitOption.Format(_scheduler.Interval)}ごとに切り替え）",
+                AutoChangeHold.FullScreen => Localizer.Format(Strings.TrayToolTipHeldFullScreenFormat, AppName),
+                AutoChangeHold.OnBattery => Localizer.Format(Strings.TrayToolTipHeldOnBatteryFormat, AppName),
+                _ => Localizer.Format(Strings.TrayToolTipIntervalFormat, AppName, IntervalUnitOption.Format(_scheduler.Interval)),
             };
 
     // ---- 切り替えの進み具合 ----
@@ -112,7 +114,7 @@ public sealed partial class TrayIconViewModel : ObservableObject, IDisposable
     public partial bool IsProgressPopupOpen { get; set; }
 
     public string ProgressPopupText => IsMenuChangeRunning
-        ? ChangeProgressText ?? "壁紙を切り替えています…"
+        ? ChangeProgressText ?? Strings.ChangingWallpaper
         : _completedPopupText;
 
     // ---- 表示中の画像 ----
@@ -134,13 +136,13 @@ public sealed partial class TrayIconViewModel : ObservableObject, IDisposable
     }
 
     [RelayCommand(CanExecute = nameof(CanChangeWallpaper))]
-    private Task NextWallpaperAsync() => ChangeFromMenuAsync("次の壁紙への切り替え", () => _scheduler.ChangeNowAsync());
+    private Task NextWallpaperAsync() => ChangeFromMenuAsync(Strings.OperationNextWallpaper, () => _scheduler.ChangeNowAsync());
 
     [RelayCommand(CanExecute = nameof(CanChangeWallpaper))]
-    private Task PreviousWallpaperAsync() => ChangeFromMenuAsync("前の壁紙への切り替え", () => _rotationService.PreviousAsync());
+    private Task PreviousWallpaperAsync() => ChangeFromMenuAsync(Strings.OperationPreviousWallpaper, () => _rotationService.PreviousAsync());
 
     [RelayCommand(CanExecute = nameof(CanChangeWallpaper))]
-    private Task RefreshAllWallpapersAsync() => ChangeFromMenuAsync("全壁紙の更新", () => _scheduler.RefreshNowAsync());
+    private Task RefreshAllWallpapersAsync() => ChangeFromMenuAsync(Strings.OperationRefreshAllWallpapers, () => _scheduler.RefreshNowAsync());
 
     private bool CanChangeWallpaper() => !IsChangingWallpaper;
 
@@ -154,17 +156,17 @@ public sealed partial class TrayIconViewModel : ObservableObject, IDisposable
         }
 
         return ChangeFromMenuAsync(
-            "表示しない画像の設定",
+            Strings.OperationExcludeImage,
             async () =>
             {
                 await _settingsService.UpdateAsync(s => s.AddExcludedImage(imagePath));
                 return await _rotationService.ReplaceExcludedImagesAsync();
             },
-            $"{Path.GetFileName(imagePath)} を表示しないようにしました（設定画面で戻せます）");
+            Localizer.Format(Strings.ImageExcludedFormat, Path.GetFileName(imagePath)));
     }
 
     [RelayCommand]
-    private Task ShowImageInFolderAsync(string? imagePath) => ExecuteSafelyAsync("画像の場所を開く処理", () =>
+    private Task ShowImageInFolderAsync(string? imagePath) => ExecuteSafelyAsync(Strings.OperationShowImageInFolder, () =>
     {
         if (!string.IsNullOrWhiteSpace(imagePath))
         {
@@ -247,7 +249,7 @@ public sealed partial class TrayIconViewModel : ObservableObject, IDisposable
         }
 
         (int columns, _) = layout.GetGridSize();
-        return $"{(index / columns) + 1} 行 {(index % columns) + 1} 列";
+        return Localizer.Format(Strings.TileRowColumnFormat, (index / columns) + 1, (index % columns) + 1);
     }
 
     /// <summary>
@@ -256,8 +258,9 @@ public sealed partial class TrayIconViewModel : ObservableObject, IDisposable
     /// </summary>
     /// <param name="completedText">終わったときに表示する文言。</param>
     private async Task ChangeFromMenuAsync(
-        string operation, Func<Task<WallpaperChangeResult>> change, string completedText = ChangedPopupText)
+        string operation, Func<Task<WallpaperChangeResult>> change, string? completedText = null)
     {
+        completedText ??= Strings.WallpaperChanged;
         int popupVersion = ++_progressPopupVersion;
         _completedPopupText = completedText;
         IsMenuChangeRunning = true;
@@ -310,7 +313,7 @@ public sealed partial class TrayIconViewModel : ObservableObject, IDisposable
     [RelayCommand]
     private Task TogglePauseAsync() =>
         ExecuteSafelyAsync(
-            IsPaused ? "自動切り替えの再開" : "自動切り替えの一時停止",
+            IsPaused ? Strings.OperationResume : Strings.OperationPause,
             () => IsPaused ? _scheduler.ResumeAsync() : _scheduler.PauseAsync());
 
     [RelayCommand]
@@ -331,7 +334,8 @@ public sealed partial class TrayIconViewModel : ObservableObject, IDisposable
             LogOperationFailed(ex, operation);
             NotificationRequested?.Invoke(
                 this,
-                new TrayNotificationEventArgs(AppName, $"{operation}に失敗しました。{ErrorMessages.Describe(ex)}", isError: true));
+                new TrayNotificationEventArgs(
+                    AppName, Localizer.Format(Strings.OperationFailed, operation, ErrorMessages.Describe(ex)), isError: true));
         }
     }
 

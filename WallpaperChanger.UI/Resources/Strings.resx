@@ -1,0 +1,762 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<root>
+  <resheader name="resmimetype">
+    <value>text/microsoft-resx</value>
+  </resheader>
+  <resheader name="version">
+    <value>2.0</value>
+  </resheader>
+  <resheader name="reader">
+    <value>System.Resources.ResXResourceReader, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </resheader>
+  <resheader name="writer">
+    <value>System.Resources.ResXResourceWriter, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </resheader>
+  <data name="Add" xml:space="preserve">
+    <value>追加</value>
+  </data>
+  <data name="AllTilesUnsetFormat" xml:space="preserve">
+    <value>すべての{0}が未設定になったため、1 枚表示のフォルダから {1} 枚を選びます。</value>
+    <comment>{0}: マスか区画、{1}: 枚数</comment>
+  </data>
+  <data name="AllWallpapersRefreshed" xml:space="preserve">
+    <value>壁紙フォルダを読み込み直して、全モニターの壁紙を更新しました。</value>
+  </data>
+  <data name="AppName" xml:space="preserve">
+    <value>壁紙チェンジャー</value>
+  </data>
+  <data name="ChangingMonitorWallpaperFormat" xml:space="preserve">
+    <value>{0} の壁紙を切り替えています…</value>
+    <comment>{0}: モニターの名前</comment>
+  </data>
+  <data name="ChangingWallpaper" xml:space="preserve">
+    <value>壁紙を切り替えています…</value>
+  </data>
+  <data name="ChangingWallpaperProgressFormat" xml:space="preserve">
+    <value>壁紙を切り替えています…（{0} 台中 {1} 台目: {2}）</value>
+    <comment>{0}: 全体の台数、{1}: 何台目か、{2}: モニターの名前</comment>
+  </data>
+  <data name="ColorBlack" xml:space="preserve">
+    <value>黒</value>
+  </data>
+  <data name="ColorDarkGray" xml:space="preserve">
+    <value>濃い灰色</value>
+  </data>
+  <data name="ColorGray" xml:space="preserve">
+    <value>灰色</value>
+  </data>
+  <data name="ColorLightGray" xml:space="preserve">
+    <value>薄い灰色</value>
+  </data>
+  <data name="ColorWhite" xml:space="preserve">
+    <value>白</value>
+  </data>
+  <data name="Copy" xml:space="preserve">
+    <value>コピー</value>
+  </data>
+  <data name="CopySettingsDescription" xml:space="preserve">
+    <value>買い替えたモニターなどに、前のモニター（接続していないモニターを含む）の壁紙フォルダ・表示レイアウト・表示方法・選び方などをコピーします。同じ型番のモニターの接続先を変えた場合は、自動で引き継ぎます。</value>
+  </data>
+  <data name="CopySettingsTitle" xml:space="preserve">
+    <value>ほかのモニターの設定をコピー</value>
+  </data>
+  <data name="DetectMonitors" xml:space="preserve">
+    <value>モニターを再検出</value>
+  </data>
+  <data name="DisplayLanguage" xml:space="preserve">
+    <value>表示言語（Language）</value>
+  </data>
+  <data name="DisplayLanguageDescription" xml:space="preserve">
+    <value>アプリを再起動すると反映されます。ログは言語にかかわらず日本語で記録します。</value>
+  </data>
+  <data name="EditingTargetFormat" xml:space="preserve">
+    <value>{0} の{1}のフォルダ</value>
+    <comment>{0}: 位置（左上など）、{1}: マスか区画</comment>
+  </data>
+  <data name="EmptyColor" xml:space="preserve">
+    <value>空きマス・余白の色</value>
+  </data>
+  <data name="EmptyColorChangedFormat" xml:space="preserve">
+    <value>空きマス・余白の色を「{0}」に変更しました。</value>
+    <comment>{0}: 色の名前</comment>
+  </data>
+  <data name="EmptyFolders" xml:space="preserve">
+    <value>フォルダが登録されていません。「追加」から登録してください。</value>
+  </data>
+  <data name="EmptyFoldersBlankFormat" xml:space="preserve">
+    <value>未設定（この{0}は空きマスとして表示）</value>
+    <comment>{0}: マスか区画</comment>
+  </data>
+  <data name="EmptyFoldersUseSingle" xml:space="preserve">
+    <value>未設定（1 枚表示のフォルダから選ぶ）</value>
+  </data>
+  <data name="ExcludeImage" xml:space="preserve">
+    <value>この画像を表示しない</value>
+  </data>
+  <data name="ExcludeImageToolTip" xml:space="preserve">
+    <value>表示中の画像を壁紙の候補から外し、別の画像に差し替えます（設定画面で戻せます）</value>
+  </data>
+  <data name="ExcludedImagesDescription" xml:space="preserve">
+    <value>トレイのメニューの「この画像を表示しない」で指定した画像です。壁紙フォルダにあっても表示しません。</value>
+  </data>
+  <data name="ExcludedImagesTitle" xml:space="preserve">
+    <value>表示しない画像（全モニター共通）</value>
+  </data>
+  <data name="Exit" xml:space="preserve">
+    <value>終了</value>
+  </data>
+  <data name="FatalErrorFormat" xml:space="preserve">
+    <value>エラーが発生したため終了します。
+
+{0}</value>
+    <comment>{0}: エラーの内容</comment>
+  </data>
+  <data name="FitWhole" xml:space="preserve">
+    <value>全体を表示</value>
+  </data>
+  <data name="FolderCaptionGrid2x2" xml:space="preserve">
+    <value>マスを選んでフォルダを設定します。どのマスも未設定なら 1 枚表示のフォルダから 4 枚を選び、1 つでも設定すると、未設定のマスは空きマス（画像を置かず「空きマス・余白の色」で塗る）になります。</value>
+  </data>
+  <data name="FolderCaptionGrid4x4" xml:space="preserve">
+    <value>区画（4 マスずつ）を選んでフォルダを設定します。どの区画も未設定なら 1 枚表示のフォルダから 16 枚を選び、1 つでも設定すると、未設定の区画は空きマス（画像を置かず「空きマス・余白の色」で塗る）になります。4 分割のマスの設定と共通です。</value>
+  </data>
+  <data name="FolderCaptionSingle" xml:space="preserve">
+    <value>このモニターに表示する画像のフォルダ（JPG / JPEG / PNG / BMP / WEBP）</value>
+  </data>
+  <data name="FolderCaptionSpanFormat" xml:space="preserve">
+    <value>スパンを選んだモニター（接続中の {0} 台）をまとめて、1 枚の画像を各モニターの位置に合わせて分けて表示します。フォルダ・サブフォルダの検索・選び方・収め方は、スパンを選んだモニターで共通です。</value>
+    <comment>{0}: スパンを選んだ接続中のモニターの台数</comment>
+  </data>
+  <data name="FolderRemoved" xml:space="preserve">
+    <value>フォルダを削除しました。</value>
+  </data>
+  <data name="FoldersAddedFormat" xml:space="preserve">
+    <value>{0} 件のフォルダを追加しました。</value>
+    <comment>{0}: 件数</comment>
+  </data>
+  <data name="GapColor" xml:space="preserve">
+    <value>間隔の色</value>
+  </data>
+  <data name="GapColorChangedFormat" xml:space="preserve">
+    <value>マスの間隔の色を「{0}」に変更しました。</value>
+    <comment>{0}: 色の名前</comment>
+  </data>
+  <data name="Identify" xml:space="preserve">
+    <value>識別</value>
+  </data>
+  <data name="IdentifyToolTip" xml:space="preserve">
+    <value>各モニターの画面に番号を表示します</value>
+  </data>
+  <data name="ImageExcludedFormat" xml:space="preserve">
+    <value>{0} を表示しないようにしました（設定画面で戻せます）</value>
+    <comment>{0}: 画像のファイル名</comment>
+  </data>
+  <data name="ImageNotFoundFormat" xml:space="preserve">
+    <value>画像が見つかりません: {0}</value>
+    <comment>{0}: 画像のパス</comment>
+  </data>
+  <data name="ImageRestoredFormat" xml:space="preserve">
+    <value>{0} を再び表示するようにしました。</value>
+    <comment>{0}: 画像のファイル名</comment>
+  </data>
+  <data name="IncludeSubfolders" xml:space="preserve">
+    <value>サブフォルダも検索する</value>
+  </data>
+  <data name="Interval" xml:space="preserve">
+    <value>切り替え間隔</value>
+  </data>
+  <data name="IntervalChangedFormat" xml:space="preserve">
+    <value>切り替え間隔を {0} に変更しました。</value>
+    <comment>{0}: 切り替え間隔</comment>
+  </data>
+  <data name="IntervalHoursFormat" xml:space="preserve">
+    <value>{0} 時間</value>
+    <comment>{0}: 時間</comment>
+  </data>
+  <data name="IntervalHoursMinutesFormat" xml:space="preserve">
+    <value>{0} 時間 {1} 分</value>
+    <comment>{0}: 時間、{1}: 分</comment>
+  </data>
+  <data name="IntervalMinutesFormat" xml:space="preserve">
+    <value>{0} 分</value>
+    <comment>{0}: 分</comment>
+  </data>
+  <data name="IntervalOutOfRange" xml:space="preserve">
+    <value>切り替え間隔は 1 分～24 時間の範囲で指定してください。</value>
+  </data>
+  <data name="IntervalRange" xml:space="preserve">
+    <value>（1 分～24 時間）</value>
+  </data>
+  <data name="IntervalUnitHours" xml:space="preserve">
+    <value>時間</value>
+  </data>
+  <data name="IntervalUnitMinutes" xml:space="preserve">
+    <value>分</value>
+  </data>
+  <data name="LanguageChangedBackFormat" xml:space="preserve">
+    <value>表示言語を「{0}」に戻しました。</value>
+    <comment>{0}: 言語の名前。今の表示言語に戻したときに表示する</comment>
+  </data>
+  <data name="LanguageChangedRestartFormat" xml:space="preserve">
+    <value>表示言語を「{0}」に変更しました。アプリを再起動すると反映されます（トレイのメニューの「終了」で終了してから、もう一度起動してください）。</value>
+    <comment>{0}: 言語の名前。変更した先の言語で表示する</comment>
+  </data>
+  <data name="LayoutChangedGrid2x2" xml:space="preserve">
+    <value>4 分割表示に切り替えました。</value>
+  </data>
+  <data name="LayoutChangedGrid4x4" xml:space="preserve">
+    <value>16 分割表示に切り替えました。</value>
+  </data>
+  <data name="LayoutChangedSingle" xml:space="preserve">
+    <value>1 枚表示に切り替えました。</value>
+  </data>
+  <data name="LayoutChangedSpanFormat" xml:space="preserve">
+    <value>スパン（複数モニターにまたがる 1 枚表示）に切り替えました。スパンを選んだモニターは {0} 台です。</value>
+    <comment>{0}: スパンを選んだ接続中のモニターの台数</comment>
+  </data>
+  <data name="LayoutGrid2x2" xml:space="preserve">
+    <value>4 分割表示</value>
+  </data>
+  <data name="LayoutGrid2x2Description" xml:space="preserve">
+    <value>2 × 2 で 4 枚を同時に表示</value>
+  </data>
+  <data name="LayoutGrid4x4" xml:space="preserve">
+    <value>16 分割表示</value>
+  </data>
+  <data name="LayoutGrid4x4Description" xml:space="preserve">
+    <value>4 × 4 で 16 枚を同時に表示</value>
+  </data>
+  <data name="LayoutSingle" xml:space="preserve">
+    <value>1 枚表示</value>
+  </data>
+  <data name="LayoutSingleDescription" xml:space="preserve">
+    <value>画面全体に 1 枚</value>
+  </data>
+  <data name="LayoutSpan" xml:space="preserve">
+    <value>スパン</value>
+  </data>
+  <data name="LayoutSpanDescription" xml:space="preserve">
+    <value>複数のモニターにまたがって 1 枚を表示</value>
+  </data>
+  <data name="ListSeparator" xml:space="preserve">
+    <value>、</value>
+    <comment>モニター名などを並べるときの区切り</comment>
+  </data>
+  <data name="Log" xml:space="preserve">
+    <value>ログ</value>
+  </data>
+  <data name="LogDirectoryFormat" xml:space="preserve">
+    <value>動作の記録を {0} に保存しています（14 日分）</value>
+    <comment>{0}: ログフォルダ</comment>
+  </data>
+  <data name="MonitorConfigurationChangedFormat" xml:space="preserve">
+    <value>モニター構成の変更を検出しました。{0}</value>
+    <comment>{0}: 変更の内容</comment>
+  </data>
+  <data name="MonitorDisconnectedFormat" xml:space="preserve">
+    <value>{0}（未接続）</value>
+    <comment>{0}: モニターの名前</comment>
+  </data>
+  <data name="MonitorNumberWindowTitle" xml:space="preserve">
+    <value>モニター番号</value>
+  </data>
+  <data name="MonitorPositionsChanged" xml:space="preserve">
+    <value>モニターの配置の変更を検出しました。</value>
+  </data>
+  <data name="MonitorPrimaryDetailsFormat" xml:space="preserve">
+    <value>{0} ・ メイン</value>
+    <comment>{0}: 解像度</comment>
+  </data>
+  <data name="MonitorWithResolutionFormat" xml:space="preserve">
+    <value>{0}（{1}）</value>
+    <comment>{0}: モニターの名前、{1}: 解像度</comment>
+  </data>
+  <data name="Monitors" xml:space="preserve">
+    <value>モニター</value>
+  </data>
+  <data name="MonitorsAddedFormat" xml:space="preserve">
+    <value>接続: {0}</value>
+    <comment>{0}: モニターの名前</comment>
+  </data>
+  <data name="MonitorsDetectedFormat" xml:space="preserve">
+    <value>{0} 台のモニターを検出しました。</value>
+    <comment>{0}: 台数</comment>
+  </data>
+  <data name="MonitorsInheritedFormat" xml:space="preserve">
+    <value>前の設定を引き継ぎ: {0}</value>
+    <comment>{0}: モニターの名前</comment>
+  </data>
+  <data name="MonitorsRemovedFormat" xml:space="preserve">
+    <value>切断: {0}</value>
+    <comment>{0}: モニターの名前</comment>
+  </data>
+  <data name="MonitorsResizedFormat" xml:space="preserve">
+    <value>解像度の変更: {0}</value>
+    <comment>{0}: モニターの名前と解像度</comment>
+  </data>
+  <data name="NextWallpaper" xml:space="preserve">
+    <value>次の壁紙</value>
+  </data>
+  <data name="NoCopySources" xml:space="preserve">
+    <value>コピーできる設定がありません（壁紙フォルダを設定したモニターがありません）</value>
+  </data>
+  <data name="NoExcludedImages" xml:space="preserve">
+    <value>表示しない画像はありません</value>
+  </data>
+  <data name="NoMonitorSelected" xml:space="preserve">
+    <value>モニター未選択</value>
+  </data>
+  <data name="NoTargetMonitor" xml:space="preserve">
+    <value>対象のモニターが見つからないため、壁紙は変更されませんでした。</value>
+  </data>
+  <data name="OpenLocation" xml:space="preserve">
+    <value>場所を開く</value>
+  </data>
+  <data name="OpenLogFolder" xml:space="preserve">
+    <value>ログフォルダを開く</value>
+  </data>
+  <data name="OperationAddFolder" xml:space="preserve">
+    <value>フォルダの追加</value>
+  </data>
+  <data name="OperationChangeEmptyColor" xml:space="preserve">
+    <value>空きマス・余白の色の変更</value>
+  </data>
+  <data name="OperationChangeGapColor" xml:space="preserve">
+    <value>間隔の色の変更</value>
+  </data>
+  <data name="OperationChangeLayout" xml:space="preserve">
+    <value>表示レイアウトの変更</value>
+  </data>
+  <data name="OperationChangeSingleImageFit" xml:space="preserve">
+    <value>表示方法の変更</value>
+  </data>
+  <data name="OperationChangeSpanFit" xml:space="preserve">
+    <value>スパンの収め方の変更</value>
+  </data>
+  <data name="OperationChangeTileFit" xml:space="preserve">
+    <value>マスへの収め方の変更</value>
+  </data>
+  <data name="OperationChangeTileGap" xml:space="preserve">
+    <value>マスの間隔の変更</value>
+  </data>
+  <data name="OperationChangeWallpaper" xml:space="preserve">
+    <value>壁紙の変更</value>
+  </data>
+  <data name="OperationCopySettings" xml:space="preserve">
+    <value>設定のコピー</value>
+  </data>
+  <data name="OperationDetectMonitors" xml:space="preserve">
+    <value>モニターの再検出</value>
+  </data>
+  <data name="OperationExcludeImage" xml:space="preserve">
+    <value>表示しない画像の設定</value>
+  </data>
+  <data name="OperationFailed" xml:space="preserve">
+    <value>{0}に失敗しました。{1}</value>
+    <comment>{0}: 操作（Operation で始まるキー）、{1}: エラーの内容</comment>
+  </data>
+  <data name="OperationIdentifyMonitors" xml:space="preserve">
+    <value>モニターの識別</value>
+  </data>
+  <data name="OperationLoadSettings" xml:space="preserve">
+    <value>設定の読み込み</value>
+  </data>
+  <data name="OperationNextWallpaper" xml:space="preserve">
+    <value>次の壁紙への切り替え</value>
+  </data>
+  <data name="OperationOpenLogFolder" xml:space="preserve">
+    <value>ログフォルダを開く処理</value>
+  </data>
+  <data name="OperationPause" xml:space="preserve">
+    <value>自動切り替えの一時停止</value>
+  </data>
+  <data name="OperationPreviousWallpaper" xml:space="preserve">
+    <value>前の壁紙への切り替え</value>
+  </data>
+  <data name="OperationRefreshAllWallpapers" xml:space="preserve">
+    <value>全壁紙の更新</value>
+  </data>
+  <data name="OperationRefreshPreview" xml:space="preserve">
+    <value>プレビューの更新</value>
+  </data>
+  <data name="OperationRemoveFolder" xml:space="preserve">
+    <value>フォルダの削除</value>
+  </data>
+  <data name="OperationRestoreExcludedImage" xml:space="preserve">
+    <value>表示しない画像の解除</value>
+  </data>
+  <data name="OperationResume" xml:space="preserve">
+    <value>自動切り替えの再開</value>
+  </data>
+  <data name="OperationSaveIncludeSubfolders" xml:space="preserve">
+    <value>サブフォルダ設定の保存</value>
+  </data>
+  <data name="OperationSaveInterval" xml:space="preserve">
+    <value>切り替え間隔の保存</value>
+  </data>
+  <data name="OperationSaveLanguage" xml:space="preserve">
+    <value>表示言語の保存</value>
+  </data>
+  <data name="OperationSaveSelectionMode" xml:space="preserve">
+    <value>選択方法の保存</value>
+  </data>
+  <data name="OperationSaveSkipConditions" xml:space="preserve">
+    <value>自動切り替えの条件の保存</value>
+  </data>
+  <data name="OperationShowImageInFolder" xml:space="preserve">
+    <value>画像の場所を開く処理</value>
+  </data>
+  <data name="OperationStartupRegistration" xml:space="preserve">
+    <value>自動起動の設定</value>
+  </data>
+  <data name="OperationTogglePause" xml:space="preserve">
+    <value>一時停止状態の変更</value>
+  </data>
+  <data name="OperationUpdateMonitors" xml:space="preserve">
+    <value>モニター一覧の更新</value>
+  </data>
+  <data name="Pause" xml:space="preserve">
+    <value>一時停止</value>
+  </data>
+  <data name="PickSpanFolders" xml:space="preserve">
+    <value>スパンで表示するフォルダを選択</value>
+  </data>
+  <data name="PickTileFoldersFormat" xml:space="preserve">
+    <value>{0}に表示するフォルダを選択</value>
+    <comment>{0}: 「左上のマス」など</comment>
+  </data>
+  <data name="PickWallpaperFolders" xml:space="preserve">
+    <value>壁紙フォルダを選択</value>
+  </data>
+  <data name="PreviewTitle" xml:space="preserve">
+    <value>プレビュー（現在の壁紙）</value>
+  </data>
+  <data name="PreviewUnavailable" xml:space="preserve">
+    <value>プレビューを表示できません</value>
+  </data>
+  <data name="PreviousWallpaper" xml:space="preserve">
+    <value>前の壁紙</value>
+  </data>
+  <data name="ProblemSentenceSeparator" xml:space="preserve">
+    <value></value>
+    <comment>「変更されませんでした。」と理由の間</comment>
+  </data>
+  <data name="QuadrantBottomLeft" xml:space="preserve">
+    <value>左下</value>
+  </data>
+  <data name="QuadrantBottomRight" xml:space="preserve">
+    <value>右下</value>
+  </data>
+  <data name="QuadrantTopLeft" xml:space="preserve">
+    <value>左上</value>
+  </data>
+  <data name="QuadrantTopRight" xml:space="preserve">
+    <value>右上</value>
+  </data>
+  <data name="ReasonNoFolders" xml:space="preserve">
+    <value>壁紙フォルダが登録されていません</value>
+  </data>
+  <data name="ReasonNoImages" xml:space="preserve">
+    <value>壁紙フォルダに対応する画像がありません</value>
+  </data>
+  <data name="ReasonNoPreviousWallpaper" xml:space="preserve">
+    <value>これ以上前の壁紙はありません</value>
+  </data>
+  <data name="ReasonSeparator" xml:space="preserve">
+    <value> / </value>
+    <comment>理由を並べるときの区切り</comment>
+  </data>
+  <data name="ReasonWithMonitorsFormat" xml:space="preserve">
+    <value>{0}（{1}）</value>
+    <comment>{0}: 理由、{1}: モニターの名前</comment>
+  </data>
+  <data name="RefreshAllWallpapers" xml:space="preserve">
+    <value>全壁紙を更新</value>
+  </data>
+  <data name="RefreshAllWallpapersToolTip" xml:space="preserve">
+    <value>壁紙フォルダを読み込み直して、全モニターの壁紙を選び直します</value>
+  </data>
+  <data name="Remove" xml:space="preserve">
+    <value>削除</value>
+  </data>
+  <data name="RestoreExcludedImage" xml:space="preserve">
+    <value>表示に戻す</value>
+  </data>
+  <data name="Resume" xml:space="preserve">
+    <value>再開</value>
+  </data>
+  <data name="ScheduleHeldFullScreen" xml:space="preserve">
+    <value>全画面表示のアプリの実行中のため、自動切り替えを待っています（終わったら切り替えます）</value>
+  </data>
+  <data name="ScheduleHeldOnBattery" xml:space="preserve">
+    <value>バッテリーで動作中のため、自動切り替えを待っています（電源につなぐと切り替えます）</value>
+  </data>
+  <data name="ScheduleIntervalFormat" xml:space="preserve">
+    <value>{0}ごとに自動で切り替えます</value>
+    <comment>{0}: 切り替え間隔</comment>
+  </data>
+  <data name="SchedulePaused" xml:space="preserve">
+    <value>自動切り替えは一時停止中です</value>
+  </data>
+  <data name="ScheduleTitle" xml:space="preserve">
+    <value>切替設定（全モニター共通）</value>
+  </data>
+  <data name="SelectionRandom" xml:space="preserve">
+    <value>ランダム</value>
+  </data>
+  <data name="SelectionRandomDescription" xml:space="preserve">
+    <value>フォルダ内の画像から無作為に選びます</value>
+  </data>
+  <data name="SelectionSequential" xml:space="preserve">
+    <value>順送り</value>
+  </data>
+  <data name="SelectionSequentialDescription" xml:space="preserve">
+    <value>ファイルパスの順に 1 枚ずつ切り替えます</value>
+  </data>
+  <data name="SelectionSpanNote" xml:space="preserve">
+    <value>スパンを選んだモニターで共通の設定です。</value>
+  </data>
+  <data name="SelectionTitle" xml:space="preserve">
+    <value>ランダム設定</value>
+  </data>
+  <data name="Settings" xml:space="preserve">
+    <value>設定</value>
+  </data>
+  <data name="SettingsCopiedFormat" xml:space="preserve">
+    <value>{0} の設定を {1} にコピーしました。</value>
+    <comment>{0}: コピー元、{1}: コピー先</comment>
+  </data>
+  <data name="SettingsWindowTitle" xml:space="preserve">
+    <value>壁紙チェンジャー - 設定</value>
+  </data>
+  <data name="ShowImageInFolder" xml:space="preserve">
+    <value>画像の場所を開く</value>
+  </data>
+  <data name="ShowImageInFolderToolTip" xml:space="preserve">
+    <value>表示中の画像を、エクスプローラーで選択した状態で開きます</value>
+  </data>
+  <data name="SingleImageFit" xml:space="preserve">
+    <value>表示方法</value>
+  </data>
+  <data name="SingleImageFitCenter" xml:space="preserve">
+    <value>中央に表示</value>
+  </data>
+  <data name="SingleImageFitCenterDescription" xml:space="preserve">
+    <value>拡大縮小せずに中央に表示します。画面より大きい画像は中央を切り抜き、余白は黒で表示します。</value>
+  </data>
+  <data name="SingleImageFitChangedFormat" xml:space="preserve">
+    <value>1 枚表示の表示方法を「{0}」に変更しました。</value>
+    <comment>{0}: 表示方法</comment>
+  </data>
+  <data name="SingleImageFitFill" xml:space="preserve">
+    <value>画面を埋める</value>
+  </data>
+  <data name="SingleImageFitFillDescription" xml:space="preserve">
+    <value>画面全体を覆うように拡大縮小し、はみ出した部分は中央で切り抜きます。</value>
+  </data>
+  <data name="SingleImageFitFit" xml:space="preserve">
+    <value>全体を表示</value>
+  </data>
+  <data name="SingleImageFitFitDescription" xml:space="preserve">
+    <value>画像全体が画面に収まるように拡大縮小し、余白は黒で表示します。縦長の写真も切れずに表示できます。</value>
+  </data>
+  <data name="SingleImageFitStretch" xml:space="preserve">
+    <value>引き伸ばす</value>
+  </data>
+  <data name="SingleImageFitStretchDescription" xml:space="preserve">
+    <value>縦横比を変えて、画面いっぱいに引き伸ばします。</value>
+  </data>
+  <data name="SingleImageFitWindows" xml:space="preserve">
+    <value>Windows の設定に従う</value>
+  </data>
+  <data name="SingleImageFitWindowsDescription" xml:space="preserve">
+    <value>画像をそのまま壁紙にし、Windows の「個人用設定 &gt; 背景」の調整方法で表示します（全モニター共通の設定です）。</value>
+  </data>
+  <data name="SkipOnBattery" xml:space="preserve">
+    <value>バッテリーで動作しているときは切り替えない</value>
+  </data>
+  <data name="SkipOnBatteryDescription" xml:space="preserve">
+    <value>ノート PC などが電源につながっていない間は待ち、つないでから切り替えます</value>
+  </data>
+  <data name="SkipOnBatteryDisabled" xml:space="preserve">
+    <value>バッテリーで動作しているときも、自動で切り替えるようにしました。</value>
+  </data>
+  <data name="SkipOnBatteryEnabled" xml:space="preserve">
+    <value>バッテリーで動作しているときは、自動で切り替えないようにしました。</value>
+  </data>
+  <data name="SkipWhenFullScreen" xml:space="preserve">
+    <value>全画面表示のアプリの実行中は切り替えない</value>
+  </data>
+  <data name="SkipWhenFullScreenDescription" xml:space="preserve">
+    <value>ゲームや動画の全画面表示、プレゼンテーションの間は待ち、終わってから切り替えます</value>
+  </data>
+  <data name="SkipWhenFullScreenDisabled" xml:space="preserve">
+    <value>全画面表示のアプリの実行中も、自動で切り替えるようにしました。</value>
+  </data>
+  <data name="SkipWhenFullScreenEnabled" xml:space="preserve">
+    <value>全画面表示のアプリの実行中は、自動で切り替えないようにしました。</value>
+  </data>
+  <data name="SolidColorBackground" xml:space="preserve">
+    <value>（単色の背景）</value>
+  </data>
+  <data name="SomeWallpapersNotChanged" xml:space="preserve">
+    <value>一部のモニターの壁紙は変更されませんでした。</value>
+  </data>
+  <data name="SpanFit" xml:space="preserve">
+    <value>収め方（スパンで共通）</value>
+  </data>
+  <data name="SpanFitChangedFill" xml:space="preserve">
+    <value>スパンでモニター全体を埋めるように表示するようにしました。</value>
+  </data>
+  <data name="SpanFitChangedFit" xml:space="preserve">
+    <value>スパンで画像全体を表示するようにしました。</value>
+  </data>
+  <data name="SpanFitFill" xml:space="preserve">
+    <value>モニター全体を埋める</value>
+  </data>
+  <data name="SpanFitFillDescription" xml:space="preserve">
+    <value>スパンを選んだモニター全体を覆うように拡大し、はみ出した部分は中央で切り抜きます</value>
+  </data>
+  <data name="SpanFitFitDescription" xml:space="preserve">
+    <value>画像全体がスパンを選んだモニター全体に収まるように拡大縮小し、余白は黒で表示します</value>
+  </data>
+  <data name="SpanFolderRemoved" xml:space="preserve">
+    <value>スパンのフォルダを削除しました。</value>
+  </data>
+  <data name="SpanFoldersAddedFormat" xml:space="preserve">
+    <value>スパンのフォルダを {0} 件追加しました。</value>
+    <comment>{0}: 件数</comment>
+  </data>
+  <data name="SpanNote" xml:space="preserve">
+    <value>モニターの配置（Windows の「ディスプレイ」設定の位置）に合わせて切り分けます。モニターの縁の幅は考慮しません。</value>
+  </data>
+  <data name="SpanTargetName" xml:space="preserve">
+    <value>スパン（複数モニター）</value>
+  </data>
+  <data name="StartWithWindows" xml:space="preserve">
+    <value>Windows の起動時に自動的に開始する</value>
+  </data>
+  <data name="StartWithWindowsDescription" xml:space="preserve">
+    <value>サインインすると、タスクトレイに常駐して壁紙の自動切り替えを始めます</value>
+  </data>
+  <data name="StartupAndLogTitle" xml:space="preserve">
+    <value>起動・言語・ログ</value>
+  </data>
+  <data name="StartupDisabled" xml:space="preserve">
+    <value>Windows の起動時に自動的に開始しないようにしました。</value>
+  </data>
+  <data name="StartupEnabled" xml:space="preserve">
+    <value>Windows の起動時に自動的に開始するようにしました。</value>
+  </data>
+  <data name="StartupRegistrationFailedFormat" xml:space="preserve">
+    <value>自動起動の設定に失敗しました。{0}</value>
+    <comment>{0}: エラーの内容</comment>
+  </data>
+  <data name="StartupStateUnavailableFormat" xml:space="preserve">
+    <value>自動起動の状態を取得できませんでした。{0}</value>
+    <comment>{0}: エラーの内容</comment>
+  </data>
+  <data name="TileBecameBlankFormat" xml:space="preserve">
+    <value>{0}は未設定になり、空きマスとして表示します。</value>
+    <comment>{0}: 「左上のマス」など</comment>
+  </data>
+  <data name="TileFit" xml:space="preserve">
+    <value>マスへの収め方</value>
+  </data>
+  <data name="TileFitChangedFill" xml:space="preserve">
+    <value>マスを埋めるように表示するようにしました。</value>
+  </data>
+  <data name="TileFitChangedFit" xml:space="preserve">
+    <value>マスに画像全体を表示するようにしました。</value>
+  </data>
+  <data name="TileFitFill" xml:space="preserve">
+    <value>マスを埋める</value>
+  </data>
+  <data name="TileFitFillDescription" xml:space="preserve">
+    <value>マスいっぱいに拡大し、はみ出した部分は中央で切り抜きます</value>
+  </data>
+  <data name="TileFitFitDescription" xml:space="preserve">
+    <value>写真の端が切れないよう画像全体をマスに収め、余白は「空きマス・余白の色」で塗ります</value>
+  </data>
+  <data name="TileFolderRemovedFormat" xml:space="preserve">
+    <value>{0}からフォルダを削除しました。</value>
+    <comment>{0}: 「左上のマス」など</comment>
+  </data>
+  <data name="TileFoldersAddedFormat" xml:space="preserve">
+    <value>{0}に {1} 件のフォルダを追加しました。</value>
+    <comment>{0}: 「左上のマス」など、{1}: 件数</comment>
+  </data>
+  <data name="TileGap" xml:space="preserve">
+    <value>間隔</value>
+  </data>
+  <data name="TileGapChangedFormat" xml:space="preserve">
+    <value>マスの間隔を {0} px に変更しました。</value>
+    <comment>{0}: 間隔（ピクセル）</comment>
+  </data>
+  <data name="TileNumberFormat" xml:space="preserve">
+    <value>マス {0}</value>
+    <comment>{0}: マスの番号（1 始まり）</comment>
+  </data>
+  <data name="TileRowColumnFormat" xml:space="preserve">
+    <value>{0} 行 {1} 列</value>
+    <comment>{0}: 行、{1}: 列（16 分割のマスの呼び方）</comment>
+  </data>
+  <data name="TileSummaryBlank" xml:space="preserve">
+    <value>未設定（空き）</value>
+  </data>
+  <data name="TileSummaryMoreFormat" xml:space="preserve">
+    <value>{0} ほか {1} 件</value>
+    <comment>{0}: 最初のフォルダの名前、{1}: 残りの件数</comment>
+  </data>
+  <data name="TileSummaryNotSet" xml:space="preserve">
+    <value>未設定</value>
+  </data>
+  <data name="TileTargetFormat" xml:space="preserve">
+    <value>{0}の{1}</value>
+    <comment>{0}: 位置（左上など）、{1}: マスか区画</comment>
+  </data>
+  <data name="TileUnitSection" xml:space="preserve">
+    <value>区画</value>
+    <comment>16 分割でフォルダを設定する単位（文の途中に入る）</comment>
+  </data>
+  <data name="TileUnitTile" xml:space="preserve">
+    <value>マス</value>
+    <comment>4 分割でフォルダを設定する単位（文の途中に入る）</comment>
+  </data>
+  <data name="TrayToolTipHeldFullScreenFormat" xml:space="preserve">
+    <value>{0}（全画面のアプリの実行中のため、切り替えを待っています）</value>
+    <comment>{0}: アプリの名前</comment>
+  </data>
+  <data name="TrayToolTipHeldOnBatteryFormat" xml:space="preserve">
+    <value>{0}（バッテリー駆動中のため、切り替えを待っています）</value>
+    <comment>{0}: アプリの名前</comment>
+  </data>
+  <data name="TrayToolTipIntervalFormat" xml:space="preserve">
+    <value>{0}（{1}ごとに切り替え）</value>
+    <comment>{0}: アプリの名前、{1}: 切り替え間隔</comment>
+  </data>
+  <data name="TrayToolTipPausedFormat" xml:space="preserve">
+    <value>{0}（一時停止中）</value>
+    <comment>{0}: アプリの名前</comment>
+  </data>
+  <data name="UnknownMonitorName" xml:space="preserve">
+    <value>名前の分からないモニター</value>
+  </data>
+  <data name="WallpaperChanged" xml:space="preserve">
+    <value>壁紙を切り替えました</value>
+  </data>
+  <data name="WallpaperChangedForFormat" xml:space="preserve">
+    <value>{0} の壁紙を変更しました。</value>
+    <comment>{0}: モニターの名前</comment>
+  </data>
+  <data name="WallpaperFolders" xml:space="preserve">
+    <value>壁紙フォルダ</value>
+  </data>
+  <data name="WallpaperRevertedForFormat" xml:space="preserve">
+    <value>{0} の壁紙を前の壁紙に戻しました。</value>
+    <comment>{0}: モニターの名前</comment>
+  </data>
+  <data name="WallpapersNotChanged" xml:space="preserve">
+    <value>壁紙は変更されませんでした。</value>
+  </data>
+</root>

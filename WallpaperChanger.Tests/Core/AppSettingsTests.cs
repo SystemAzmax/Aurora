@@ -328,6 +328,14 @@ public class AppSettingsTests
     }
 
     [Fact]
+    public void 表示言語は既定で日本語で範囲外の値は日本語にする()
+    {
+        Assert.Equal(AppLanguage.Japanese, new AppSettings().Language);
+        Assert.Equal(AppLanguage.English, new AppSettings { Language = AppLanguage.English }.Normalize().Language);
+        Assert.Equal(AppLanguage.Japanese, new AppSettings { Language = (AppLanguage)99 }.Normalize().Language);
+    }
+
+    [Fact]
     public void Normalizeは表示しない画像が無い設定を空にする()
     {
         var settings = new AppSettings { ExcludedImages = null! }.Normalize();

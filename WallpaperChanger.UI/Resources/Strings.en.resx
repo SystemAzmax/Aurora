@@ -1,0 +1,704 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<root>
+  <resheader name="resmimetype">
+    <value>text/microsoft-resx</value>
+  </resheader>
+  <resheader name="version">
+    <value>2.0</value>
+  </resheader>
+  <resheader name="reader">
+    <value>System.Resources.ResXResourceReader, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </resheader>
+  <resheader name="writer">
+    <value>System.Resources.ResXResourceWriter, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </resheader>
+  <data name="Add" xml:space="preserve">
+    <value>Add</value>
+  </data>
+  <data name="AllTilesUnsetFormat" xml:space="preserve">
+    <value>No {0}s have folders now, so {1} images are chosen from the single-image folders.</value>
+  </data>
+  <data name="AllWallpapersRefreshed" xml:space="preserve">
+    <value>Reloaded the wallpaper folders and refreshed the wallpapers on all monitors.</value>
+  </data>
+  <data name="AppName" xml:space="preserve">
+    <value>Wallpaper Changer</value>
+  </data>
+  <data name="ChangingMonitorWallpaperFormat" xml:space="preserve">
+    <value>Changing the wallpaper on {0}…</value>
+  </data>
+  <data name="ChangingWallpaper" xml:space="preserve">
+    <value>Changing wallpapers…</value>
+  </data>
+  <data name="ChangingWallpaperProgressFormat" xml:space="preserve">
+    <value>Changing wallpapers… ({1} of {0}: {2})</value>
+  </data>
+  <data name="ColorBlack" xml:space="preserve">
+    <value>Black</value>
+  </data>
+  <data name="ColorDarkGray" xml:space="preserve">
+    <value>Dark gray</value>
+  </data>
+  <data name="ColorGray" xml:space="preserve">
+    <value>Gray</value>
+  </data>
+  <data name="ColorLightGray" xml:space="preserve">
+    <value>Light gray</value>
+  </data>
+  <data name="ColorWhite" xml:space="preserve">
+    <value>White</value>
+  </data>
+  <data name="Copy" xml:space="preserve">
+    <value>Copy</value>
+  </data>
+  <data name="CopySettingsDescription" xml:space="preserve">
+    <value>Copies the wallpaper folders, layout, fit, selection and other settings of a previous monitor (including disconnected ones), for example to a new monitor. When you connect the same model to a different port, the settings are carried over automatically.</value>
+  </data>
+  <data name="CopySettingsTitle" xml:space="preserve">
+    <value>Copy settings from another monitor</value>
+  </data>
+  <data name="DetectMonitors" xml:space="preserve">
+    <value>Detect monitors</value>
+  </data>
+  <data name="DisplayLanguage" xml:space="preserve">
+    <value>Language (表示言語)</value>
+  </data>
+  <data name="DisplayLanguageDescription" xml:space="preserve">
+    <value>Takes effect after you restart the app. Logs are always written in Japanese.</value>
+  </data>
+  <data name="EditingTargetFormat" xml:space="preserve">
+    <value>Folders for the {0} {1}</value>
+  </data>
+  <data name="EmptyColor" xml:space="preserve">
+    <value>Blank tile and margin color</value>
+  </data>
+  <data name="EmptyColorChangedFormat" xml:space="preserve">
+    <value>Changed the blank tile and margin color to "{0}".</value>
+  </data>
+  <data name="EmptyFolders" xml:space="preserve">
+    <value>No folders are set. Use "Add" to add one.</value>
+  </data>
+  <data name="EmptyFoldersBlankFormat" xml:space="preserve">
+    <value>Not set (this {0} is shown as blank)</value>
+  </data>
+  <data name="EmptyFoldersUseSingle" xml:space="preserve">
+    <value>Not set (images are chosen from the single-image folders)</value>
+  </data>
+  <data name="ExcludeImage" xml:space="preserve">
+    <value>Don't show this image</value>
+  </data>
+  <data name="ExcludeImageToolTip" xml:space="preserve">
+    <value>Removes the current image from the wallpaper candidates and replaces it (you can undo this in Settings)</value>
+  </data>
+  <data name="ExcludedImagesDescription" xml:space="preserve">
+    <value>Images hidden with "Don't show this image" in the tray menu. They are not shown even if they are in a wallpaper folder.</value>
+  </data>
+  <data name="ExcludedImagesTitle" xml:space="preserve">
+    <value>Hidden images (all monitors)</value>
+  </data>
+  <data name="Exit" xml:space="preserve">
+    <value>Exit</value>
+  </data>
+  <data name="FatalErrorFormat" xml:space="preserve">
+    <value>The app will close because an error occurred.
+
+{0}</value>
+  </data>
+  <data name="FitWhole" xml:space="preserve">
+    <value>Show the whole image</value>
+  </data>
+  <data name="FolderCaptionGrid2x2" xml:space="preserve">
+    <value>Select a tile to set its folders. If no tile has folders, 4 images are chosen from the single-image folders. Once any tile has folders, tiles without folders are left blank (painted with the "Blank tile and margin color").</value>
+  </data>
+  <data name="FolderCaptionGrid4x4" xml:space="preserve">
+    <value>Select a section (4 tiles each) to set its folders. If no section has folders, 16 images are chosen from the single-image folders. Once any section has folders, sections without folders are left blank (painted with the "Blank tile and margin color"). These settings are shared with the 2 × 2 tiles.</value>
+  </data>
+  <data name="FolderCaptionSingle" xml:space="preserve">
+    <value>Folders of images to show on this monitor (JPG / JPEG / PNG / BMP / WEBP)</value>
+  </data>
+  <data name="FolderCaptionSpanFormat" xml:space="preserve">
+    <value>Shows one image across the monitors set to Span ({0} connected), split to match the position of each monitor. Folders, subfolder search, selection and fit are shared by all monitors set to Span.</value>
+  </data>
+  <data name="FolderRemoved" xml:space="preserve">
+    <value>Removed the folder.</value>
+  </data>
+  <data name="FoldersAddedFormat" xml:space="preserve">
+    <value>Added {0} folder(s).</value>
+  </data>
+  <data name="GapColor" xml:space="preserve">
+    <value>Spacing color</value>
+  </data>
+  <data name="GapColorChangedFormat" xml:space="preserve">
+    <value>Changed the spacing color to "{0}".</value>
+  </data>
+  <data name="Identify" xml:space="preserve">
+    <value>Identify</value>
+  </data>
+  <data name="IdentifyToolTip" xml:space="preserve">
+    <value>Shows a number on the screen of each monitor</value>
+  </data>
+  <data name="ImageExcludedFormat" xml:space="preserve">
+    <value>{0} will no longer be shown (you can undo this in Settings)</value>
+  </data>
+  <data name="ImageNotFoundFormat" xml:space="preserve">
+    <value>Image not found: {0}</value>
+  </data>
+  <data name="ImageRestoredFormat" xml:space="preserve">
+    <value>{0} will be shown again.</value>
+  </data>
+  <data name="IncludeSubfolders" xml:space="preserve">
+    <value>Include subfolders</value>
+  </data>
+  <data name="Interval" xml:space="preserve">
+    <value>Change every</value>
+  </data>
+  <data name="IntervalChangedFormat" xml:space="preserve">
+    <value>Changed the interval to {0}.</value>
+  </data>
+  <data name="IntervalHoursFormat" xml:space="preserve">
+    <value>{0} hr</value>
+  </data>
+  <data name="IntervalHoursMinutesFormat" xml:space="preserve">
+    <value>{0} hr {1} min</value>
+  </data>
+  <data name="IntervalMinutesFormat" xml:space="preserve">
+    <value>{0} min</value>
+  </data>
+  <data name="IntervalOutOfRange" xml:space="preserve">
+    <value>Enter an interval between 1 minute and 24 hours.</value>
+  </data>
+  <data name="IntervalRange" xml:space="preserve">
+    <value>(1 minute to 24 hours)</value>
+  </data>
+  <data name="IntervalUnitHours" xml:space="preserve">
+    <value>hr</value>
+  </data>
+  <data name="IntervalUnitMinutes" xml:space="preserve">
+    <value>min</value>
+  </data>
+  <data name="LanguageChangedBackFormat" xml:space="preserve">
+    <value>Changed the language back to "{0}".</value>
+  </data>
+  <data name="LanguageChangedRestartFormat" xml:space="preserve">
+    <value>Changed the language to "{0}". Restart the app to apply it (choose "Exit" in the tray menu, then start the app again).</value>
+  </data>
+  <data name="LayoutChangedGrid2x2" xml:space="preserve">
+    <value>Switched to 2 × 2 tiles.</value>
+  </data>
+  <data name="LayoutChangedGrid4x4" xml:space="preserve">
+    <value>Switched to 4 × 4 tiles.</value>
+  </data>
+  <data name="LayoutChangedSingle" xml:space="preserve">
+    <value>Switched to a single image.</value>
+  </data>
+  <data name="LayoutChangedSpanFormat" xml:space="preserve">
+    <value>Switched to Span (one image across multiple monitors). {0} monitor(s) are set to Span.</value>
+  </data>
+  <data name="LayoutGrid2x2" xml:space="preserve">
+    <value>2 × 2 tiles</value>
+  </data>
+  <data name="LayoutGrid2x2Description" xml:space="preserve">
+    <value>Shows 4 images at once in a 2 × 2 grid</value>
+  </data>
+  <data name="LayoutGrid4x4" xml:space="preserve">
+    <value>4 × 4 tiles</value>
+  </data>
+  <data name="LayoutGrid4x4Description" xml:space="preserve">
+    <value>Shows 16 images at once in a 4 × 4 grid</value>
+  </data>
+  <data name="LayoutSingle" xml:space="preserve">
+    <value>Single image</value>
+  </data>
+  <data name="LayoutSingleDescription" xml:space="preserve">
+    <value>One image on the whole screen</value>
+  </data>
+  <data name="LayoutSpan" xml:space="preserve">
+    <value>Span</value>
+  </data>
+  <data name="LayoutSpanDescription" xml:space="preserve">
+    <value>Shows one image across multiple monitors</value>
+  </data>
+  <data name="ListSeparator" xml:space="preserve">
+    <value>, </value>
+  </data>
+  <data name="Log" xml:space="preserve">
+    <value>Logs</value>
+  </data>
+  <data name="LogDirectoryFormat" xml:space="preserve">
+    <value>Activity is recorded in {0} (14 days)</value>
+  </data>
+  <data name="MonitorConfigurationChangedFormat" xml:space="preserve">
+    <value>Detected a change in monitors. {0}</value>
+  </data>
+  <data name="MonitorDisconnectedFormat" xml:space="preserve">
+    <value>{0} (disconnected)</value>
+  </data>
+  <data name="MonitorNumberWindowTitle" xml:space="preserve">
+    <value>Monitor number</value>
+  </data>
+  <data name="MonitorPositionsChanged" xml:space="preserve">
+    <value>Detected a change in monitor positions.</value>
+  </data>
+  <data name="MonitorPrimaryDetailsFormat" xml:space="preserve">
+    <value>{0} · Primary</value>
+  </data>
+  <data name="MonitorWithResolutionFormat" xml:space="preserve">
+    <value>{0} ({1})</value>
+  </data>
+  <data name="Monitors" xml:space="preserve">
+    <value>Monitors</value>
+  </data>
+  <data name="MonitorsAddedFormat" xml:space="preserve">
+    <value>Connected: {0}</value>
+  </data>
+  <data name="MonitorsDetectedFormat" xml:space="preserve">
+    <value>Detected {0} monitor(s).</value>
+  </data>
+  <data name="MonitorsInheritedFormat" xml:space="preserve">
+    <value>Previous settings carried over: {0}</value>
+  </data>
+  <data name="MonitorsRemovedFormat" xml:space="preserve">
+    <value>Disconnected: {0}</value>
+  </data>
+  <data name="MonitorsResizedFormat" xml:space="preserve">
+    <value>Resolution changed: {0}</value>
+  </data>
+  <data name="NextWallpaper" xml:space="preserve">
+    <value>Next wallpaper</value>
+  </data>
+  <data name="NoCopySources" xml:space="preserve">
+    <value>There are no settings to copy (no monitor has wallpaper folders)</value>
+  </data>
+  <data name="NoExcludedImages" xml:space="preserve">
+    <value>There are no hidden images</value>
+  </data>
+  <data name="NoMonitorSelected" xml:space="preserve">
+    <value>No monitor selected</value>
+  </data>
+  <data name="NoTargetMonitor" xml:space="preserve">
+    <value>The wallpaper was not changed because the monitor was not found.</value>
+  </data>
+  <data name="OpenLocation" xml:space="preserve">
+    <value>Open location</value>
+  </data>
+  <data name="OpenLogFolder" xml:space="preserve">
+    <value>Open log folder</value>
+  </data>
+  <data name="OperationAddFolder" xml:space="preserve">
+    <value>add folders</value>
+  </data>
+  <data name="OperationChangeEmptyColor" xml:space="preserve">
+    <value>change the blank tile and margin color</value>
+  </data>
+  <data name="OperationChangeGapColor" xml:space="preserve">
+    <value>change the spacing color</value>
+  </data>
+  <data name="OperationChangeLayout" xml:space="preserve">
+    <value>change the layout</value>
+  </data>
+  <data name="OperationChangeSingleImageFit" xml:space="preserve">
+    <value>change the fit</value>
+  </data>
+  <data name="OperationChangeSpanFit" xml:space="preserve">
+    <value>change the span fit</value>
+  </data>
+  <data name="OperationChangeTileFit" xml:space="preserve">
+    <value>change how images fit the tiles</value>
+  </data>
+  <data name="OperationChangeTileGap" xml:space="preserve">
+    <value>change the tile spacing</value>
+  </data>
+  <data name="OperationChangeWallpaper" xml:space="preserve">
+    <value>change the wallpaper</value>
+  </data>
+  <data name="OperationCopySettings" xml:space="preserve">
+    <value>copy the settings</value>
+  </data>
+  <data name="OperationDetectMonitors" xml:space="preserve">
+    <value>detect monitors</value>
+  </data>
+  <data name="OperationExcludeImage" xml:space="preserve">
+    <value>hide the image</value>
+  </data>
+  <data name="OperationFailed" xml:space="preserve">
+    <value>Failed to {0}. {1}</value>
+  </data>
+  <data name="OperationIdentifyMonitors" xml:space="preserve">
+    <value>identify monitors</value>
+  </data>
+  <data name="OperationLoadSettings" xml:space="preserve">
+    <value>load the settings</value>
+  </data>
+  <data name="OperationNextWallpaper" xml:space="preserve">
+    <value>switch to the next wallpaper</value>
+  </data>
+  <data name="OperationOpenLogFolder" xml:space="preserve">
+    <value>open the log folder</value>
+  </data>
+  <data name="OperationPause" xml:space="preserve">
+    <value>pause automatic changes</value>
+  </data>
+  <data name="OperationPreviousWallpaper" xml:space="preserve">
+    <value>switch to the previous wallpaper</value>
+  </data>
+  <data name="OperationRefreshAllWallpapers" xml:space="preserve">
+    <value>refresh all wallpapers</value>
+  </data>
+  <data name="OperationRefreshPreview" xml:space="preserve">
+    <value>update the preview</value>
+  </data>
+  <data name="OperationRemoveFolder" xml:space="preserve">
+    <value>remove the folder</value>
+  </data>
+  <data name="OperationRestoreExcludedImage" xml:space="preserve">
+    <value>show the image again</value>
+  </data>
+  <data name="OperationResume" xml:space="preserve">
+    <value>resume automatic changes</value>
+  </data>
+  <data name="OperationSaveIncludeSubfolders" xml:space="preserve">
+    <value>save the subfolder setting</value>
+  </data>
+  <data name="OperationSaveInterval" xml:space="preserve">
+    <value>save the interval</value>
+  </data>
+  <data name="OperationSaveLanguage" xml:space="preserve">
+    <value>save the language</value>
+  </data>
+  <data name="OperationSaveSelectionMode" xml:space="preserve">
+    <value>save the selection mode</value>
+  </data>
+  <data name="OperationSaveSkipConditions" xml:space="preserve">
+    <value>save the automatic change conditions</value>
+  </data>
+  <data name="OperationShowImageInFolder" xml:space="preserve">
+    <value>open the image location</value>
+  </data>
+  <data name="OperationStartupRegistration" xml:space="preserve">
+    <value>change the startup setting</value>
+  </data>
+  <data name="OperationTogglePause" xml:space="preserve">
+    <value>pause or resume</value>
+  </data>
+  <data name="OperationUpdateMonitors" xml:space="preserve">
+    <value>update the monitor list</value>
+  </data>
+  <data name="Pause" xml:space="preserve">
+    <value>Pause</value>
+  </data>
+  <data name="PickSpanFolders" xml:space="preserve">
+    <value>Select folders to show across the span</value>
+  </data>
+  <data name="PickTileFoldersFormat" xml:space="preserve">
+    <value>Select folders to show in the {0}</value>
+  </data>
+  <data name="PickWallpaperFolders" xml:space="preserve">
+    <value>Select wallpaper folders</value>
+  </data>
+  <data name="PreviewTitle" xml:space="preserve">
+    <value>Preview (current wallpaper)</value>
+  </data>
+  <data name="PreviewUnavailable" xml:space="preserve">
+    <value>The preview cannot be shown</value>
+  </data>
+  <data name="PreviousWallpaper" xml:space="preserve">
+    <value>Previous wallpaper</value>
+  </data>
+  <data name="ProblemSentenceSeparator" xml:space="preserve">
+    <value> </value>
+  </data>
+  <data name="QuadrantBottomLeft" xml:space="preserve">
+    <value>Bottom left</value>
+  </data>
+  <data name="QuadrantBottomRight" xml:space="preserve">
+    <value>Bottom right</value>
+  </data>
+  <data name="QuadrantTopLeft" xml:space="preserve">
+    <value>Top left</value>
+  </data>
+  <data name="QuadrantTopRight" xml:space="preserve">
+    <value>Top right</value>
+  </data>
+  <data name="ReasonNoFolders" xml:space="preserve">
+    <value>No wallpaper folders are set</value>
+  </data>
+  <data name="ReasonNoImages" xml:space="preserve">
+    <value>No supported images in the wallpaper folders</value>
+  </data>
+  <data name="ReasonNoPreviousWallpaper" xml:space="preserve">
+    <value>There is no earlier wallpaper</value>
+  </data>
+  <data name="ReasonSeparator" xml:space="preserve">
+    <value> / </value>
+  </data>
+  <data name="ReasonWithMonitorsFormat" xml:space="preserve">
+    <value>{0} ({1})</value>
+  </data>
+  <data name="RefreshAllWallpapers" xml:space="preserve">
+    <value>Refresh all wallpapers</value>
+  </data>
+  <data name="RefreshAllWallpapersToolTip" xml:space="preserve">
+    <value>Reloads the wallpaper folders and picks new wallpapers for all monitors</value>
+  </data>
+  <data name="Remove" xml:space="preserve">
+    <value>Remove</value>
+  </data>
+  <data name="RestoreExcludedImage" xml:space="preserve">
+    <value>Show again</value>
+  </data>
+  <data name="Resume" xml:space="preserve">
+    <value>Resume</value>
+  </data>
+  <data name="ScheduleHeldFullScreen" xml:space="preserve">
+    <value>Waiting while a full-screen app is running (the wallpaper changes when it ends)</value>
+  </data>
+  <data name="ScheduleHeldOnBattery" xml:space="preserve">
+    <value>Waiting while on battery power (the wallpaper changes when plugged in)</value>
+  </data>
+  <data name="ScheduleIntervalFormat" xml:space="preserve">
+    <value>Changes automatically every {0}</value>
+  </data>
+  <data name="SchedulePaused" xml:space="preserve">
+    <value>Automatic changes are paused</value>
+  </data>
+  <data name="ScheduleTitle" xml:space="preserve">
+    <value>Changing (all monitors)</value>
+  </data>
+  <data name="SelectionRandom" xml:space="preserve">
+    <value>Random</value>
+  </data>
+  <data name="SelectionRandomDescription" xml:space="preserve">
+    <value>Picks images from the folders at random</value>
+  </data>
+  <data name="SelectionSequential" xml:space="preserve">
+    <value>In order</value>
+  </data>
+  <data name="SelectionSequentialDescription" xml:space="preserve">
+    <value>Shows images one by one in file path order</value>
+  </data>
+  <data name="SelectionSpanNote" xml:space="preserve">
+    <value>This setting is shared by all monitors set to Span.</value>
+  </data>
+  <data name="SelectionTitle" xml:space="preserve">
+    <value>Selection</value>
+  </data>
+  <data name="Settings" xml:space="preserve">
+    <value>Settings</value>
+  </data>
+  <data name="SettingsCopiedFormat" xml:space="preserve">
+    <value>Copied the settings of {0} to {1}.</value>
+  </data>
+  <data name="SettingsWindowTitle" xml:space="preserve">
+    <value>Wallpaper Changer - Settings</value>
+  </data>
+  <data name="ShowImageInFolder" xml:space="preserve">
+    <value>Open image location</value>
+  </data>
+  <data name="ShowImageInFolderToolTip" xml:space="preserve">
+    <value>Opens File Explorer with the current image selected</value>
+  </data>
+  <data name="SingleImageFit" xml:space="preserve">
+    <value>Fit</value>
+  </data>
+  <data name="SingleImageFitCenter" xml:space="preserve">
+    <value>Center</value>
+  </data>
+  <data name="SingleImageFitCenterDescription" xml:space="preserve">
+    <value>Shows the image at its original size in the center. Images larger than the screen are cropped around the center, and margins are black.</value>
+  </data>
+  <data name="SingleImageFitChangedFormat" xml:space="preserve">
+    <value>Changed the single-image fit to "{0}".</value>
+  </data>
+  <data name="SingleImageFitFill" xml:space="preserve">
+    <value>Fill</value>
+  </data>
+  <data name="SingleImageFitFillDescription" xml:space="preserve">
+    <value>Scales the image to cover the whole screen and crops the overflow around the center.</value>
+  </data>
+  <data name="SingleImageFitFit" xml:space="preserve">
+    <value>Fit</value>
+  </data>
+  <data name="SingleImageFitFitDescription" xml:space="preserve">
+    <value>Scales the image so that all of it fits on the screen, with black margins. Portrait photos are shown without being cut off.</value>
+  </data>
+  <data name="SingleImageFitStretch" xml:space="preserve">
+    <value>Stretch</value>
+  </data>
+  <data name="SingleImageFitStretchDescription" xml:space="preserve">
+    <value>Stretches the image to fill the screen, changing its aspect ratio.</value>
+  </data>
+  <data name="SingleImageFitWindows" xml:space="preserve">
+    <value>Use the Windows setting</value>
+  </data>
+  <data name="SingleImageFitWindowsDescription" xml:space="preserve">
+    <value>Sets the image as is and shows it with the fit chosen in Windows "Personalization &gt; Background" (this Windows setting applies to all monitors).</value>
+  </data>
+  <data name="SkipOnBattery" xml:space="preserve">
+    <value>Don't change on battery power</value>
+  </data>
+  <data name="SkipOnBatteryDescription" xml:space="preserve">
+    <value>Waits while a laptop or other PC is unplugged, and changes after it is plugged in</value>
+  </data>
+  <data name="SkipOnBatteryDisabled" xml:space="preserve">
+    <value>Wallpapers now change automatically even on battery power.</value>
+  </data>
+  <data name="SkipOnBatteryEnabled" xml:space="preserve">
+    <value>Wallpapers no longer change automatically on battery power.</value>
+  </data>
+  <data name="SkipWhenFullScreen" xml:space="preserve">
+    <value>Don't change while a full-screen app is running</value>
+  </data>
+  <data name="SkipWhenFullScreenDescription" xml:space="preserve">
+    <value>Waits during full-screen games, videos and presentations, and changes after they end</value>
+  </data>
+  <data name="SkipWhenFullScreenDisabled" xml:space="preserve">
+    <value>Wallpapers now change automatically even while a full-screen app is running.</value>
+  </data>
+  <data name="SkipWhenFullScreenEnabled" xml:space="preserve">
+    <value>Wallpapers no longer change automatically while a full-screen app is running.</value>
+  </data>
+  <data name="SolidColorBackground" xml:space="preserve">
+    <value>(Solid color background)</value>
+  </data>
+  <data name="SomeWallpapersNotChanged" xml:space="preserve">
+    <value>The wallpaper was not changed on some monitors.</value>
+  </data>
+  <data name="SpanFit" xml:space="preserve">
+    <value>Fit (shared by the span)</value>
+  </data>
+  <data name="SpanFitChangedFill" xml:space="preserve">
+    <value>The image now fills all monitors in the span.</value>
+  </data>
+  <data name="SpanFitChangedFit" xml:space="preserve">
+    <value>The span now shows the whole image.</value>
+  </data>
+  <data name="SpanFitFill" xml:space="preserve">
+    <value>Fill all monitors</value>
+  </data>
+  <data name="SpanFitFillDescription" xml:space="preserve">
+    <value>Scales the image to cover all monitors set to Span and crops the overflow around the center</value>
+  </data>
+  <data name="SpanFitFitDescription" xml:space="preserve">
+    <value>Scales the image so that all of it fits across the monitors set to Span, with black margins</value>
+  </data>
+  <data name="SpanFolderRemoved" xml:space="preserve">
+    <value>Removed the span folder.</value>
+  </data>
+  <data name="SpanFoldersAddedFormat" xml:space="preserve">
+    <value>Added {0} span folder(s).</value>
+  </data>
+  <data name="SpanNote" xml:space="preserve">
+    <value>The image is split to match the monitor arrangement in the Windows "Display" settings. Monitor bezels are not taken into account.</value>
+  </data>
+  <data name="SpanTargetName" xml:space="preserve">
+    <value>Span (multiple monitors)</value>
+  </data>
+  <data name="StartWithWindows" xml:space="preserve">
+    <value>Start automatically with Windows</value>
+  </data>
+  <data name="StartWithWindowsDescription" xml:space="preserve">
+    <value>When you sign in, the app starts in the notification area and begins changing wallpapers</value>
+  </data>
+  <data name="StartupAndLogTitle" xml:space="preserve">
+    <value>Startup, language and logs</value>
+  </data>
+  <data name="StartupDisabled" xml:space="preserve">
+    <value>The app no longer starts automatically when you sign in to Windows.</value>
+  </data>
+  <data name="StartupEnabled" xml:space="preserve">
+    <value>The app now starts automatically when you sign in to Windows.</value>
+  </data>
+  <data name="StartupRegistrationFailedFormat" xml:space="preserve">
+    <value>Failed to change the startup setting. {0}</value>
+  </data>
+  <data name="StartupStateUnavailableFormat" xml:space="preserve">
+    <value>Could not get the startup setting. {0}</value>
+  </data>
+  <data name="TileBecameBlankFormat" xml:space="preserve">
+    <value>The {0} now has no folders and is shown as blank.</value>
+  </data>
+  <data name="TileFit" xml:space="preserve">
+    <value>Fit in tiles</value>
+  </data>
+  <data name="TileFitChangedFill" xml:space="preserve">
+    <value>Images now fill the tiles.</value>
+  </data>
+  <data name="TileFitChangedFit" xml:space="preserve">
+    <value>Tiles now show the whole image.</value>
+  </data>
+  <data name="TileFitFill" xml:space="preserve">
+    <value>Fill the tiles</value>
+  </data>
+  <data name="TileFitFillDescription" xml:space="preserve">
+    <value>Scales each image to fill its tile and crops the overflow around the center</value>
+  </data>
+  <data name="TileFitFitDescription" xml:space="preserve">
+    <value>Fits the whole image in each tile so the edges are not cut off, and paints the margins with the "Blank tile and margin color"</value>
+  </data>
+  <data name="TileFolderRemovedFormat" xml:space="preserve">
+    <value>Removed the folder from the {0}.</value>
+  </data>
+  <data name="TileFoldersAddedFormat" xml:space="preserve">
+    <value>Added {1} folder(s) to the {0}.</value>
+  </data>
+  <data name="TileGap" xml:space="preserve">
+    <value>Spacing</value>
+  </data>
+  <data name="TileGapChangedFormat" xml:space="preserve">
+    <value>Changed the tile spacing to {0} px.</value>
+  </data>
+  <data name="TileNumberFormat" xml:space="preserve">
+    <value>Tile {0}</value>
+  </data>
+  <data name="TileRowColumnFormat" xml:space="preserve">
+    <value>Row {0}, column {1}</value>
+  </data>
+  <data name="TileSummaryBlank" xml:space="preserve">
+    <value>Not set (blank)</value>
+  </data>
+  <data name="TileSummaryMoreFormat" xml:space="preserve">
+    <value>{0} and {1} more</value>
+  </data>
+  <data name="TileSummaryNotSet" xml:space="preserve">
+    <value>Not set</value>
+  </data>
+  <data name="TileTargetFormat" xml:space="preserve">
+    <value>{0} {1}</value>
+  </data>
+  <data name="TileUnitSection" xml:space="preserve">
+    <value>section</value>
+  </data>
+  <data name="TileUnitTile" xml:space="preserve">
+    <value>tile</value>
+  </data>
+  <data name="TrayToolTipHeldFullScreenFormat" xml:space="preserve">
+    <value>{0} (waiting while a full-screen app is running)</value>
+  </data>
+  <data name="TrayToolTipHeldOnBatteryFormat" xml:space="preserve">
+    <value>{0} (waiting while on battery power)</value>
+  </data>
+  <data name="TrayToolTipIntervalFormat" xml:space="preserve">
+    <value>{0} (changes every {1})</value>
+  </data>
+  <data name="TrayToolTipPausedFormat" xml:space="preserve">
+    <value>{0} (paused)</value>
+  </data>
+  <data name="UnknownMonitorName" xml:space="preserve">
+    <value>Unknown monitor</value>
+  </data>
+  <data name="WallpaperChanged" xml:space="preserve">
+    <value>Wallpapers changed</value>
+  </data>
+  <data name="WallpaperChangedForFormat" xml:space="preserve">
+    <value>Changed the wallpaper on {0}.</value>
+  </data>
+  <data name="WallpaperFolders" xml:space="preserve">
+    <value>Wallpaper folders</value>
+  </data>
+  <data name="WallpaperRevertedForFormat" xml:space="preserve">
+    <value>Went back to the previous wallpaper on {0}.</value>
+  </data>
+  <data name="WallpapersNotChanged" xml:space="preserve">
+    <value>The wallpaper was not changed.</value>
+  </data>
+</root>

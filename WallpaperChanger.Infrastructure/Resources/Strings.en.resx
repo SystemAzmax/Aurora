@@ -1,0 +1,42 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<root>
+  <resheader name="resmimetype">
+    <value>text/microsoft-resx</value>
+  </resheader>
+  <resheader name="version">
+    <value>2.0</value>
+  </resheader>
+  <resheader name="reader">
+    <value>System.Resources.ResXResourceReader, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </resheader>
+  <resheader name="writer">
+    <value>System.Resources.ResXResourceWriter, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </resheader>
+  <data name="DesktopWallpaperCallTimedOut" xml:space="preserve">
+    <value>The IDesktopWallpaper call did not complete within {0:0.#} seconds. Explorer may not be responding.</value>
+  </data>
+  <data name="DisplayNameWithNumber" xml:space="preserve">
+    <value>Display {0}</value>
+  </data>
+  <data name="ExecutablePathUnavailable" xml:space="preserve">
+    <value>Could not get the path of the executable file.</value>
+  </data>
+  <data name="ImageFileTooLarge" xml:space="preserve">
+    <value>The image was not loaded because its file size exceeds the limit ({0:N0} bytes): {1}</value>
+  </data>
+  <data name="ImageTooManyPixels" xml:space="preserve">
+    <value>The image was not loaded because its pixel count ({0}×{1}) exceeds the limit ({2:N0}): {3}</value>
+  </data>
+  <data name="ImageUnreadable" xml:space="preserve">
+    <value>Could not load the image: {0}</value>
+  </data>
+  <data name="InternalDisplayName" xml:space="preserve">
+    <value>Built-in display</value>
+  </data>
+  <data name="StartupFromTemporaryFolder" xml:space="preserve">
+    <value>Automatic startup cannot be registered because the app is running from a temporary folder. If you are running it directly from a zip file, extract it to a folder first, then try again.</value>
+  </data>
+  <data name="WallpaperFileNotFound" xml:space="preserve">
+    <value>The image file set as the wallpaper was not found.</value>
+  </data>
+</root>

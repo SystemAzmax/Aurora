@@ -1,0 +1,48 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<root>
+  <resheader name="resmimetype">
+    <value>text/microsoft-resx</value>
+  </resheader>
+  <resheader name="version">
+    <value>2.0</value>
+  </resheader>
+  <resheader name="reader">
+    <value>System.Resources.ResXResourceReader, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </resheader>
+  <resheader name="writer">
+    <value>System.Resources.ResXResourceWriter, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </resheader>
+  <data name="DesktopWallpaperCallTimedOut" xml:space="preserve">
+    <value>IDesktopWallpaper の呼び出しが {0:0.#} 秒以内に完了しませんでした。エクスプローラーが応答していない可能性があります。</value>
+    <comment>{0}: 待った秒数</comment>
+  </data>
+  <data name="DisplayNameWithNumber" xml:space="preserve">
+    <value>ディスプレイ {0}</value>
+    <comment>{0}: モニターの番号</comment>
+  </data>
+  <data name="ExecutablePathUnavailable" xml:space="preserve">
+    <value>実行ファイルのパスを取得できません。</value>
+  </data>
+  <data name="ImageFileTooLarge" xml:space="preserve">
+    <value>画像のファイルサイズが上限 ({0:N0} バイト) を超えるため読み込みません: {1}</value>
+    <comment>{0}: 上限のバイト数、{1}: 画像のパス</comment>
+  </data>
+  <data name="ImageTooManyPixels" xml:space="preserve">
+    <value>画像のピクセル数 ({0}×{1}) が上限 ({2:N0}) を超えるため読み込みません: {3}</value>
+    <comment>{0}×{1}: 画像の幅と高さ、{2}: 上限のピクセル数、{3}: 画像のパス</comment>
+  </data>
+  <data name="ImageUnreadable" xml:space="preserve">
+    <value>画像を読み込めませんでした: {0}</value>
+    <comment>{0}: 画像のパス</comment>
+  </data>
+  <data name="InternalDisplayName" xml:space="preserve">
+    <value>内蔵ディスプレイ</value>
+    <comment>EDID にモデル名の無い内蔵ディスプレイの名前</comment>
+  </data>
+  <data name="StartupFromTemporaryFolder" xml:space="preserve">
+    <value>一時フォルダから実行しているため、自動起動を登録できません。zip ファイルから直接実行している場合は、任意のフォルダに展開してから設定してください。</value>
+  </data>
+  <data name="WallpaperFileNotFound" xml:space="preserve">
+    <value>壁紙に指定した画像ファイルが見つかりません。</value>
+  </data>
+</root>

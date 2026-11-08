@@ -1,6 +1,7 @@
 <ResourceDictionary xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
                     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-                    xmlns:tb="clr-namespace:Hardcodet.Wpf.TaskbarNotification;assembly=Hardcodet.NotifyIcon.Wpf">
+                    xmlns:tb="clr-namespace:Hardcodet.Wpf.TaskbarNotification;assembly=Hardcodet.NotifyIcon.Wpf"
+                    xmlns:res="clr-namespace:WallpaperChanger.UI.Resources">
 
     <!--
         タスクトレイアイコン。右クリック: メニュー表示 / ダブルクリック: 設定画面を表示
@@ -53,37 +54,37 @@
 
     <ContextMenu x:Key="TrayContextMenu">
         <!-- 切り替え中は進み具合を表示する（切り替えの項目は、終わるまで押せない） -->
-        <MenuItem Header="{Binding ChangeProgressText, TargetNullValue=壁紙を切り替えています…}" IsEnabled="False"
+        <MenuItem Header="{Binding ChangeProgressText, TargetNullValue={x:Static res:Strings.ChangingWallpaper}}" IsEnabled="False"
                   Visibility="{Binding IsChangingWallpaper, Converter={StaticResource BooleanToVisibilityConverter}}" />
         <Separator Visibility="{Binding IsChangingWallpaper, Converter={StaticResource BooleanToVisibilityConverter}}" />
-        <MenuItem Header="次の壁紙" Command="{Binding NextWallpaperCommand}">
+        <MenuItem Header="{x:Static res:Strings.NextWallpaper}" Command="{Binding NextWallpaperCommand}">
             <MenuItem.Icon>
                 <TextBlock Style="{StaticResource SymbolTextStyle}" Text="&#xE893;" />
             </MenuItem.Icon>
         </MenuItem>
-        <MenuItem Header="前の壁紙" Command="{Binding PreviousWallpaperCommand}">
+        <MenuItem Header="{x:Static res:Strings.PreviousWallpaper}" Command="{Binding PreviousWallpaperCommand}">
             <MenuItem.Icon>
                 <TextBlock Style="{StaticResource SymbolTextStyle}" Text="&#xE892;" />
             </MenuItem.Icon>
         </MenuItem>
-        <MenuItem Header="全壁紙を更新" Command="{Binding RefreshAllWallpapersCommand}"
-                  ToolTip="壁紙フォルダを読み込み直して、全モニターの壁紙を選び直します">
+        <MenuItem Header="{x:Static res:Strings.RefreshAllWallpapers}" Command="{Binding RefreshAllWallpapersCommand}"
+                  ToolTip="{x:Static res:Strings.RefreshAllWallpapersToolTip}">
             <MenuItem.Icon>
                 <TextBlock Style="{StaticResource SymbolTextStyle}" Text="&#xE72C;" />
             </MenuItem.Icon>
         </MenuItem>
         <Separator />
         <!-- 表示中の画像（メニューを開くたびに TrayIconService が作り直させる）。分割表示ではマスを選ぶ -->
-        <MenuItem Header="この画像を表示しない" ItemsSource="{Binding ShownImages}"
+        <MenuItem Header="{x:Static res:Strings.ExcludeImage}" ItemsSource="{Binding ShownImages}"
                   ItemContainerStyle="{StaticResource ExcludeImageItemStyle}" IsEnabled="{Binding HasShownImages}"
-                  ToolTip="表示中の画像を壁紙の候補から外し、別の画像に差し替えます（設定画面で戻せます）">
+                  ToolTip="{x:Static res:Strings.ExcludeImageToolTip}">
             <MenuItem.Icon>
                 <TextBlock Style="{StaticResource SymbolTextStyle}" Text="&#xED1A;" />
             </MenuItem.Icon>
         </MenuItem>
-        <MenuItem Header="画像の場所を開く" ItemsSource="{Binding ShownImages}"
+        <MenuItem Header="{x:Static res:Strings.ShowImageInFolder}" ItemsSource="{Binding ShownImages}"
                   ItemContainerStyle="{StaticResource ShowImageInFolderItemStyle}" IsEnabled="{Binding HasShownImages}"
-                  ToolTip="表示中の画像を、エクスプローラーで選択した状態で開きます">
+                  ToolTip="{x:Static res:Strings.ShowImageInFolderToolTip}">
             <MenuItem.Icon>
                 <TextBlock Style="{StaticResource SymbolTextStyle}" Text="&#xE838;" />
             </MenuItem.Icon>
@@ -106,13 +107,13 @@
                 </TextBlock>
             </MenuItem.Icon>
         </MenuItem>
-        <MenuItem Header="設定" Command="{Binding ShowSettingsCommand}" FontWeight="SemiBold">
+        <MenuItem Header="{x:Static res:Strings.Settings}" Command="{Binding ShowSettingsCommand}" FontWeight="SemiBold">
             <MenuItem.Icon>
                 <TextBlock Style="{StaticResource SymbolTextStyle}" Text="&#xE713;" />
             </MenuItem.Icon>
         </MenuItem>
         <Separator />
-        <MenuItem Header="終了" Command="{Binding ExitCommand}">
+        <MenuItem Header="{x:Static res:Strings.Exit}" Command="{Binding ExitCommand}">
             <MenuItem.Icon>
                 <TextBlock Style="{StaticResource SymbolTextStyle}" Text="&#xE7E8;" />
             </MenuItem.Icon>
@@ -130,7 +131,7 @@
             BorderBrush="{DynamicResource CardStrokeColorDefaultBrush}"
             TextElement.Foreground="{DynamicResource TextFillColorPrimaryBrush}">
         <StackPanel>
-            <TextBlock Text="壁紙チェンジャー" Style="{StaticResource CaptionTextStyle}" />
+            <TextBlock Text="{x:Static res:Strings.AppName}" Style="{StaticResource CaptionTextStyle}" />
             <DockPanel Margin="0,6,0,0">
                 <TextBlock DockPanel.Dock="Left" Text="&#xE73E;" Margin="0,0,8,0"
                            Foreground="{DynamicResource SystemFillColorSuccessBrush}">

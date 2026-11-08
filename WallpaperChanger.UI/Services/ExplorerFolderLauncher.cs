@@ -1,5 +1,6 @@
 using System.Diagnostics;
 using System.IO;
+using WallpaperChanger.UI.Resources;
 
 namespace WallpaperChanger.UI.Services;
 
@@ -24,7 +25,7 @@ internal sealed class ExplorerFolderLauncher : IFolderLauncher
         // 無いファイルを指定すると、エクスプローラーは何も言わずに別のフォルダ（ドキュメントなど）を開くため、先に確かめる
         if (!File.Exists(filePath))
         {
-            throw new FileNotFoundException($"画像が見つかりません: {filePath}", filePath);
+            throw new FileNotFoundException(Localizer.Format(Strings.ImageNotFoundFormat, filePath), filePath);
         }
 
         // アプリのフォルダなどに置かれた同名の実行ファイルを起動しないよう、Windows フォルダのものを使う

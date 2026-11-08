@@ -1,4 +1,5 @@
 using WallpaperChanger.Core.Models;
+using WallpaperChanger.UI.Resources;
 
 namespace WallpaperChanger.UI.ViewModels;
 
@@ -20,5 +21,5 @@ public sealed class MonitorItemViewModel(MonitorInfo monitor, int number)
 
     public bool IsPrimary => Monitor.IsPrimary;
 
-    public string Details => IsPrimary ? $"{ResolutionText} ・ メイン" : ResolutionText;
+    public string Details => IsPrimary ? Localizer.Format(Strings.MonitorPrimaryDetailsFormat, ResolutionText) : ResolutionText;
 }

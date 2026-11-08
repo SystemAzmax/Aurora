@@ -9,6 +9,7 @@ using Microsoft.Extensions.Options;
 using WallpaperChanger.Core.Interfaces;
 using WallpaperChanger.Core.Models;
 using WallpaperChanger.Core.Services;
+using WallpaperChanger.Infrastructure.Resources;
 
 namespace WallpaperChanger.Infrastructure.Imaging;
 
@@ -255,7 +256,7 @@ internal sealed partial class WicWallpaperComposer : IWallpaperComposer
             if (!_limits.IsAllowedFileSize(stream.Length))
             {
                 throw new ImageTooLargeException(
-                    $"画像のファイルサイズが上限 ({_limits.MaxFileBytes:N0} バイト) を超えるため読み込みません: {imagePath}");
+                    InfrastructureLocalization.Format(Strings.ImageFileTooLarge, _limits.MaxFileBytes, imagePath));
             }
 
             // 1. ヘッダーだけ読んで元のサイズを得る（全体のデコードは縮小と同時に行う）
@@ -265,8 +266,9 @@ internal sealed partial class WicWallpaperComposer : IWallpaperComposer
             // 展開すると巨大になる画像でメモリを使い果たさないよう、デコードする前に断る
             if (!_limits.IsAllowedPixelCount(header.PixelWidth, header.PixelHeight))
             {
-                throw new ImageTooLargeException(
-                    $"画像のピクセル数 ({header.PixelWidth}×{header.PixelHeight}) が上限 ({_limits.MaxPixelCount:N0}) を超えるため読み込みません: {imagePath}");
+                throw new ImageTooLargeException(InfrastructureLocalization.Format(
+                    Strings.ImageTooManyPixels,
+                    header.PixelWidth, header.PixelHeight, _limits.MaxPixelCount, imagePath));
             }
 
             // 撮影時の向き（EXIF）を反映した縦横で、デコードする大きさを決める
@@ -299,7 +301,7 @@ internal sealed partial class WicWallpaperComposer : IWallpaperComposer
                                        or FileFormatException or ArgumentException or InvalidOperationException)
         {
             // どの画像が原因かを呼び出し元（ログ・通知）で分かるようにして送出する
-            throw new InvalidOperationException($"画像を読み込めませんでした: {imagePath}", ex);
+            throw new InvalidOperationException(InfrastructureLocalization.Format(Strings.ImageUnreadable, imagePath), ex);
         }
     }
 

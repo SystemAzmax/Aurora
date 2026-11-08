@@ -21,6 +21,20 @@
   </ItemGroup>
 
   <ItemGroup>
+    <!--
+      画面の文言。Strings.resx が既定（日本語）、Strings.en.resx が英語。
+      ビルド時に厳密に型指定されたクラス（WallpaperChanger.UI.Resources.Strings）を生成し、XAML からは x:Static で参照する。
+    -->
+    <EmbeddedResource Update="Resources\Strings.resx">
+      <StronglyTypedLanguage>CSharp</StronglyTypedLanguage>
+      <StronglyTypedClassName>Strings</StronglyTypedClassName>
+      <StronglyTypedNamespace>WallpaperChanger.UI.Resources</StronglyTypedNamespace>
+      <StronglyTypedFileName>$(IntermediateOutputPath)Strings.Designer.cs</StronglyTypedFileName>
+      <PublicClass>true</PublicClass>
+    </EmbeddedResource>
+  </ItemGroup>
+
+  <ItemGroup>
     <PackageReference Include="CommunityToolkit.Mvvm" />
     <PackageReference Include="Hardcodet.NotifyIcon.Wpf" />
     <PackageReference Include="Microsoft.Extensions.Hosting" />
@@ -35,5 +49,11 @@
     <InternalsVisibleTo Include="WallpaperChanger.Tests" />
     <InternalsVisibleTo Include="DynamicProxyGenAssembly2" />
   </ItemGroup>
+
+  <!--
+    WPF は XAML をコンパイルするため、先に一時プロジェクト（*_wpftmp.csproj）で C# をコンパイルする。
+    リソースのクラスは通常その後で生成されるため、一時プロジェクトでもコンパイルの前に生成し、XAML と C# から参照できるようにする。
+  -->
+  <Target Name="GenerateStringsBeforeCompile" BeforeTargets="CoreCompile" DependsOnTargets="PrepareResourceNames;CoreResGen" />
 
 </Project>

@@ -1,4 +1,5 @@
 using WallpaperChanger.Core.Models;
+using WallpaperChanger.UI.Resources;
 
 namespace WallpaperChanger.UI.ViewModels;
 
@@ -17,16 +18,16 @@ internal static class WallpaperChangeMessages
 
         if (result.Monitors.Count == 0)
         {
-            return "対象のモニターが見つからないため、壁紙は変更されませんでした。";
+            return Strings.NoTargetMonitor;
         }
 
         bool anyChanged = result.AnyChanged;
         var reasons = new List<string>();
-        AddReason(reasons, result, WallpaperChangeStatus.NoImages, "壁紙フォルダに対応する画像がありません");
+        AddReason(reasons, result, WallpaperChangeStatus.NoImages, Strings.ReasonNoImages);
         if (!anyChanged)
         {
-            AddReason(reasons, result, WallpaperChangeStatus.NoPreviousWallpaper, "これ以上前の壁紙はありません");
-            AddReason(reasons, result, WallpaperChangeStatus.NoFolders, "壁紙フォルダが登録されていません");
+            AddReason(reasons, result, WallpaperChangeStatus.NoPreviousWallpaper, Strings.ReasonNoPreviousWallpaper);
+            AddReason(reasons, result, WallpaperChangeStatus.NoFolders, Strings.ReasonNoFolders);
         }
 
         if (reasons.Count == 0)
@@ -34,8 +35,8 @@ internal static class WallpaperChangeMessages
             return null;
         }
 
-        string summary = anyChanged ? "一部のモニターの壁紙は変更されませんでした。" : "壁紙は変更されませんでした。";
-        return $"{summary}{string.Join(" / ", reasons)}";
+        string summary = anyChanged ? Strings.SomeWallpapersNotChanged : Strings.WallpapersNotChanged;
+        return summary + Strings.ProblemSentenceSeparator + string.Join(Strings.ReasonSeparator, reasons);
     }
 
     /// <summary>切り替え中の進み具合の説明。切り替えが終わっていれば null。</summary>
@@ -49,8 +50,9 @@ internal static class WallpaperChangeMessages
         }
 
         return progress.TotalCount == 1
-            ? $"{monitor.DisplayName} の壁紙を切り替えています…"
-            : $"壁紙を切り替えています…（{progress.TotalCount} 台中 {progress.CompletedCount + 1} 台目: {monitor.DisplayName}）";
+            ? Localizer.Format(Strings.ChangingMonitorWallpaperFormat, monitor.DisplayName)
+            : Localizer.Format(
+                Strings.ChangingWallpaperProgressFormat, progress.TotalCount, progress.CompletedCount + 1, monitor.DisplayName);
     }
 
     private static void AddReason(List<string> reasons, WallpaperChangeResult result, WallpaperChangeStatus status, string reason)
@@ -58,7 +60,8 @@ internal static class WallpaperChangeMessages
         IReadOnlyList<MonitorInfo> monitors = result.MonitorsWith(status);
         if (monitors.Count > 0)
         {
-            reasons.Add($"{reason}（{string.Join("、", monitors.Select(m => m.DisplayName))}）");
+            reasons.Add(Localizer.Format(
+                Strings.ReasonWithMonitorsFormat, reason, string.Join(Strings.ListSeparator, monitors.Select(m => m.DisplayName))));
         }
     }
 }

@@ -17,6 +17,9 @@ public sealed record AppSettings
     /// <summary>自動切り替えを一時停止しているか。</summary>
     public bool IsPaused { get; init; }
 
+    /// <summary>画面・通知の表示言語。変更はアプリの再起動後に反映する。</summary>
+    public AppLanguage Language { get; init; } = AppLanguage.Japanese;
+
     /// <summary>自動切り替えを見合わせる条件（全画面アプリの実行中・バッテリー駆動中）。</summary>
     public SkipConditions SkipConditions { get; init; } = new();
 
@@ -143,6 +146,7 @@ public sealed record AppSettings
         ExcludedImages = [.. (ExcludedImages ?? []).Where(p => !string.IsNullOrWhiteSpace(p))],
         Span = (Span ?? new SpanSettings()).Normalize(),
         SkipConditions = SkipConditions ?? new SkipConditions(),
+        Language = Enum.IsDefined(Language) ? Language : AppLanguage.Japanese,
     };
 
     private static bool IsSameMonitor(string a, string b) =>

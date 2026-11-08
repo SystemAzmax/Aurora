@@ -3,6 +3,7 @@ using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Microsoft.Win32;
 using WallpaperChanger.Core.Interfaces;
+using WallpaperChanger.Infrastructure.Resources;
 
 namespace WallpaperChanger.Infrastructure.Startup;
 
@@ -31,7 +32,7 @@ internal sealed partial class RegistryStartupRegistrationService : IStartupRegis
     private string ExecutablePath =>
         _options.ExecutablePath
         ?? Environment.ProcessPath
-        ?? throw new InvalidOperationException("実行ファイルのパスを取得できません。");
+        ?? throw new InvalidOperationException(Strings.ExecutablePathUnavailable);
 
     public bool IsEnabled()
     {
@@ -43,8 +44,7 @@ internal sealed partial class RegistryStartupRegistrationService : IStartupRegis
     {
         if (IsInTemporaryDirectory(ExecutablePath))
         {
-            throw new InvalidOperationException(
-                "一時フォルダから実行しているため、自動起動を登録できません。zip ファイルから直接実行している場合は、任意のフォルダに展開してから設定してください。");
+            throw new InvalidOperationException(Strings.StartupFromTemporaryFolder);
         }
 
         using (RegistryKey run = Registry.CurrentUser.CreateSubKey(_options.RunKeyPath, writable: true))

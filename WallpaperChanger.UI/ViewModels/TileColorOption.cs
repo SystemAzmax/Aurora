@@ -1,5 +1,6 @@
 using System.Globalization;
 using System.Windows.Media;
+using WallpaperChanger.UI.Resources;
 
 namespace WallpaperChanger.UI.ViewModels;
 
@@ -13,11 +14,11 @@ public sealed record TileColorOption(string DisplayName, int Rgb)
     /// <summary>用意した色。</summary>
     public static IReadOnlyList<TileColorOption> Presets { get; } =
     [
-        new("黒", 0x000000),
-        new("濃い灰色", 0x202020),
-        new("灰色", 0x808080),
-        new("薄い灰色", 0xD0D0D0),
-        new("白", 0xFFFFFF),
+        new(Strings.ColorBlack, 0x000000),
+        new(Strings.ColorDarkGray, 0x202020),
+        new(Strings.ColorGray, 0x808080),
+        new(Strings.ColorLightGray, 0xD0D0D0),
+        new(Strings.ColorWhite, 0xFFFFFF),
     ];
 
     /// <summary>選択肢の横に表示する色の見本。</summary>

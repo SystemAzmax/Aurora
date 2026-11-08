@@ -1,3 +1,5 @@
+using WallpaperChanger.UI.Resources;
+
 namespace WallpaperChanger.UI.ViewModels;
 
 /// <summary>
@@ -5,9 +7,9 @@ namespace WallpaperChanger.UI.ViewModels;
 /// </summary>
 public sealed record IntervalUnitOption(string DisplayName, int MinutesPerUnit)
 {
-    public static IntervalUnitOption Minutes { get; } = new("分", 1);
+    public static IntervalUnitOption Minutes { get; } = new(Strings.IntervalUnitMinutes, 1);
 
-    public static IntervalUnitOption Hours { get; } = new("時間", 60);
+    public static IntervalUnitOption Hours { get; } = new(Strings.IntervalUnitHours, 60);
 
     public static IReadOnlyList<IntervalUnitOption> All { get; } = [Minutes, Hours];
 
@@ -26,9 +28,9 @@ public sealed record IntervalUnitOption(string DisplayName, int MinutesPerUnit)
 
         return (hours, minutes) switch
         {
-            (0, _) => $"{minutes} 分",
-            (_, 0) => $"{hours} 時間",
-            _ => $"{hours} 時間 {minutes} 分",
+            (0, _) => Localizer.Format(Strings.IntervalMinutesFormat, minutes),
+            (_, 0) => Localizer.Format(Strings.IntervalHoursFormat, hours),
+            _ => Localizer.Format(Strings.IntervalHoursMinutesFormat, hours, minutes),
         };
     }
 }

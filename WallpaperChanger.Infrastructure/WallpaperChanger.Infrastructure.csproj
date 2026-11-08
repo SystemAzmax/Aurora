@@ -24,6 +24,19 @@
   </ItemGroup>
 
   <ItemGroup>
+    <!--
+      画面に表示される文言（例外のメッセージ・モニターの名前）。Strings.resx が既定（日本語）、Strings.en.resx が英語。
+      ビルド時に厳密に型指定されたクラス（WallpaperChanger.Infrastructure.Resources.Strings）を生成する。
+    -->
+    <EmbeddedResource Update="Resources\Strings.resx">
+      <StronglyTypedLanguage>CSharp</StronglyTypedLanguage>
+      <StronglyTypedClassName>Strings</StronglyTypedClassName>
+      <StronglyTypedNamespace>WallpaperChanger.Infrastructure.Resources</StronglyTypedNamespace>
+      <StronglyTypedFileName>$(IntermediateOutputPath)Strings.Designer.cs</StronglyTypedFileName>
+    </EmbeddedResource>
+  </ItemGroup>
+
+  <ItemGroup>
     <InternalsVisibleTo Include="WallpaperChanger.Tests" />
     <!-- NSubstitute で internal インターフェースをモックするため -->
     <InternalsVisibleTo Include="DynamicProxyGenAssembly2" />

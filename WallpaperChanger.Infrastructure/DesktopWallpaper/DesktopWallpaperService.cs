@@ -1,4 +1,5 @@
 using WallpaperChanger.Core.Interfaces;
+using WallpaperChanger.Infrastructure.Resources;
 
 namespace WallpaperChanger.Infrastructure.DesktopWallpaper;
 
@@ -17,7 +18,7 @@ internal sealed class DesktopWallpaperService(DesktopWallpaperComHost comHost) :
         string fullPath = Path.GetFullPath(imagePath);
         if (!File.Exists(fullPath))
         {
-            throw new FileNotFoundException("壁紙に指定した画像ファイルが見つかりません。", fullPath);
+            throw new FileNotFoundException(Strings.WallpaperFileNotFound, fullPath);
         }
 
         return _comHost.InvokeAsync(wallpaper => wallpaper.SetWallpaper(monitorId, fullPath), cancellationToken);

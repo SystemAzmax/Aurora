@@ -1,6 +1,7 @@
 using System.Collections.ObjectModel;
 using System.IO;
 using CommunityToolkit.Mvvm.ComponentModel;
+using WallpaperChanger.UI.Resources;
 
 namespace WallpaperChanger.UI.ViewModels;
 
@@ -9,14 +10,15 @@ namespace WallpaperChanger.UI.ViewModels;
 /// </summary>
 public sealed partial class TileItemViewModel : ObservableObject
 {
-    private static readonly string[] PositionNames = ["左上", "右上", "左下", "右下"];
+    private static readonly string[] PositionNames =
+        [Strings.QuadrantTopLeft, Strings.QuadrantTopRight, Strings.QuadrantBottomLeft, Strings.QuadrantBottomRight];
 
     public TileItemViewModel(int index)
     {
         ArgumentOutOfRangeException.ThrowIfNegative(index);
 
         Index = index;
-        Position = index < PositionNames.Length ? PositionNames[index] : $"マス {index + 1}";
+        Position = index < PositionNames.Length ? PositionNames[index] : Localizer.Format(Strings.TileNumberFormat, index + 1);
     }
 
     /// <summary>左上から右方向、次の行へ、の順の番号（0 始まり）。</summary>
@@ -35,10 +37,10 @@ public sealed partial class TileItemViewModel : ObservableObject
     /// <summary>マスに表示する概要（例: 「Photos ほか 1 件」「未設定（空き）」）。</summary>
     public string Summary => Folders.Count switch
     {
-        0 when IsBlank => "未設定（空き）",
-        0 => "未設定",
+        0 when IsBlank => Strings.TileSummaryBlank,
+        0 => Strings.TileSummaryNotSet,
         1 => GetFolderName(Folders[0]),
-        _ => $"{GetFolderName(Folders[0])} ほか {Folders.Count - 1} 件",
+        _ => Localizer.Format(Strings.TileSummaryMoreFormat, GetFolderName(Folders[0]), Folders.Count - 1),
     };
 
     /// <param name="folders">このマス専用のフォルダ。</param>

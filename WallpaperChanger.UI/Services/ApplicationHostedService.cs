@@ -3,12 +3,13 @@ using System.Security;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using WallpaperChanger.Core.Interfaces;
+using WallpaperChanger.UI.Resources;
 
 namespace WallpaperChanger.UI.Services;
 
 /// <summary>
 /// アプリケーションの起動・終了手順をまとめる。
-/// 起動: 設定読み込み → 自動起動の登録パス更新 → トレイ表示（設定ファイルを読めなかった場合は通知）
+/// 起動: 設定読み込み → 表示言語の反映 → 自動起動の登録パス更新 → トレイ表示（設定ファイルを読めなかった場合は通知）
 ///       → 自動切り替え・モニター構成の監視開始（フォルダ未登録なら設定画面を表示）
 ///       → 2 つ目に起動されたときの要求の受け付け開始（設定画面を前面に出す）
 /// 終了: 要求の受け付け停止 → モニター構成の監視・自動切り替え停止 → 設定画面とトレイアイコンの破棄
@@ -29,8 +30,6 @@ internal sealed partial class ApplicationHostedService(
     TimeProvider timeProvider,
     ILogger<ApplicationHostedService> logger) : IHostedService, IDisposable
 {
-    private const string AppName = "壁紙チェンジャー";
-
     /// <summary>モニター構成の監視を始められなかったときに、最初に再試行するまでの待ち時間。再試行のたびに倍にする。</summary>
     internal static readonly TimeSpan FirstRetryDelay = TimeSpan.FromSeconds(10);
 
@@ -59,13 +58,16 @@ internal sealed partial class ApplicationHostedService(
     public async Task StartAsync(CancellationToken cancellationToken)
     {
         await _settingsService.LoadAsync(cancellationToken).ConfigureAwait(false);
+
+        // 画面（トレイのメニューなど）を作る前に、設定の言語にする
+        Localizer.Apply(_settingsService.Current.Language);
         UpdateStartupRegistration();
         await _uiDispatcher.InvokeAsync(_trayIconService.Show).ConfigureAwait(false);
 
         // 既定値で起動した理由を伝える（フォルダ未登録として設定画面が開いても、設定が消えたと誤解されないように）
         if (_settingsService.LoadWarning is { } warning)
         {
-            await _uiDispatcher.InvokeAsync(() => _trayIconService.ShowNotification(AppName, warning)).ConfigureAwait(false);
+            await _uiDispatcher.InvokeAsync(() => _trayIconService.ShowNotification(Strings.AppName, warning)).ConfigureAwait(false);
         }
 
         _scheduler.Start();

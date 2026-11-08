@@ -5,7 +5,9 @@ using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using WallpaperChanger.Core;
 using WallpaperChanger.Infrastructure;
+using WallpaperChanger.Core.Models;
 using WallpaperChanger.Infrastructure.Logging;
+using WallpaperChanger.UI.Resources;
 using WallpaperChanger.UI.Services;
 
 namespace WallpaperChanger.UI;
@@ -16,7 +18,6 @@ namespace WallpaperChanger.UI;
 /// </summary>
 internal static partial class Program
 {
-    private const string AppName = "壁紙チェンジャー";
     private const string SingleInstanceName = "WallpaperChanger.SingleInstance.7B0E3C4A";
     private static readonly TimeSpan HostStopTimeout = TimeSpan.FromSeconds(5);
 
@@ -29,6 +30,10 @@ internal static partial class Program
             // 既に起動中。起動中のほうが設定画面を前面に出す
             return 0;
         }
+
+        // 設定を読み込むまでは既定の言語にする（Windows の表示言語に左右されないように）。
+        // 設定の言語は、読み込んだ直後に ApplicationHostedService が反映する
+        Localizer.Apply(AppLanguage.Japanese);
 
         var app = new App();
         app.InitializeComponent();
@@ -108,7 +113,8 @@ internal static partial class Program
         catch (Exception ex)
         {
             LogHostFailed(logger, ex);
-            MessageBox.Show($"エラーが発生したため終了します。\n\n{ex.Message}", AppName, MessageBoxButton.OK, MessageBoxImage.Error);
+            MessageBox.Show(
+                Localizer.Format(Strings.FatalErrorFormat, ex.Message), Strings.AppName, MessageBoxButton.OK, MessageBoxImage.Error);
             exitCode = 1;
         }
 

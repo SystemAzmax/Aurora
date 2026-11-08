@@ -1,3 +1,5 @@
+using WallpaperChanger.UI.Resources;
+
 namespace WallpaperChanger.UI.ViewModels;
 
 /// <summary>
@@ -9,5 +11,5 @@ namespace WallpaperChanger.UI.ViewModels;
 public sealed record MonitorCopySourceViewModel(string MonitorId, string Name, bool IsConnected)
 {
     /// <summary>一覧に表示する文言。</summary>
-    public string Label => IsConnected ? Name : $"{Name}（未接続）";
+    public string Label => IsConnected ? Name : Localizer.Format(Strings.MonitorDisconnectedFormat, Name);
 }
