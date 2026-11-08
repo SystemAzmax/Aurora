@@ -202,19 +202,24 @@
 
 ## 5. 配布に向けて（配布を始めるとき）
 
-### インストーラーと自動更新【配布時に高】
+### Microsoft Store（MSIX）で配布する【配布時に高】
 
-- **内容**: 単一ファイル発行をやめ、インストーラーで配る。
+- **状況**: 2026-11-08 に、配布の方法を Microsoft Store に決めた（元は「インストーラーと自動更新」。Velopack・Inno Setup・MSIX を候補にしていた）。Partner Center の開発者アカウントはある。
+- **内容**: 単一ファイル発行をやめ、MSIX パッケージにして Microsoft Store で配る。インストール・更新・アンインストールは Store が行うため、自動更新の仕組みは自分で作らない。
 - **理由**:
   - 単一ファイル発行では、ネイティブ DLL が一時フォルダに展開される（S3、現状維持で保留中）
   - zip で配ると、一時フォルダやダウンロードフォルダから実行されやすく、自動起動の登録が壊れやすい（S2）
-- **実装の手がかり**:
-  - 発行プロファイル（`WallpaperChanger.UI/Properties/PublishProfiles/win-x64.pubxml`）の `PublishSingleFile` と `IncludeNativeLibrariesForSelfExtract` を外す
-  - インストーラーは Velopack を推奨する（ユーザーごとのインストールで管理者権限が不要、自動更新つき）。ほかに Inno Setup、Microsoft Store（MSIX）がある
-  - MSIX の場合、自動起動は Run キーではなく `StartupTask` 拡張を使う形に変える必要がある
+  - Store で配る MSIX は、審査の後に Microsoft が署名し直すため、コード署名の証明書が要らない。Store に MSI・EXE のインストーラーを出す方法もあるが、その場合は署名と更新の仕組みを自分で用意する必要がある
+- **実装の手がかり**（パッケージで動くときだけ切り替え、パッケージ無しで動くときの動きは変えない）:
+  - **AppData の仮想化**: MSIX で動くデスクトップアプリが `%LOCALAPPDATA%` に新しく作るファイルは、パッケージ専用の場所に振り替えられ、ほかのプロセスからは見えない（[Understanding how packaged desktop apps run on Windows](https://learn.microsoft.com/windows/msix/desktop/desktop-to-uwp-behind-the-scenes)）。合成画像（`Composites`）のパスをそのまま `IDesktopWallpaper` に渡すと、壁紙を描くエクスプローラーが画像を読めず、分割表示・スパン・表示方法で作った壁紙が表示されない恐れがある。「ログフォルダを開く」も空のフォルダを開くことになる。パッケージで動くときは、ほかのプロセスからも見える実際のフォルダ（`ApplicationData.Current.LocalFolder`、`%LOCALAPPDATA%\Packages\<パッケージ ファミリ名>\LocalState`）に保存する。設定・履歴はアプリの中だけで使うため振り替えのままでもよいが、保存先はそろえる
+  - **自動起動**: HKCU への書き込みも振り替えられるため、Run キーでは自動起動できない。マニフェストの `windows.startupTask` 拡張と `Windows.ApplicationModel.StartupTask` に変える（`IStartupRegistrationService` の実装を差し替える）。ユーザーがタスク マネージャーや Windows の設定で無効にした場合（`DisabledByUser`）は、アプリから有効に戻せないため、設定画面で Windows の設定から有効にするよう案内する
+  - **パッケージの作成**: 発行プロファイル（`WallpaperChanger.UI/Properties/PublishProfiles/win-x64.pubxml`）の `PublishSingleFile` と `IncludeNativeLibrariesForSelfExtract` を外す。パッケージのマニフェスト（`Package.appxmanifest`。`runFullTrust`、`windows.startupTask`、表示名は日本語と英語）と、各サイズのロゴ画像（`tools/IconGenerator` で作る）を用意する。パッケージは Visual Studio の「Windows アプリケーション パッケージ プロジェクト」（`.wapproj`）か、Windows SDK の `makeappx` で作る
+  - **確認**: 作ったパッケージをこの PC にインストールし（開発用の自己署名で）、壁紙（1 枚表示・分割表示・スパン）、自動起動、ログ、設定の保存を確かめてから提出する
+  - **Store への提出**: アプリ名の予約、説明文とスクリーンショット（日本語と英語）、年齢区分、価格を用意する。プライバシーポリシーが求められるかは提出のときに確認する
 
-### コード署名【配布時に高】
+### コード署名【見送り】
 
+- **状況**: 2026-11-08 に、Microsoft Store の MSIX で配ることにしたため、実装しないことにした（Store が署名し直す）。Store 以外でも配ることになったら、改めて検討する。
 - **内容**: 実行ファイルとインストーラーに署名する。
 - **理由**: 署名の無い exe は、ダウンロード後に SmartScreen の警告で止められる。利用者の手間と不安が最も大きい部分。Microsoft Store で配る場合は不要。
 
@@ -227,11 +232,11 @@
 
 - **内容**: トレイのバルーン通知を、Windows 10/11 の標準の通知（トースト）にする。
 - **理由**: バルーン通知は古い仕組みで、通知センターに残らない。
-- **実装の手がかり**: トーストを出すにはアプリの識別子（AppUserModelID）とスタートメニューのショートカットが必要なので、インストーラーと合わせて対応する。
+- **実装の手がかり**: トーストを出すにはアプリの識別子（AppUserModelID）とスタートメニューのショートカットが必要。MSIX で配ればパッケージの識別子とスタートメニューの項目ができるため、「Microsoft Store（MSIX）で配布する」の後に対応する。
 
 ### 多言語化【完了】
 
-- **状況**: 2026-11-08 に完了。
+- **状況**: 2026-11-08 に完了（6e29de2）。
 - **内容**: 画面・通知の文言を英語などにも切り替えられるようにする。
 - **理由**: 文言は日本語でコードに直接書いている（リソースファイルが無い）。
 - **実装**:
