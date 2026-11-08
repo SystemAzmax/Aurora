@@ -48,8 +48,8 @@
     <value>アプリの情報</value>
   </data>
   <data name="AppName" xml:space="preserve">
-    <value>Aurora Wallpaper Changer</value>
-    <comment>アプリ名。ストアの名前と同じにし、言語にかかわらず同じ表記にする</comment>
+    <value>オーロラ壁紙チェンジャー</value>
+    <comment>アプリ名。ストアで予約した日本語名と英語名</comment>
   </data>
   <data name="ChangingMonitorWallpaperFormat" xml:space="preserve">
     <value>{0} の壁紙を切り替えています…</value>
@@ -554,7 +554,7 @@
     <comment>{0}: コピー元、{1}: コピー先</comment>
   </data>
   <data name="SettingsWindowTitle" xml:space="preserve">
-    <value>Aurora Wallpaper Changer - 設定</value>
+    <value>オーロラ壁紙チェンジャー - 設定</value>
   </data>
   <data name="ShowImageInFolder" xml:space="preserve">
     <value>画像の場所を開く</value>

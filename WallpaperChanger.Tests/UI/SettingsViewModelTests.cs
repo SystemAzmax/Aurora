@@ -368,8 +368,8 @@ public sealed class SettingsViewModelTests : IDisposable
         _sut.ShowAboutCommand.Execute(null);
 
         _messageDialog.Received(1).ShowMessage(
-            "Aurora Wallpaper Changer について",
-            Arg.Is<string>(m => m.StartsWith("Aurora Wallpaper Changer\nバージョン 1.0.0（exe 版）", StringComparison.Ordinal)
+            "オーロラ壁紙チェンジャー について",
+            Arg.Is<string>(m => m.StartsWith("オーロラ壁紙チェンジャー\nバージョン 1.0.0（exe 版）", StringComparison.Ordinal)
                 && m.EndsWith("\n\n© 2026 SystemAzmax", StringComparison.Ordinal)));
     }
 

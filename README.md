@@ -1,4 +1,4 @@
-# 壁紙チェンジャー (WallpaperChanger)
+# オーロラ壁紙チェンジャー (Aurora Wallpaper Changer)
 
 Windows 10 / 11 向けのマルチディスプレイ対応壁紙チェンジャー。タスクトレイに常駐し、モニターごとに指定フォルダの画像を定期的に壁紙へ設定する。壁紙の設定には `IDesktopWallpaper` COM API を使用する（`SystemParametersInfo` は使用しない）。
 

@@ -199,10 +199,10 @@ internal sealed partial class ApplicationHostedService(
         }
     }
 
-    [LoggerMessage(Level = LogLevel.Information, Message = "Aurora Wallpaper Changer を起動しました")]
+    [LoggerMessage(Level = LogLevel.Information, Message = "オーロラ壁紙チェンジャーを起動しました")]
     private partial void LogStarted();
 
-    [LoggerMessage(Level = LogLevel.Information, Message = "Aurora Wallpaper Changer を終了しました")]
+    [LoggerMessage(Level = LogLevel.Information, Message = "オーロラ壁紙チェンジャーを終了しました")]
     private partial void LogStopped();
 
     [LoggerMessage(Level = LogLevel.Warning, Message = "モニター構成の監視を始められませんでした（{Attempt} 回目）。{Delay} 後に再試行します")]

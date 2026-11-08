@@ -26,7 +26,7 @@ public class AppInfoProviderTests
     }
 
     /// <summary>
-    /// 本文に、アプリの csproj で設定したアプリ名と著作権表記が入ることを検証します。
+    /// 本文に、表示言語（テストでは日本語）のアプリ名と、csproj で設定した著作権表記が入ることを検証します。
     /// </summary>
     [Fact]
     public void CreateAboutMessage_パッケージなしで実行した場合_exe版としてアプリ名と著作権表記を含む()
@@ -40,7 +40,7 @@ public class AppInfoProviderTests
 
         // Assert
         Assert.Equal("© 2026 SystemAzmax", copyright);
-        Assert.StartsWith("Aurora Wallpaper Changer\nバージョン 1.0.0", message, StringComparison.Ordinal);
+        Assert.StartsWith("オーロラ壁紙チェンジャー\nバージョン 1.0.0", message, StringComparison.Ordinal);
         Assert.Contains("（exe 版）", message, StringComparison.Ordinal);
         Assert.EndsWith($"\n\n{copyright}", message, StringComparison.Ordinal);
     }
@@ -57,7 +57,7 @@ public class AppInfoProviderTests
         // Assert
         Assert.True(File.Exists(path), $"ファイルがありません: {path}");
         Assert.Contains(
-            "Aurora Wallpaper Changer サードパーティ ソフトウェアのライセンス情報",
+            "オーロラ壁紙チェンジャー サードパーティ ソフトウェアのライセンス情報",
             File.ReadAllText(path),
             StringComparison.Ordinal);
     }

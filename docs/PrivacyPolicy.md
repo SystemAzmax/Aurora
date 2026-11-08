@@ -1,4 +1,4 @@
-# Aurora Wallpaper Changer プライバシーポリシー / Privacy Policy
+# オーロラ壁紙チェンジャー プライバシーポリシー / Aurora Wallpaper Changer Privacy Policy
 
 [日本語](#日本語) | [English](#english)
 
@@ -6,7 +6,7 @@
 
 制定日: 2026 年 11 月 8 日
 
-SystemAzmax（以下「開発者」）は、Windows 用アプリ「Aurora Wallpaper Changer」（以下「本アプリ」）における
+SystemAzmax（以下「開発者」）は、Windows 用アプリ「オーロラ壁紙チェンジャー」（英語名: Aurora Wallpaper Changer。以下「本アプリ」）における
 利用者の情報の取り扱いについて、次のとおり定めます。
 
 ### 収集する情報

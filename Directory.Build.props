@@ -7,7 +7,8 @@
     <AnalysisLevel>latest-recommended</AnalysisLevel>
     <TreatWarningsAsErrors>false</TreatWarningsAsErrors>
     <Company>WallpaperChanger</Company>
-    <!-- 「このアプリについて」に表示するアプリ名・バージョン・著作権表記。
+    <!-- 「このアプリについて」に表示するバージョン・著作権表記と、exe のファイルの情報に入るアプリ名（英語名）。
+         画面に表示するアプリ名は、表示言語に合わせて Strings.resx の AppName（オーロラ壁紙チェンジャー / Aurora Wallpaper Changer）を使う。
          ストア版は Package.appxmanifest の Identity の Version を表示するため、
          リリースのときは両方を同じ値にする（docs/BuildGuide.md を参照） -->
     <Product>Aurora Wallpaper Changer</Product>

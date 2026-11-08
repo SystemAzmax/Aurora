@@ -10,13 +10,11 @@ namespace WallpaperChanger.UI.Services
     /// </summary>
     /// <remarks>
     /// StoreReleaseKit のひな形（TargetFramework に Windows のバージョンが付いている WPF 用）をもとにしている。
-    /// 「このアプリについて」の本文は、表示言語の文言で作る。
+    /// アプリ名は日本語（オーロラ壁紙チェンジャー）と英語（Aurora Wallpaper Changer）で違うため、
+    /// アセンブリの Product ではなく、表示言語のアプリ名を使う。本文も表示言語の文言で作る。
     /// </remarks>
     public static class AppInfoProvider
     {
-        /// <summary>アプリ名を取得できない場合に使う名前。</summary>
-        private const string DEFAULT_PRODUCT_NAME = "Aurora Wallpaper Changer";
-
         /// <summary>使用しているソフトウェアのライセンス表示のファイル名。</summary>
         private const string THIRD_PARTY_NOTICES_FILE_NAME = "ThirdPartyNotices.txt";
 
@@ -28,13 +26,10 @@ namespace WallpaperChanger.UI.Services
             Path.Combine(AppContext.BaseDirectory, THIRD_PARTY_NOTICES_FILE_NAME);
 
         /// <summary>
-        /// アプリ名を取得します。
+        /// 表示言語のアプリ名を取得します。
         /// </summary>
         /// <returns>アプリ名。</returns>
-        public static string GetProductName() =>
-            typeof(AppInfoProvider).Assembly
-                .GetCustomAttribute<AssemblyProductAttribute>()?.Product
-            ?? DEFAULT_PRODUCT_NAME;
+        public static string GetProductName() => Strings.AppName;
 
         /// <summary>
         /// アプリのバージョンと、ストア版（パッケージあり）かどうかを取得します。

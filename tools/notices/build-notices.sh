@@ -33,10 +33,10 @@ section() {
 {
   printf '\xEF\xBB\xBF'
   cat <<'EOF'
-Aurora Wallpaper Changer サードパーティ ソフトウェアのライセンス情報
+オーロラ壁紙チェンジャー サードパーティ ソフトウェアのライセンス情報
 ================================================================================
 
-Aurora Wallpaper Changer は、次のソフトウェアを使用しています。
+オーロラ壁紙チェンジャー（Aurora Wallpaper Changer）は、次のソフトウェアを使用しています。
 各ソフトウェアの著作権表示とライセンスを、原文のまま記載します。
 
   1. .NET Community Toolkit (CommunityToolkit.Mvvm 8.4.2) - MIT License

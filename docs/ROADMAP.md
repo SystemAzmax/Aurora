@@ -1,6 +1,6 @@
 # 今後の機能・改善の候補
 
-壁紙チェンジャーに今後追加・改善するとよい機能の一覧。2026-10-10 時点のコードと、脆弱性・問題点の見直し（S1～S3、B1～B8）の結果をもとにまとめた。
+オーロラ壁紙チェンジャー（Aurora Wallpaper Changer）に今後追加・改善するとよい機能の一覧。2026-10-10 時点のコードと、脆弱性・問題点の見直し（S1～S3、B1～B8）の結果をもとにまとめた。
 
 優先度の目安:
 
@@ -205,7 +205,7 @@
 ### Microsoft Store（MSIX）で配布する【配布時に高】
 
 - **状況**: 2026-11-08 に、配布の方法を Microsoft Store に決めた（元は「インストーラーと自動更新」。Velopack・Inno Setup・MSIX を候補にしていた）。Partner Center の開発者アカウントはある。
-  - 2026-11-08 に、StoreReleaseKit（Store で配るアプリで表示をそろえるための手順とひな形）に従い、アプリ名を「Aurora Wallpaper Changer」、バージョンを 1.0.0 にして、設定画面に「アプリの情報」（「このアプリについて」「ライセンス情報」）を置き、ライセンス表示（`WallpaperChanger.UI/ThirdPartyNotices.txt`、`tools/notices/build-notices.sh`）とプライバシーポリシー（`docs/PrivacyPolicy.md`）、リリースの作業（`docs/BuildGuide.md`）を加えた
+  - 2026-11-08 に、StoreReleaseKit（Store で配るアプリで表示をそろえるための手順とひな形）に従い、アプリ名を「オーロラ壁紙チェンジャー」（英語名「Aurora Wallpaper Changer」。どちらもストアで予約済み）、バージョンを 1.0.0 にして、設定画面に「アプリの情報」（「このアプリについて」「ライセンス情報」）を置き、ライセンス表示（`WallpaperChanger.UI/ThirdPartyNotices.txt`、`tools/notices/build-notices.sh`）とプライバシーポリシー（`docs/PrivacyPolicy.md`）、リリースの作業（`docs/BuildGuide.md`）を加えた
   - 残りは、README の英語版と日本語版を分けること（StoreReleaseKit の決まり）、パッケージで動くときの保存先と自動起動の切り替え、パッケージの作成と提出
 - **内容**: 単一ファイル発行をやめ、MSIX パッケージにして Microsoft Store で配る。インストール・更新・アンインストールは Store が行うため、自動更新の仕組みは自分で作らない。
 - **理由**:
@@ -215,7 +215,7 @@
 - **実装の手がかり**（パッケージで動くときだけ切り替え、パッケージ無しで動くときの動きは変えない）:
   - **AppData の仮想化**: MSIX で動くデスクトップアプリが `%LOCALAPPDATA%` に新しく作るファイルは、パッケージ専用の場所に振り替えられ、ほかのプロセスからは見えない（[Understanding how packaged desktop apps run on Windows](https://learn.microsoft.com/windows/msix/desktop/desktop-to-uwp-behind-the-scenes)）。合成画像（`Composites`）のパスをそのまま `IDesktopWallpaper` に渡すと、壁紙を描くエクスプローラーが画像を読めず、分割表示・スパン・表示方法で作った壁紙が表示されない恐れがある。「ログフォルダを開く」も空のフォルダを開くことになる。パッケージで動くときは、ほかのプロセスからも見える実際のフォルダ（`ApplicationData.Current.LocalFolder`、`%LOCALAPPDATA%\Packages\<パッケージ ファミリ名>\LocalState`）に保存する。設定・履歴はアプリの中だけで使うため振り替えのままでもよいが、保存先はそろえる
   - **自動起動**: HKCU への書き込みも振り替えられるため、Run キーでは自動起動できない。マニフェストの `windows.startupTask` 拡張と `Windows.ApplicationModel.StartupTask` に変える（`IStartupRegistrationService` の実装を差し替える）。ユーザーがタスク マネージャーや Windows の設定で無効にした場合（`DisabledByUser`）は、アプリから有効に戻せないため、設定画面で Windows の設定から有効にするよう案内する
-  - **パッケージの作成**: 発行プロファイル（`WallpaperChanger.UI/Properties/PublishProfiles/win-x64.pubxml`）の `PublishSingleFile` と `IncludeNativeLibrariesForSelfExtract` を外す。パッケージのマニフェスト（`Package.appxmanifest`。`runFullTrust`、`windows.startupTask`、表示名は日本語と英語）と、各サイズのロゴ画像（`tools/IconGenerator` で作る）を用意する。パッケージは Visual Studio の「Windows アプリケーション パッケージ プロジェクト」（`.wapproj`）か、Windows SDK の `makeappx` で作る
+  - **パッケージの作成**: 発行プロファイル（`WallpaperChanger.UI/Properties/PublishProfiles/win-x64.pubxml`）の `PublishSingleFile` と `IncludeNativeLibrariesForSelfExtract` を外す。パッケージのマニフェスト（`Package.appxmanifest`。`runFullTrust`、`windows.startupTask`、表示名は日本語「オーロラ壁紙チェンジャー」と英語「Aurora Wallpaper Changer」）と、各サイズのロゴ画像（`tools/IconGenerator` で作る）を用意する。パッケージは Visual Studio の「Windows アプリケーション パッケージ プロジェクト」（`.wapproj`）か、Windows SDK の `makeappx` で作る
   - **確認**: 作ったパッケージをこの PC にインストールし（開発用の自己署名で）、壁紙（1 枚表示・分割表示・スパン）、自動起動、ログ、設定の保存を確かめてから提出する
   - **Store への提出**: アプリ名の予約、説明文とスクリーンショット（日本語と英語）、年齢区分、価格を用意する。プライバシーポリシーが求められるかは提出のときに確認する
 
