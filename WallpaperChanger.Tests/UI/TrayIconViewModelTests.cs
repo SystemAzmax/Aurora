@@ -81,7 +81,7 @@ public sealed class TrayIconViewModelTests : IDisposable
     [Fact]
     public void ツールチップに切り替え間隔を表示する()
     {
-        Assert.Equal("壁紙チェンジャー（1 時間 30 分ごとに切り替え）", _sut.ToolTipText);
+        Assert.Equal("Aurora Wallpaper Changer（1 時間 30 分ごとに切り替え）", _sut.ToolTipText);
     }
 
     [Fact]
@@ -90,7 +90,7 @@ public sealed class TrayIconViewModelTests : IDisposable
         _scheduler.Hold.Returns(AutoChangeHold.FullScreen);
         _scheduler.StateChanged += Raise.Event();
 
-        Assert.Equal("壁紙チェンジャー（全画面のアプリの実行中のため、切り替えを待っています）", _sut.ToolTipText);
+        Assert.Equal("Aurora Wallpaper Changer（全画面のアプリの実行中のため、切り替えを待っています）", _sut.ToolTipText);
     }
 
     [Fact]
@@ -176,7 +176,7 @@ public sealed class TrayIconViewModelTests : IDisposable
         _rotation.ProgressChanged += Raise.EventWith(new WallpaperChangeProgressEventArgs(2, 4, Monitor("Beyond TV")));
 
         Assert.True(_sut.IsChangingWallpaper);
-        Assert.Equal("壁紙チェンジャー\n壁紙を切り替えています…（4 台中 3 台目: Beyond TV）", _sut.ToolTipText);
+        Assert.Equal("Aurora Wallpaper Changer\n壁紙を切り替えています…（4 台中 3 台目: Beyond TV）", _sut.ToolTipText);
         Assert.False(_sut.NextWallpaperCommand.CanExecute(null));
         Assert.False(_sut.PreviousWallpaperCommand.CanExecute(null));
         Assert.False(_sut.RefreshAllWallpapersCommand.CanExecute(null));
@@ -185,7 +185,7 @@ public sealed class TrayIconViewModelTests : IDisposable
         _rotation.ProgressChanged += Raise.EventWith(new WallpaperChangeProgressEventArgs(4, 4, null));
 
         Assert.False(_sut.IsChangingWallpaper);
-        Assert.Equal("壁紙チェンジャー（1 時間 30 分ごとに切り替え）", _sut.ToolTipText);
+        Assert.Equal("Aurora Wallpaper Changer（1 時間 30 分ごとに切り替え）", _sut.ToolTipText);
         Assert.True(_sut.NextWallpaperCommand.CanExecute(null));
     }
 

@@ -512,6 +512,19 @@
                         </DockPanel>
                     </StackPanel>
                 </Border>
+
+                <!-- アプリの情報（Microsoft Store で配布するアプリで共通の表示。StoreReleaseKit の決まりに従う） -->
+                <Border Style="{StaticResource CardStyle}">
+                    <StackPanel>
+                        <TextBlock Text="{x:Static res:Strings.AppInfoTitle}" Style="{StaticResource SectionTitleStyle}" />
+                        <WrapPanel>
+                            <Button Content="{x:Static res:Strings.About}" Tag="&#xE946;" Style="{StaticResource IconButtonStyle}"
+                                    ToolTip="{x:Static res:Strings.AboutToolTip}" Command="{Binding ShowAboutCommand}" />
+                            <Button Content="{x:Static res:Strings.ThirdPartyNotices}" Tag="&#xE8A5;" Style="{StaticResource IconButtonStyle}"
+                                    ToolTip="{x:Static res:Strings.ThirdPartyNoticesToolTip}" Command="{Binding ShowThirdPartyNoticesCommand}" />
+                        </WrapPanel>
+                    </StackPanel>
+                </Border>
             </StackPanel>
         </ScrollViewer>
 

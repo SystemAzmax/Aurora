@@ -12,6 +12,28 @@
   <resheader name="writer">
     <value>System.Resources.ResXResourceWriter, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
   </resheader>
+  <data name="About" xml:space="preserve">
+    <value>このアプリについて</value>
+  </data>
+  <data name="AboutExeEdition" xml:space="preserve">
+    <value>exe 版</value>
+    <comment>パッケージなしで動いている版</comment>
+  </data>
+  <data name="AboutStoreEdition" xml:space="preserve">
+    <value>ストア版</value>
+    <comment>Microsoft Store からインストールした版（パッケージあり）</comment>
+  </data>
+  <data name="AboutTitleFormat" xml:space="preserve">
+    <value>{0} について</value>
+    <comment>{0}: アプリ名</comment>
+  </data>
+  <data name="AboutToolTip" xml:space="preserve">
+    <value>アプリのバージョンなどを表示します。</value>
+  </data>
+  <data name="AboutVersionLineFormat" xml:space="preserve">
+    <value>バージョン {0}（{1}）</value>
+    <comment>{0}: バージョン、{1}: 版の種類</comment>
+  </data>
   <data name="Add" xml:space="preserve">
     <value>追加</value>
   </data>
@@ -22,8 +44,12 @@
   <data name="AllWallpapersRefreshed" xml:space="preserve">
     <value>壁紙フォルダを読み込み直して、全モニターの壁紙を更新しました。</value>
   </data>
+  <data name="AppInfoTitle" xml:space="preserve">
+    <value>アプリの情報</value>
+  </data>
   <data name="AppName" xml:space="preserve">
-    <value>壁紙チェンジャー</value>
+    <value>Aurora Wallpaper Changer</value>
+    <comment>アプリ名。ストアの名前と同じにし、言語にかかわらず同じ表記にする</comment>
   </data>
   <data name="ChangingMonitorWallpaperFormat" xml:space="preserve">
     <value>{0} の壁紙を切り替えています…</value>
@@ -106,9 +132,7 @@
     <value>終了</value>
   </data>
   <data name="FatalErrorFormat" xml:space="preserve">
-    <value>エラーが発生したため終了します。
-
-{0}</value>
+    <value>エラーが発生したため終了します。&#xA;&#xA;{0}</value>
     <comment>{0}: エラーの内容</comment>
   </data>
   <data name="FitWhole" xml:space="preserve">
@@ -367,6 +391,9 @@
   <data name="OperationOpenLogFolder" xml:space="preserve">
     <value>ログフォルダを開く処理</value>
   </data>
+  <data name="OperationOpenThirdPartyNotices" xml:space="preserve">
+    <value>ライセンス情報を開く処理</value>
+  </data>
   <data name="OperationPause" xml:space="preserve">
     <value>自動切り替えの一時停止</value>
   </data>
@@ -527,7 +554,7 @@
     <comment>{0}: コピー元、{1}: コピー先</comment>
   </data>
   <data name="SettingsWindowTitle" xml:space="preserve">
-    <value>壁紙チェンジャー - 設定</value>
+    <value>Aurora Wallpaper Changer - 設定</value>
   </data>
   <data name="ShowImageInFolder" xml:space="preserve">
     <value>画像の場所を開く</value>
@@ -655,6 +682,16 @@
   <data name="StartupStateUnavailableFormat" xml:space="preserve">
     <value>自動起動の状態を取得できませんでした。{0}</value>
     <comment>{0}: エラーの内容</comment>
+  </data>
+  <data name="ThirdPartyNotices" xml:space="preserve">
+    <value>ライセンス情報</value>
+  </data>
+  <data name="ThirdPartyNoticesOpenFailedFormat" xml:space="preserve">
+    <value>ライセンス情報のファイルを開けませんでした。&#xA;&#xA;ファイル: {0}&#xA;詳細: {1}</value>
+    <comment>{0}: ファイルのパス、{1}: 例外のメッセージ</comment>
+  </data>
+  <data name="ThirdPartyNoticesToolTip" xml:space="preserve">
+    <value>使用しているソフトウェアのライセンスを表示します。</value>
   </data>
   <data name="TileBecameBlankFormat" xml:space="preserve">
     <value>{0}は未設定になり、空きマスとして表示します。</value>

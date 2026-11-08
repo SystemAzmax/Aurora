@@ -12,6 +12,24 @@
   <resheader name="writer">
     <value>System.Resources.ResXResourceWriter, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
   </resheader>
+  <data name="About" xml:space="preserve">
+    <value>About this app</value>
+  </data>
+  <data name="AboutExeEdition" xml:space="preserve">
+    <value>exe version</value>
+  </data>
+  <data name="AboutStoreEdition" xml:space="preserve">
+    <value>Store version</value>
+  </data>
+  <data name="AboutTitleFormat" xml:space="preserve">
+    <value>About {0}</value>
+  </data>
+  <data name="AboutToolTip" xml:space="preserve">
+    <value>Shows the app version and other information.</value>
+  </data>
+  <data name="AboutVersionLineFormat" xml:space="preserve">
+    <value>Version {0} ({1})</value>
+  </data>
   <data name="Add" xml:space="preserve">
     <value>Add</value>
   </data>
@@ -21,8 +39,11 @@
   <data name="AllWallpapersRefreshed" xml:space="preserve">
     <value>Reloaded the wallpaper folders and refreshed the wallpapers on all monitors.</value>
   </data>
+  <data name="AppInfoTitle" xml:space="preserve">
+    <value>App information</value>
+  </data>
   <data name="AppName" xml:space="preserve">
-    <value>Wallpaper Changer</value>
+    <value>Aurora Wallpaper Changer</value>
   </data>
   <data name="ChangingMonitorWallpaperFormat" xml:space="preserve">
     <value>Changing the wallpaper on {0}…</value>
@@ -100,9 +121,7 @@
     <value>Exit</value>
   </data>
   <data name="FatalErrorFormat" xml:space="preserve">
-    <value>The app will close because an error occurred.
-
-{0}</value>
+    <value>The app will close because an error occurred.&#xA;&#xA;{0}</value>
   </data>
   <data name="FitWhole" xml:space="preserve">
     <value>Show the whole image</value>
@@ -335,6 +354,9 @@
   <data name="OperationOpenLogFolder" xml:space="preserve">
     <value>open the log folder</value>
   </data>
+  <data name="OperationOpenThirdPartyNotices" xml:space="preserve">
+    <value>open the license information</value>
+  </data>
   <data name="OperationPause" xml:space="preserve">
     <value>pause automatic changes</value>
   </data>
@@ -489,7 +511,7 @@
     <value>Copied the settings of {0} to {1}.</value>
   </data>
   <data name="SettingsWindowTitle" xml:space="preserve">
-    <value>Wallpaper Changer - Settings</value>
+    <value>Aurora Wallpaper Changer - Settings</value>
   </data>
   <data name="ShowImageInFolder" xml:space="preserve">
     <value>Open image location</value>
@@ -613,6 +635,15 @@
   </data>
   <data name="StartupStateUnavailableFormat" xml:space="preserve">
     <value>Could not get the startup setting. {0}</value>
+  </data>
+  <data name="ThirdPartyNotices" xml:space="preserve">
+    <value>License information</value>
+  </data>
+  <data name="ThirdPartyNoticesOpenFailedFormat" xml:space="preserve">
+    <value>Could not open the license information file.&#xA;&#xA;File: {0}&#xA;Details: {1}</value>
+  </data>
+  <data name="ThirdPartyNoticesToolTip" xml:space="preserve">
+    <value>Shows the licenses of the software this app uses.</value>
   </data>
   <data name="TileBecameBlankFormat" xml:space="preserve">
     <value>The {0} now has no folders and is shown as blank.</value>

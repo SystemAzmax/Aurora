@@ -60,8 +60,8 @@ public partial class LocalizationTests
     [Fact]
     public void 言語を指定して文言を取り出せる()
     {
-        Assert.Equal("壁紙チェンジャー", Localizer.Get(nameof(Strings.AppName), AppLanguage.Japanese));
-        Assert.Equal("Wallpaper Changer", Localizer.Get(nameof(Strings.AppName), AppLanguage.English));
+        Assert.Equal("一時停止", Localizer.Get(nameof(Strings.Pause), AppLanguage.Japanese));
+        Assert.Equal("Pause", Localizer.Get(nameof(Strings.Pause), AppLanguage.English));
     }
 
     private static ResourceManager GetResourceManager(string name) =>

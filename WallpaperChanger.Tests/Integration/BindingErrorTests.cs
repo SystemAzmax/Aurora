@@ -201,6 +201,7 @@ public sealed class BindingErrorTests
             Substitute.For<IMonitorConfigurationWatcher>(),
             LogDirectory(),
             Substitute.For<IFolderLauncher>(),
+            Substitute.For<IMessageDialogService>(),
             new InlineUiDispatcher(),
             NullLogger<SettingsViewModel>.Instance);
     }

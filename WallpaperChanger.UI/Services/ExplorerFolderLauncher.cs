@@ -32,4 +32,11 @@ internal sealed class ExplorerFolderLauncher : IFolderLauncher
         string explorer = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.Windows), "explorer.exe");
         using Process? process = Process.Start(explorer, $"/select,\"{filePath}\"");
     }
+
+    public void OpenFile(string filePath)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(filePath);
+
+        using Process? process = Process.Start(new ProcessStartInfo(filePath) { UseShellExecute = true });
+    }
 }

@@ -7,8 +7,12 @@
     <AnalysisLevel>latest-recommended</AnalysisLevel>
     <TreatWarningsAsErrors>false</TreatWarningsAsErrors>
     <Company>WallpaperChanger</Company>
-    <Product>WallpaperChanger</Product>
-    <Version>0.1.0</Version>
+    <!-- 「このアプリについて」に表示するアプリ名・バージョン・著作権表記。
+         ストア版は Package.appxmanifest の Identity の Version を表示するため、
+         リリースのときは両方を同じ値にする（docs/BuildGuide.md を参照） -->
+    <Product>Aurora Wallpaper Changer</Product>
+    <Version>1.0.0</Version>
+    <Copyright>© 2026 SystemAzmax</Copyright>
     <NeutralLanguage>ja-JP</NeutralLanguage>
     <!-- 単一ファイル発行でも例外のスタックトレースに行番号が出るよう PDB を埋め込む -->
     <DebugType>embedded</DebugType>

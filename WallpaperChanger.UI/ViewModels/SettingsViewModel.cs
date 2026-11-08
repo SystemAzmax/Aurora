@@ -30,6 +30,7 @@ public sealed partial class SettingsViewModel : ObservableObject, IDisposable
     private readonly IMonitorConfigurationWatcher _monitorWatcher;
     private readonly ILogDirectoryProvider _logDirectory;
     private readonly IFolderLauncher _folderLauncher;
+    private readonly IMessageDialogService _messageDialog;
     private readonly IUiDispatcher _uiDispatcher;
     private readonly ILogger<SettingsViewModel> _logger;
 
@@ -50,11 +51,13 @@ public sealed partial class SettingsViewModel : ObservableObject, IDisposable
         IMonitorConfigurationWatcher monitorWatcher,
         ILogDirectoryProvider logDirectory,
         IFolderLauncher folderLauncher,
+        IMessageDialogService messageDialog,
         IUiDispatcher uiDispatcher,
         ILogger<SettingsViewModel> logger)
     {
         _logDirectory = logDirectory ?? throw new ArgumentNullException(nameof(logDirectory));
         _folderLauncher = folderLauncher ?? throw new ArgumentNullException(nameof(folderLauncher));
+        _messageDialog = messageDialog ?? throw new ArgumentNullException(nameof(messageDialog));
         _monitorIdentifier = monitorIdentifier ?? throw new ArgumentNullException(nameof(monitorIdentifier));
         _startupRegistration = startupRegistration ?? throw new ArgumentNullException(nameof(startupRegistration));
         _monitorWatcher = monitorWatcher ?? throw new ArgumentNullException(nameof(monitorWatcher));
@@ -506,6 +509,35 @@ public sealed partial class SettingsViewModel : ObservableObject, IDisposable
         _folderLauncher.OpenFolder(_logDirectory.LogDirectory);
         return Task.CompletedTask;
     });
+
+    /// <summary>
+    /// 「このアプリについて」。アプリ名・バージョン・著作権表記をダイアログで表示します。
+    /// </summary>
+    [RelayCommand]
+    private void ShowAbout() =>
+        _messageDialog.ShowMessage(
+            Localizer.Format(Strings.AboutTitleFormat, AppInfoProvider.GetProductName()),
+            AppInfoProvider.CreateAboutMessage());
+
+    /// <summary>
+    /// 「ライセンス情報」。使用しているソフトウェアのライセンス表示のファイルを、既定のアプリで開きます。
+    /// </summary>
+    [RelayCommand]
+    private void ShowThirdPartyNotices()
+    {
+        string path = AppInfoProvider.ThirdPartyNoticesPath;
+        try
+        {
+            _folderLauncher.OpenFile(path);
+        }
+        catch (Exception ex)
+        {
+            LogOperationFailed(ex, Strings.OperationOpenThirdPartyNotices);
+            _messageDialog.ShowMessage(
+                Strings.ThirdPartyNotices,
+                Localizer.Format(Strings.ThirdPartyNoticesOpenFailedFormat, path, ex.Message));
+        }
+    }
 
     /// <summary>選択中の画像を表示しない画像から外し、再び壁紙の候補にする。</summary>
     [RelayCommand(CanExecute = nameof(HasSelectedExcludedImage))]

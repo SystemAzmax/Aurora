@@ -24,6 +24,7 @@ public sealed class SettingsViewModelTests : IDisposable
     private readonly IMonitorConfigurationWatcher _watcher = Substitute.For<IMonitorConfigurationWatcher>();
     private readonly ILogDirectoryProvider _logDirectory = Substitute.For<ILogDirectoryProvider>();
     private readonly IFolderLauncher _folderLauncher = Substitute.For<IFolderLauncher>();
+    private readonly IMessageDialogService _messageDialog = Substitute.For<IMessageDialogService>();
     private readonly InMemorySettingsService _settings;
     private readonly SettingsViewModel _sut;
 
@@ -46,7 +47,7 @@ public sealed class SettingsViewModelTests : IDisposable
 
         _sut = new SettingsViewModel(
             _monitors, _settings, _wallpaper, _rotation, _scheduler, _folderPicker, _previewLoader, _identifier, _startup, _watcher,
-            _logDirectory, _folderLauncher,
+            _logDirectory, _folderLauncher, _messageDialog,
             new InlineUiDispatcher(), NullLogger<SettingsViewModel>.Instance);
     }
 
@@ -357,6 +358,40 @@ public sealed class SettingsViewModelTests : IDisposable
         MonitorSettings saved = _settings.Current.GetMonitor("MON-P");
         Assert.Equal(ImageSelectionMode.Random, saved.SelectionMode);
         Assert.True(saved.IncludeSubfolders);
+    }
+
+    // ---- アプリの情報 ----
+
+    [Fact]
+    public void このアプリについてはアプリ名とバージョンと著作権表記を表示する()
+    {
+        _sut.ShowAboutCommand.Execute(null);
+
+        _messageDialog.Received(1).ShowMessage(
+            "Aurora Wallpaper Changer について",
+            Arg.Is<string>(m => m.StartsWith("Aurora Wallpaper Changer\nバージョン 1.0.0（exe 版）", StringComparison.Ordinal)
+                && m.EndsWith("\n\n© 2026 SystemAzmax", StringComparison.Ordinal)));
+    }
+
+    [Fact]
+    public void ライセンス情報はライセンス表示のファイルを既定のアプリで開く()
+    {
+        _sut.ShowThirdPartyNoticesCommand.Execute(null);
+
+        _folderLauncher.Received(1).OpenFile(AppInfoProvider.ThirdPartyNoticesPath);
+        _messageDialog.DidNotReceiveWithAnyArgs().ShowMessage(default!, default!);
+    }
+
+    [Fact]
+    public void ライセンス情報を開けなければファイルと理由を表示する()
+    {
+        _folderLauncher.When(f => f.OpenFile(Arg.Any<string>())).Do(_ => throw new System.ComponentModel.Win32Exception("関連付けがありません"));
+
+        _sut.ShowThirdPartyNoticesCommand.Execute(null);
+
+        _messageDialog.Received(1).ShowMessage(
+            "ライセンス情報",
+            $"ライセンス情報のファイルを開けませんでした。\n\nファイル: {AppInfoProvider.ThirdPartyNoticesPath}\n詳細: 関連付けがありません");
     }
 
     [Fact]

@@ -28,6 +28,7 @@ public static class UiServiceCollectionExtensions
         services.AddTransient<IFolderPickerService, FolderPickerService>();
         services.AddTransient<IImagePreviewLoader, ImagePreviewLoader>();
         services.AddTransient<IFolderLauncher, ExplorerFolderLauncher>();
+        services.AddTransient<IMessageDialogService, MessageDialogService>();
 
         // 表示中の番号ウィンドウを保持するため、設定画面ごとのスコープで 1 つ。画面を閉じると番号も閉じる。
         services.AddScoped<IMonitorIdentifierService, MonitorIdentifierService>();

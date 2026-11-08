@@ -7,7 +7,7 @@
     <UseWPF>true</UseWPF>
     <RootNamespace>WallpaperChanger.UI</RootNamespace>
     <AssemblyName>WallpaperChanger</AssemblyName>
-    <AssemblyTitle>壁紙チェンジャー</AssemblyTitle>
+    <AssemblyTitle>Aurora Wallpaper Changer</AssemblyTitle>
     <ApplicationManifest>app.manifest</ApplicationManifest>
     <ApplicationIcon>Resources\AppIcon.ico</ApplicationIcon>
     <!-- Main は Program.cs に定義する（App.xaml はリソース定義のみ） -->
@@ -18,6 +18,12 @@
   <ItemGroup>
     <!-- EnableDefaultApplicationDefinition=false により App.xaml は Page として扱われる -->
     <Resource Include="Resources\AppIcon.ico" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- 「ライセンス情報」で開く、使用しているソフトウェアのライセンス表示。
+         パッケージを更新したときの作り直し方は docs/BuildGuide.md を参照 -->
+    <Content Include="ThirdPartyNotices.txt" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 
   <ItemGroup>

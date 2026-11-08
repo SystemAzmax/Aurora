@@ -1,0 +1,3 @@
+# Git Bash で実行するシェルスクリプトは、Windows でも改行を LF のまま取り出す
+# （CRLF になると bash が実行できない）
+*.sh text eol=lf
