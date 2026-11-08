@@ -206,7 +206,8 @@
 
 - **状況**: 2026-11-08 に、配布の方法を Microsoft Store に決めた（元は「インストーラーと自動更新」。Velopack・Inno Setup・MSIX を候補にしていた）。Partner Center の開発者アカウントはある。
   - 2026-11-08 に、StoreReleaseKit（Store で配るアプリで表示をそろえるための手順とひな形）に従い、アプリ名を「オーロラ壁紙チェンジャー」（英語名「Aurora Wallpaper Changer」。どちらもストアで予約済み）、バージョンを 1.0.0 にして、設定画面に「アプリの情報」（「このアプリについて」「ライセンス情報」）を置き、ライセンス表示（`WallpaperChanger.UI/ThirdPartyNotices.txt`、`tools/notices/build-notices.sh`）とプライバシーポリシー（`docs/PrivacyPolicy.md`）、リリースの作業（`docs/BuildGuide.md`）を加えた
-  - 残りは、README の英語版と日本語版を分けること（StoreReleaseKit の決まり）、パッケージで動くときの保存先と自動起動の切り替え、パッケージの作成と提出
+  - 2026-11-08 に、README を英語版（`README.md`）と日本語版（`README_ja.md`）に分け、どちらにも利用者向けの紹介と開発者向けの情報を書いた（StoreReleaseKit の決まり）
+  - 残りは、パッケージで動くときの保存先と自動起動の切り替え、パッケージの作成と提出
 - **内容**: 単一ファイル発行をやめ、MSIX パッケージにして Microsoft Store で配る。インストール・更新・アンインストールは Store が行うため、自動更新の仕組みは自分で作らない。
 - **理由**:
   - 単一ファイル発行では、ネイティブ DLL が一時フォルダに展開される（S3、現状維持で保留中）

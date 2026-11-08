@@ -1,45 +1,90 @@
-# オーロラ壁紙チェンジャー (Aurora Wallpaper Changer)
+# Aurora Wallpaper Changer
 
-Windows 10 / 11 向けのマルチディスプレイ対応壁紙チェンジャー。タスクトレイに常駐し、モニターごとに指定フォルダの画像を定期的に壁紙へ設定する。壁紙の設定には `IDesktopWallpaper` COM API を使用する（`SystemParametersInfo` は使用しない）。
+English | [日本語](README_ja.md)
 
-## 構成
+A multi-monitor wallpaper changer for Windows 10 / 11. It runs in the notification area (system tray) and changes the wallpaper of each monitor at a set interval, using images from the folders you choose for that monitor.
 
-| プロジェクト | 役割 | 主な型 |
+## Features
+
+- Choose wallpaper folders for each monitor (subfolders can be included). Supported images: JPG / JPEG / PNG / BMP / WEBP
+- Layouts: Single image, 2 × 2 tiles, 4 × 4 tiles, and Span (one image across multiple monitors)
+- Fit for a single image: Fill, Fit, Stretch, or Center (can be chosen for each monitor)
+- Selection: Random or In order
+- Change interval: 1 minute to 24 hours
+- Tray menu commands: Next wallpaper, Previous wallpaper, Refresh all wallpapers, Pause, Don't show this image, and Open image location
+- Waits to change wallpapers automatically while a full-screen app is running or while on battery power (each can be turned off in Settings)
+- Copy the settings of a previous monitor, for example to a new monitor
+- Start automatically with Windows
+- Japanese and English user interface
+
+## Requirements
+
+- Windows 10 version 1809 or later, or Windows 11 (x64)
+- WEBP images require the WebP codec for Windows (built into Windows 11; on Windows 10, install "WebP Image Extensions" from the Microsoft Store)
+
+## Download
+
+The app is being prepared for release on the Microsoft Store. Until then, build it from source (see "For Developers" below).
+
+## Getting Started
+
+1. Start the app. Its icon appears in the notification area.
+2. Double-click the icon, or right-click it and select "Settings", to open the Settings window.
+3. Select a monitor and add folders of images to "Wallpaper folders".
+4. Choose the layout, fit, selection, and change interval.
+
+## Privacy
+
+The app does not collect personal information or send it anywhere. For details, see the [privacy policy](docs/PrivacyPolicy.md).
+
+## Contact
+
+Please report bugs and send requests through [GitHub Issues](https://github.com/SystemAzmax/Aurora/issues).
+
+## Third-Party Software Licenses
+
+See [ThirdPartyNotices.txt](WallpaperChanger.UI/ThirdPartyNotices.txt). You can also open it from "License information" in the app's Settings window.
+
+## For Developers
+
+The app sets wallpapers with the `IDesktopWallpaper` COM API (it does not use `SystemParametersInfo`).
+
+### Project Structure
+
+| Project | Role | Main types |
 |---|---|---|
-| `WallpaperChanger.Core` (`net10.0`) | OS 非依存のモデル・インターフェース・ロジック | `IWallpaperService` `IMonitorService` `ISettingsService` `IImageProvider` `ITrayIconService` `IWallpaperScheduler` / `WallpaperRotationService` `WallpaperScheduler` |
-| `WallpaperChanger.Infrastructure` | Windows 依存の実装 | `DesktopWallpaperComHost`（専用 STA スレッド）`DesktopWallpaperService` `DesktopWallpaperMonitorService` `JsonSettingsService` `FileSystemImageProvider` |
-| `WallpaperChanger.UI` (WinExe) | WPF / MVVM / タスクトレイ | `Program`（コンポジションルート）`SettingsViewModel` `TrayIconViewModel` `TrayIconService` `SettingsWindowService` |
-| `WallpaperChanger.Tests` | xUnit v3 テスト | Core / Infrastructure / ViewModel / 実機 COM 統合テスト |
+| `WallpaperChanger.Core` (`net10.0`) | OS-independent models, interfaces, and logic | `IWallpaperService` `IMonitorService` `ISettingsService` `IImageProvider` `ITrayIconService` `IWallpaperScheduler` / `WallpaperRotationService` `WallpaperScheduler` |
+| `WallpaperChanger.Infrastructure` | Windows-specific implementations | `DesktopWallpaperComHost` (dedicated STA thread) `DesktopWallpaperService` `DesktopWallpaperMonitorService` `JsonSettingsService` `FileSystemImageProvider` |
+| `WallpaperChanger.UI` (WinExe) | WPF / MVVM / notification area icon | `Program` (composition root) `SettingsViewModel` `TrayIconViewModel` `TrayIconService` `SettingsWindowService` |
+| `WallpaperChanger.Tests` | xUnit v3 tests | Core / Infrastructure / ViewModel / integration tests with the real COM API |
 
-- View にコードビハインドは無い。`x:Class` から生成される `InitializeComponent()` は `SettingsWindowService` と `Program` から呼び出す。
-- 設定ファイル: `%LOCALAPPDATA%\WallpaperChanger\settings.json`
-- 履歴ファイル: `%LOCALAPPDATA%\WallpaperChanger\history.json`（モニターごとの「前の壁紙」の履歴と順送りの位置。切り替えのたびに書き込むため、設定ファイルとは分けている）
-- アプリアイコン: `tools/IconGenerator/generate-icons.cs` で図形のみから生成したオリジナル（外部素材なし）。作り直す場合は `dotnet run tools/IconGenerator/generate-icons.cs -- <出力先>` を実行し、`D-combined.ico` を `WallpaperChanger.UI/Resources/AppIcon.ico` に上書きする。
-- 分割表示（4 分割 / 16 分割）: IDesktopWallpaper は 1 モニター 1 枚のため、`WicWallpaperComposer` が 4 枚・16 枚をモニター解像度の 1 枚に合成して設定する（保存先 `%LOCALAPPDATA%\WallpaperChanger\Composites`、モニターごとに最新 3 枚を保持）。フォルダは左上・右上・左下・右下の 4 単位で指定でき（`MonitorSettings.Tiles`）、4 分割では各マス、16 分割では 2 × 2 の 4 マスずつの区画に適用する（両レイアウトで設定を共有）。マスへの収め方（埋める / 全体を表示）・間隔・間隔の色・空きマスと余白の色は、モニターごとに設定できる（`MonitorSettings.TileStyle`）。
-- スパン（複数モニターにまたがる 1 枚表示）: 表示レイアウトに「スパン」を選んだモニターどうしで、1 枚の画像を各モニターの位置（`MonitorInfo.Bounds`）に合わせて切り分けて表示する（Windows の「スパン」は全モニター共通のため使わない）。フォルダ・選び方・収め方はスパン専用の設定（`AppSettings.Span`）で、履歴はスパン全体で 1 つ持つ。
-- 自動切り替えを見合わせる条件: 全画面表示のアプリ（`SHQueryUserNotificationState`）やバッテリー駆動（`GetSystemPowerStatus`）の間は、定期実行の切り替えを待ち、当てはまらなくなったら切り替える（`AppSettings.SkipConditions`、既定で両方有効）。手動の切り替えは止めない。
-- 表示言語: 日本語（既定）と英語。文言は `WallpaperChanger.UI/Resources/Strings.resx`（日本語）と `Strings.en.resx`（英語）にあり、ビルド時に生成される `Strings` クラスから参照する（XAML は `{x:Static res:Strings.Xxx}`）。文言を足すときは両方のファイルに同じキーで書く（英語が無い・埋め込む値の番号が違う場合はテストが失敗する）。Infrastructure で作る画面向けの文言は `WallpaperChanger.Infrastructure/Resources/Strings.resx` にある。言語の変更はアプリの再起動後に反映し、ログは常に日本語で書く。
-- アプリの情報: 設定画面の最後の「アプリの情報」に「このアプリについて」（アプリ名・バージョン・著作権表記。パッケージありで動いているときは「ストア版」、なしのときは「exe 版」）と「ライセンス情報」（`ThirdPartyNotices.txt` を既定のアプリで開く）を置く。表示は、Microsoft Store で配るアプリで共通の決まり（StoreReleaseKit）に従う。アプリ名・バージョン・著作権表記は `Directory.Build.props`、ライセンス表示の作り直しとバージョンの上げ方は [docs/BuildGuide.md](docs/BuildGuide.md)、プライバシーポリシーは [docs/PrivacyPolicy.md](docs/PrivacyPolicy.md)。
-- 1 枚表示の表示方法: 既定（`MonitorSettings.SingleImageFit` が null）では画像をそのまま設定し、Windows の「調整方法」で表示させる。Windows の調整方法は全モニター共通のため、モニターごとに「画面を埋める」「全体を表示」「引き伸ばす」「中央に表示」を選んだ場合は、分割表示と同じ `WicWallpaperComposer` でモニター解像度の画像を作って設定する（余白は黒）。
+- Views have no code-behind. `InitializeComponent()`, generated from `x:Class`, is called from `SettingsWindowService` and `Program`.
+- Settings file: `%LOCALAPPDATA%\WallpaperChanger\settings.json`
+- History file: `%LOCALAPPDATA%\WallpaperChanger\history.json` (the "previous wallpaper" history and the in-order position for each monitor; it is written on every change, so it is kept separate from the settings file)
+- App icon: an original icon generated only from shapes by `tools/IconGenerator/generate-icons.cs` (no external assets). To regenerate it, run `dotnet run tools/IconGenerator/generate-icons.cs -- <output folder>` and copy `D-combined.ico` over `WallpaperChanger.UI/Resources/AppIcon.ico`.
+- Tiles (2 × 2 / 4 × 4): `IDesktopWallpaper` sets one image per monitor, so `WicWallpaperComposer` combines 4 or 16 images into one image at the monitor's resolution (saved in `%LOCALAPPDATA%\WallpaperChanger\Composites`; the latest 3 images are kept for each monitor). Folders can be set for 4 units (top left, top right, bottom left, bottom right; `MonitorSettings.Tiles`). They apply to each tile in 2 × 2 tiles and to each section of 2 × 2 tiles in 4 × 4 tiles (both layouts share the settings). The fit in tiles (fill / show the whole image), spacing, spacing color, and blank tile and margin color can be set for each monitor (`MonitorSettings.TileStyle`).
+- Span (one image across multiple monitors): among the monitors whose layout is set to Span, one image is split to match the position of each monitor (`MonitorInfo.Bounds`). The Windows "Span" setting is not used because it applies to all monitors. Folders, selection, and fit are span-only settings (`AppSettings.Span`), and the span as a whole has one history.
+- Conditions for waiting: while a full-screen app is running (`SHQueryUserNotificationState`) or the PC is on battery power (`GetSystemPowerStatus`), scheduled changes wait and run once the condition ends (`AppSettings.SkipConditions`; both are on by default). Manual changes are not blocked.
+- Languages: Japanese (default) and English. The strings are in `WallpaperChanger.UI/Resources/Strings.resx` (Japanese) and `Strings.en.resx` (English), and are referenced through the `Strings` class generated at build time (in XAML, `{x:Static res:Strings.Xxx}`). When you add a string, add it to both files with the same key (tests fail if the English string is missing or the placeholders differ). Strings for the UI created in Infrastructure are in `WallpaperChanger.Infrastructure/Resources/Strings.resx`. A language change takes effect after the app restarts, and logs are always written in Japanese.
+- App information: "App information", at the end of the Settings window, has "About this app" (app name, version, and copyright; it shows "Store version" when running with a package and "exe version" without one) and "License information" (opens `ThirdPartyNotices.txt` in the default app). They follow the shared rules for apps distributed on the Microsoft Store (StoreReleaseKit). The app name, version, and copyright are in `Directory.Build.props`. How to regenerate the license notices and how to bump the version are in [docs/BuildGuide.md](docs/BuildGuide.md) (in Japanese). The privacy policy is [docs/PrivacyPolicy.md](docs/PrivacyPolicy.md).
+- Fit for a single image: by default (`MonitorSettings.SingleImageFit` is null), the image is set as is and shown with the Windows fit setting. Because the Windows fit setting applies to all monitors, when Fill, Fit, Stretch, or Center is chosen for a monitor, `WicWallpaperComposer` (the same one used for tiles) creates an image at the monitor's resolution and sets it (margins are black).
+- The README is split into English (`README.md`) and Japanese (`README_ja.md`). When you change it, update both.
 
-## ビルド・実行・テスト
+### Build, Run, and Test
 
 ```powershell
 dotnet build Aurora.slnx
 dotnet run --project WallpaperChanger.UI
-
 dotnet test --project WallpaperChanger.Tests
-# 対話セッションの無い CI では実機 COM の統合テストを除外する
+# In CI, which has no interactive session, exclude the integration tests that use the real COM API
 dotnet test --project WallpaperChanger.Tests -- --filter-not-trait "Category=Integration"
 ```
 
-master への push と pull request のたびに、GitHub Actions（`.github/workflows/ci.yml`）がクリーンな状態から Release でビルドし、統合テストを除いたテストを実行する。
+On every push to master and every pull request, GitHub Actions (`.github/workflows/ci.yml`) builds the solution in Release from a clean state and runs the tests except the integration tests.
 
-## 配布 (Self-contained)
+### Publish (Self-contained)
 
 ```powershell
 dotnet publish WallpaperChanger.UI -p:PublishProfile=win-x64
-# => artifacts\publish\win-x64\WallpaperChanger.exe（.NET ランタイム同梱の単一ファイル）
+# => artifacts\publish\win-x64\WallpaperChanger.exe (a single file that includes the .NET runtime)
 ```
-
-WEBP の表示・壁紙設定には Windows の WebP コーデックが必要（Windows 11 は標準搭載。Windows 10 は「WebP 画像拡張機能」を導入）。
