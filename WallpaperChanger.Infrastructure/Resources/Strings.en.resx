@@ -33,8 +33,17 @@
   <data name="InternalDisplayName" xml:space="preserve">
     <value>Built-in display</value>
   </data>
+  <data name="StartupDisabledByPolicy" xml:space="preserve">
+    <value>Automatic startup cannot be turned on because it is disabled by your administrator's policy.</value>
+  </data>
+  <data name="StartupDisabledByUser" xml:space="preserve">
+    <value>Automatic startup was turned off in Windows settings, so the app cannot turn it on. Turn on Aurora Wallpaper Changer in Windows Settings &gt; Apps &gt; Startup.</value>
+  </data>
   <data name="StartupFromTemporaryFolder" xml:space="preserve">
     <value>Automatic startup cannot be registered because the app is running from a temporary folder. If you are running it directly from a zip file, extract it to a folder first, then try again.</value>
+  </data>
+  <data name="StartupTaskUnavailableFormat" xml:space="preserve">
+    <value>Could not get the automatic startup setting. ({0})</value>
   </data>
   <data name="WallpaperFileNotFound" xml:space="preserve">
     <value>The image file set as the wallpaper was not found.</value>

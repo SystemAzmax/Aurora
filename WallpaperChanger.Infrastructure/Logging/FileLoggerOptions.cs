@@ -7,10 +7,7 @@ namespace WallpaperChanger.Infrastructure.Logging;
 /// </summary>
 public sealed class FileLoggerOptions
 {
-    public static string DefaultDirectory { get; } = Path.Combine(
-        Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
-        "WallpaperChanger",
-        "logs");
+    public static string DefaultDirectory { get; } = Path.Combine(AppDataLocation.Directory, "logs");
 
     /// <summary>ログファイルの保存先。</summary>
     public string Directory { get; set; } = DefaultDirectory;

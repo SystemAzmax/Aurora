@@ -88,7 +88,7 @@ internal static partial class Program
             ValidateScopes = true,
         }));
 
-        // 配布先での調査用に、ログを %LOCALAPPDATA%\WallpaperChanger\logs にも保存する
+        // 配布先での調査用に、ログを %LOCALAPPDATA%\WallpaperChanger\logs（ストア版はパッケージの LocalState\logs）にも保存する
         builder.Logging.AddWallpaperChangerFile();
 
         builder.Services

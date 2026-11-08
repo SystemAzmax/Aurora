@@ -58,8 +58,11 @@ Microsoft Store で配布する準備をしている。それまでは、ソー�
 | `WallpaperChanger.Infrastructure` | Windows 依存の実装 | `DesktopWallpaperComHost`（専用 STA スレッド）`DesktopWallpaperService` `DesktopWallpaperMonitorService` `JsonSettingsService` `FileSystemImageProvider` |
 | `WallpaperChanger.UI` (WinExe) | WPF / MVVM / タスクトレイ | `Program`（コンポジションルート）`SettingsViewModel` `TrayIconViewModel` `TrayIconService` `SettingsWindowService` |
 | `WallpaperChanger.Tests` | xUnit v3 テスト | Core / Infrastructure / ViewModel / 実機 COM 統合テスト |
+| `WallpaperChanger.Package` (wapproj) | ストア版（MSIX）のパッケージ | `Package.appxmanifest`、パッケージ画像、表示名と説明（日本語・英語） |
 
 - View にコードビハインドは無い。`x:Class` から生成される `InitializeComponent()` は `SettingsWindowService` と `Program` から呼び出す。
+- データの保存先: exe 版は `%LOCALAPPDATA%\WallpaperChanger`、ストア版（パッケージで動くとき）は `%LOCALAPPDATA%\Packages\<パッケージ ファミリ名>\LocalState`（`AppDataLocation`）。パッケージで動くアプリが `%LOCALAPPDATA%` に作るファイルはほかのプロセスから見えず、合成画像を壁紙を描くエクスプローラーが読めないため。以下のパスは exe 版のもの
+- 自動起動: exe 版は HKCU の Run キー、ストア版はマニフェストのスタートアップ タスク（`PackagedStartupRegistrationService`）
 - 設定ファイル: `%LOCALAPPDATA%\WallpaperChanger\settings.json`
 - 履歴ファイル: `%LOCALAPPDATA%\WallpaperChanger\history.json`（モニターごとの「前の壁紙」の履歴と順送りの位置。切り替えのたびに書き込むため、設定ファイルとは分けている）
 - アプリアイコン: `tools/IconGenerator/generate-icons.cs` で図形のみから生成したオリジナル（外部素材なし）。作り直す場合は `dotnet run tools/IconGenerator/generate-icons.cs -- <出力先>` を実行し、`D-combined.ico` を `WallpaperChanger.UI/Resources/AppIcon.ico` に上書きする。
@@ -85,7 +88,11 @@ master への push と pull request のたびに、GitHub Actions（`.github/wor
 
 ### 配布 (Self-contained)
 
+exe 版:
+
 ```powershell
-dotnet publish WallpaperChanger.UI -p:PublishProfile=win-x64
+dotnet publish WallpaperChanger.UI -p:PublishProfile=exe-win-x64
 # => artifacts\publish\win-x64\WallpaperChanger.exe（.NET ランタイム同梱の単一ファイル）
 ```
+
+ストア版（MSIX）のパッケージは、Visual Studio で `WallpaperChanger.Package` から作る（[docs/BuildGuide.md](docs/BuildGuide.md) の「ストア版のビルド」）。

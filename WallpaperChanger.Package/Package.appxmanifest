@@ -1,0 +1,69 @@
+<?xml version="1.0" encoding="utf-8"?>
+
+<Package
+  xmlns="http://schemas.microsoft.com/appx/manifest/foundation/windows10"
+  xmlns:uap="http://schemas.microsoft.com/appx/manifest/uap/windows10"
+  xmlns:desktop="http://schemas.microsoft.com/appx/manifest/desktop/windows10"
+  xmlns:rescap="http://schemas.microsoft.com/appx/manifest/foundation/windows10/restrictedcapabilities"
+  IgnorableNamespaces="uap desktop rescap">
+
+  <!--
+    Name と Publisher は仮の値。Visual Studio で「公開」→「アプリケーションをストアと関連付ける」を選ぶと、
+    Partner Center で予約したアプリの値に書き換わる（docs/BuildGuide.md の「ストア版のビルド」を参照）。
+    Version は Directory.Build.props の Version と同じ値にし、4 つ目の数字は 0 にする。
+  -->
+  <Identity
+    Name="SystemAzmax.AuroraWallpaperChanger"
+    Publisher="CN=SystemAzmax"
+    Version="1.0.0.0" />
+
+  <Properties>
+    <!-- 表示名と説明は Strings\ja-JP と Strings\en-US の Resources.resw（日本語と英語） -->
+    <DisplayName>ms-resource:AppDisplayName</DisplayName>
+    <PublisherDisplayName>あずま屋</PublisherDisplayName>
+    <Logo>Images\StoreLogo.png</Logo>
+  </Properties>
+
+  <Dependencies>
+    <TargetDeviceFamily Name="Windows.Desktop" MinVersion="10.0.17763.0" MaxVersionTested="10.0.26100.0" />
+  </Dependencies>
+
+  <Resources>
+    <Resource Language="x-generate"/>
+  </Resources>
+
+  <Applications>
+    <Application Id="App"
+      Executable="$targetnametoken$.exe"
+      EntryPoint="$targetentrypoint$">
+      <uap:VisualElements
+        DisplayName="ms-resource:AppDisplayName"
+        Description="ms-resource:AppDescription"
+        BackgroundColor="transparent"
+        Square150x150Logo="Images\Square150x150Logo.png"
+        Square44x44Logo="Images\Square44x44Logo.png">
+        <uap:DefaultTile Wide310x150Logo="Images\Wide310x150Logo.png" />
+        <uap:SplashScreen Image="Images\SplashScreen.png" />
+      </uap:VisualElements>
+      <Extensions>
+        <!--
+          Windows の起動時の自動起動。パッケージで動くときは Run キーへの書き込みが振り替えられるため、こちらを使う。
+          TaskId は PackagedStartupRegistrationService.TaskId と同じ値にする。既定では無効にし、設定画面で切り替える。
+        -->
+        <desktop:Extension
+          Category="windows.startupTask"
+          Executable="WallpaperChanger.UI\WallpaperChanger.exe"
+          EntryPoint="Windows.FullTrustApplication">
+          <desktop:StartupTask
+            TaskId="AuroraWallpaperChangerStartup"
+            Enabled="false"
+            DisplayName="ms-resource:AppDisplayName" />
+        </desktop:Extension>
+      </Extensions>
+    </Application>
+  </Applications>
+
+  <Capabilities>
+    <rescap:Capability Name="runFullTrust" />
+  </Capabilities>
+</Package>

@@ -5,10 +5,7 @@ namespace WallpaperChanger.Infrastructure.History;
 /// </summary>
 public sealed class HistoryStorageOptions
 {
-    public static string DefaultFilePath { get; } = Path.Combine(
-        Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
-        "WallpaperChanger",
-        "history.json");
+    public static string DefaultFilePath { get; } = Path.Combine(AppDataLocation.Directory, "history.json");
 
     public string FilePath { get; set; } = DefaultFilePath;
 }

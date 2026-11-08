@@ -207,7 +207,14 @@
 - **状況**: 2026-11-08 に、配布の方法を Microsoft Store に決めた（元は「インストーラーと自動更新」。Velopack・Inno Setup・MSIX を候補にしていた）。Partner Center の開発者アカウントはある。
   - 2026-11-08 に、StoreReleaseKit（Store で配るアプリで表示をそろえるための手順とひな形）に従い、アプリ名を「オーロラ壁紙チェンジャー」（英語名「Aurora Wallpaper Changer」。どちらもストアで予約済み）、バージョンを 1.0.0 にして、設定画面に「アプリの情報」（「このアプリについて」「ライセンス情報」）を置き、ライセンス表示（`WallpaperChanger.UI/ThirdPartyNotices.txt`、`tools/notices/build-notices.sh`）とプライバシーポリシー（`docs/PrivacyPolicy.md`）、リリースの作業（`docs/BuildGuide.md`）を加えた
   - 2026-11-08 に、README を英語版（`README.md`）と日本語版（`README_ja.md`）に分け、どちらにも利用者向けの紹介と開発者向けの情報を書いた（StoreReleaseKit の決まり）
-  - 残りは、パッケージで動くときの保存先と自動起動の切り替え、パッケージの作成と提出
+  - 2026-11-08 に、パッケージで動くときの保存先と自動起動を切り替え、パッケージのプロジェクト（`WallpaperChanger.Package`）を加えた
+    - 保存先: パッケージで動くときは、設定・履歴・合成画像・ログを `ApplicationData.Current.LocalFolder`（LocalState）に保存する（`AppDataLocation`）。パッケージかどうかは `GetCurrentPackageFullName` で調べる
+    - 自動起動: パッケージで動くときは、マニフェストのスタートアップ タスク（TaskId `AuroraWallpaperChangerStartup`、既定は無効）を `StartupTask` で切り替える（`PackagedStartupRegistrationService`）。ユーザーが Windows 側で無効にした場合は、Windows の［設定］→［アプリ］→［スタートアップ］で有効にするよう案内する
+    - パッケージ: x86・x64・ARM64 の 3 つを 1 つの `.msixbundle` にする。アプリは CPU ごとの発行プロファイル（`win-x86` / `win-x64` / `win-arm64.pubxml`）で .NET ランタイムを同梱し、単一ファイルにせずに入れる。今までの単一ファイルの発行プロファイルは、exe 版用の `exe-win-x64.pubxml` にした。表示名と説明は日本語と英語（`Strings\ja-JP`、`Strings\en-US` の `Resources.resw`）、発行元の表示名は「あずま屋」
+    - パッケージ画像（67 枚）は、アイコンと同じく `tools/IconGenerator/generate-icons.cs` で描く（`--package`）
+    - wapproj は `dotnet build` ではビルドできないため、ソリューション プラットフォームが Any CPU のときはビルドしない（CI の `dotnet build Aurora.slnx` は変わらない）
+    - ARM64 では、英語の文言のサテライト アセンブリを作る AL.exe がエラーになるため、.NET SDK のコンパイラーで作るようにした（`GenerateSatelliteAssembliesForCore`）
+  - 残りは、Visual Studio でのストアとの関連付け、この PC での確認、提出
 - **内容**: 単一ファイル発行をやめ、MSIX パッケージにして Microsoft Store で配る。インストール・更新・アンインストールは Store が行うため、自動更新の仕組みは自分で作らない。
 - **理由**:
   - 単一ファイル発行では、ネイティブ DLL が一時フォルダに展開される（S3、現状維持で保留中）

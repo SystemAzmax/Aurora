@@ -53,7 +53,17 @@ public static class InfrastructureServiceCollectionExtensions
         services.AddTransient<IDisplayChangeNotifier, SystemEventsDisplayChangeNotifier>();
         services.AddTransient<IWallpaperService, DesktopWallpaperService>();
         services.AddTransient<IWallpaperComposer, WicWallpaperComposer>();
-        services.AddTransient<IStartupRegistrationService, RegistryStartupRegistrationService>();
+
+        // パッケージ（MSIX）で動くときは Run キーへの書き込みが振り替えられるため、スタートアップ タスクを使う
+        if (AppDataLocation.IsPackaged)
+        {
+            services.AddTransient<IStartupRegistrationService, PackagedStartupRegistrationService>();
+        }
+        else
+        {
+            services.AddTransient<IStartupRegistrationService, RegistryStartupRegistrationService>();
+        }
+
         services.AddTransient<IWallpaperHistoryStore, JsonWallpaperHistoryStore>();
         services.AddTransient<ISystemStateProvider, WindowsSystemStateProvider>();
 

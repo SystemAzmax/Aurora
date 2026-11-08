@@ -39,8 +39,18 @@
     <value>内蔵ディスプレイ</value>
     <comment>EDID にモデル名の無い内蔵ディスプレイの名前</comment>
   </data>
+  <data name="StartupDisabledByPolicy" xml:space="preserve">
+    <value>管理者のポリシーで自動起動が無効にされているため、有効にできません。</value>
+  </data>
+  <data name="StartupDisabledByUser" xml:space="preserve">
+    <value>Windows の設定で自動起動が無効にされているため、アプリからは有効にできません。Windows の［設定］→［アプリ］→［スタートアップ］で、オーロラ壁紙チェンジャーをオンにしてください。</value>
+  </data>
   <data name="StartupFromTemporaryFolder" xml:space="preserve">
     <value>一時フォルダから実行しているため、自動起動を登録できません。zip ファイルから直接実行している場合は、任意のフォルダに展開してから設定してください。</value>
+  </data>
+  <data name="StartupTaskUnavailableFormat" xml:space="preserve">
+    <value>自動起動の設定を取得できませんでした。（{0}）</value>
+    <comment>{0}: エラーの内容</comment>
   </data>
   <data name="WallpaperFileNotFound" xml:space="preserve">
     <value>壁紙に指定した画像ファイルが見つかりません。</value>

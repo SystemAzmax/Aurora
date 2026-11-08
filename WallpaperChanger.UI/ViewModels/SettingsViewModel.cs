@@ -1153,7 +1153,8 @@ public sealed partial class SettingsViewModel : ObservableObject, IDisposable
         {
             isEnabled = _startupRegistration.IsEnabled();
         }
-        catch (Exception ex) when (ex is UnauthorizedAccessException or System.Security.SecurityException or System.IO.IOException)
+        catch (Exception ex) when (ex is UnauthorizedAccessException or System.Security.SecurityException or System.IO.IOException
+                                       or InvalidOperationException)
         {
             // 読み取れない場合も他の設定は使えるよう、未登録として表示してエラーを伝える
             LogOperationFailed(ex, Strings.OperationStartupRegistration);

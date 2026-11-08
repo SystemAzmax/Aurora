@@ -5,10 +5,10 @@ namespace WallpaperChanger.Infrastructure.Imaging;
 /// </summary>
 public sealed class WallpaperCompositionOptions
 {
-    public static string DefaultOutputDirectory { get; } = Path.Combine(
-        Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
-        "WallpaperChanger",
-        "Composites");
+    /// <summary>
+    /// 既定の保存先。壁紙を描くエクスプローラーが読むため、パッケージで動くときもほかのプロセスから見える場所にする（<see cref="AppDataLocation"/>）。
+    /// </summary>
+    public static string DefaultOutputDirectory { get; } = Path.Combine(AppDataLocation.Directory, "Composites");
 
     /// <summary>合成画像の保存先。</summary>
     public string OutputDirectory { get; set; } = DefaultOutputDirectory;

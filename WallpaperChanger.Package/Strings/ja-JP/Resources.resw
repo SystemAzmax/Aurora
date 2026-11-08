@@ -1,0 +1,23 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<root>
+  <resheader name="resmimetype">
+    <value>text/microsoft-resx</value>
+  </resheader>
+  <resheader name="version">
+    <value>2.0</value>
+  </resheader>
+  <resheader name="reader">
+    <value>System.Resources.ResXResourceReader, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </resheader>
+  <resheader name="writer">
+    <value>System.Resources.ResXResourceWriter, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </resheader>
+  <data name="AppDisplayName" xml:space="preserve">
+    <value>オーロラ壁紙チェンジャー</value>
+    <comment>パッケージの表示名（スタート メニュー、ストア、タスク マネージャーのスタートアップ）。ストアで予約したアプリ名と同じにする</comment>
+  </data>
+  <data name="AppDescription" xml:space="preserve">
+    <value>モニターごとに指定したフォルダの画像を、決めた間隔で壁紙に設定するアプリ</value>
+    <comment>パッケージの説明（1 文）</comment>
+  </data>
+</root>

@@ -7,9 +7,12 @@
 //
 // 使い方（.NET 10 SDK のファイルベース実行）:
 //   dotnet run tools/IconGenerator/generate-icons.cs -- <出力フォルダ>
+//   dotnet run tools/IconGenerator/generate-icons.cs -- --package <出力フォルダ>
 //
 // 出力: A-aurora / B-monitors / C-grid / D-combined の .ico（16～256px）、256px の PNG、比較用の preview.png
 // 採用: D-combined.ico を WallpaperChanger.UI/Resources/AppIcon.ico として使用している。
+// --package: ストア版のパッケージ画像（67 枚）を D-combined で作る。出力先は WallpaperChanger.Package/Images。
+//            画像の種類と大きさは StoreReleaseKit の build-package-images.ps1 と同じ（確認用の preview-package.png も作る）。
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -19,10 +22,23 @@ using System.Windows;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
 
-string outDir = args.Length > 0 ? args[0] : Directory.GetCurrentDirectory();
+bool package = args.Length > 0 && args[0] == "--package";
+string outDir = package
+    ? (args.Length > 1 ? args[1] : throw new ArgumentException("--package の後に出力フォルダを指定してください。"))
+    : args.Length > 0 ? args[0] : Directory.GetCurrentDirectory();
 Directory.CreateDirectory(outDir);
 
-var thread = new Thread(() => IconFactory.Run(outDir));
+var thread = new Thread(() =>
+{
+    if (package)
+    {
+        IconFactory.RunPackage(outDir);
+    }
+    else
+    {
+        IconFactory.Run(outDir);
+    }
+});
 thread.SetApartmentState(ApartmentState.STA);
 thread.Start();
 thread.Join();
@@ -50,6 +66,123 @@ static class IconFactory
 
         SavePng(RenderPreview(variants), Path.Combine(outDir, "preview.png"));
         Console.WriteLine("done: " + outDir);
+    }
+
+    // ---------- ストア版のパッケージ画像 ----------
+
+    static readonly int[] Scales = [100, 125, 150, 200, 400];
+
+    public static void RunPackage(string outDir)
+    {
+        Action<DrawingContext, double> draw = DrawCombined;
+        var saved = new List<string>();
+        void Save(BitmapSource bitmap, string name)
+        {
+            string path = Path.Combine(outDir, name);
+            SavePng(bitmap, path);
+            saved.Add(path);
+        }
+
+        static int Scaled(int size, int scale) => (int)Math.Round(size * scale / 100.0, MidpointRounding.AwayFromZero);
+
+        // アプリのアイコン（Square44x44Logo）: 表示スケールごとの画像と、大きさごとの画像（プレートあり・なし・ライト テーマ用）
+        foreach (int scale in Scales)
+        {
+            Save(Render(draw, Scaled(44, scale)), $"Square44x44Logo.scale-{scale}.png");
+        }
+
+        foreach (int size in new[] { 16, 20, 24, 30, 32, 36, 40, 48, 60, 64, 72, 80, 96, 256 })
+        {
+            BitmapSource icon = Render(draw, size);
+            foreach (string suffix in new[] { "", "_altform-unplated", "_altform-lightunplated" })
+            {
+                Save(icon, $"Square44x44Logo.targetsize-{size}{suffix}.png");
+            }
+        }
+
+        // パッケージのロゴ（StoreLogo）
+        foreach (int scale in Scales)
+        {
+            Save(Render(draw, Scaled(50, scale)), $"StoreLogo.scale-{scale}.png");
+        }
+
+        // 中タイル、ワイド タイル、スプラッシュ画面: 画像の高さの半分の大きさのアイコンを、透明な画像の中央に置く
+        foreach (var (name, width, height) in new[] { ("Square150x150Logo", 150, 150), ("Wide310x150Logo", 310, 150), ("SplashScreen", 620, 300) })
+        {
+            foreach (int scale in Scales)
+            {
+                int w = Scaled(width, scale), h = Scaled(height, scale);
+                Save(RenderCentered(draw, w, h, TileIconSize(h)), $"{name}.scale-{scale}.png");
+            }
+        }
+
+        string[] previewNames =
+        [
+            "Square44x44Logo.targetsize-16_altform-unplated.png", "Square44x44Logo.targetsize-24_altform-unplated.png",
+            "Square44x44Logo.targetsize-32_altform-unplated.png", "Square44x44Logo.targetsize-48_altform-unplated.png",
+            "StoreLogo.scale-100.png", "Square150x150Logo.scale-100.png", "Wide310x150Logo.scale-100.png", "SplashScreen.scale-100.png",
+        ];
+        string previewPath = Path.Combine(Path.GetTempPath(), "AuroraIcon", "preview-package.png");
+        Directory.CreateDirectory(Path.GetDirectoryName(previewPath)!);
+        SavePng(RenderPackagePreview([.. previewNames.Select(n => Path.Combine(outDir, n))]), previewPath);
+        Console.WriteLine($"done: {saved.Count} images in {outDir}");
+        Console.WriteLine("preview: " + previewPath);
+    }
+
+    /// <summary>上下の余白が同じになるよう、画像の高さとの差を偶数にする。</summary>
+    static int TileIconSize(int height)
+    {
+        int size = (int)Math.Round(height / 2.0, MidpointRounding.AwayFromZero);
+        return (height - size) % 2 == 0 ? size : size + 1;
+    }
+
+    /// <summary>指定の大きさで描いたアイコンを、透明な画像の中央に拡大縮小せずに置く。</summary>
+    static BitmapSource RenderCentered(Action<DrawingContext, double> draw, int width, int height, int iconSize)
+    {
+        BitmapSource icon = Render(draw, iconSize);
+        int stride = iconSize * 4;
+        byte[] iconPixels = new byte[stride * iconSize];
+        icon.CopyPixels(iconPixels, stride, 0);
+
+        var canvas = new WriteableBitmap(width, height, 96, 96, PixelFormats.Bgra32, null);
+        canvas.WritePixels(new Int32Rect((width - iconSize) / 2, (height - iconSize) / 2, iconSize, iconSize), iconPixels, stride, 0);
+        canvas.Freeze();
+        return canvas;
+    }
+
+    /// <summary>確認用: 画像を白・濃い灰色・薄い灰色の背景に並べる（64px 以下は 4 倍に拡大）。</summary>
+    static RenderTargetBitmap RenderPackagePreview(string[] files)
+    {
+        const int pad = 12;
+        Color[] backgrounds = [Colors.White, C(0xFF202020), C(0xFFF3F3F3)];
+        var images = files.Select(f => (BitmapSource)BitmapFrame.Create(new Uri(Path.GetFullPath(f)), BitmapCreateOptions.None, BitmapCacheOption.OnLoad)).ToList();
+        int Zoom(BitmapSource b) => b.PixelWidth <= 64 ? 4 : 1;
+        int width = pad + images.Sum(b => b.PixelWidth * Zoom(b) + pad * 3);
+        int cellHeight = images.Max(b => b.PixelHeight * Zoom(b) + pad * 2);
+        int height = pad + backgrounds.Length * (cellHeight + pad);
+
+        var visual = new DrawingVisual();
+        using (DrawingContext dc = visual.RenderOpen())
+        {
+            dc.DrawRectangle(Solid(C(0xFF808080)), null, new Rect(0, 0, width, height));
+            for (int row = 0; row < backgrounds.Length; row++)
+            {
+                double x = pad, y = pad + row * (cellHeight + pad);
+                foreach (BitmapSource image in images)
+                {
+                    int z = Zoom(image), cellWidth = image.PixelWidth * z + pad * 2;
+                    dc.DrawRectangle(Solid(backgrounds[row]), null, new Rect(x, y, cellWidth, cellHeight));
+                    dc.DrawImage(image, new Rect(x + pad, y + (cellHeight - image.PixelHeight * z) / 2.0, image.PixelWidth * z, image.PixelHeight * z));
+                    x += cellWidth + pad;
+                }
+            }
+        }
+
+        RenderOptions.SetBitmapScalingMode(visual, BitmapScalingMode.NearestNeighbor);
+        var rtb = new RenderTargetBitmap(width, height, 96, 96, PixelFormats.Pbgra32);
+        rtb.Render(visual);
+        rtb.Freeze();
+        return rtb;
     }
 
     // ---------- common helpers ----------

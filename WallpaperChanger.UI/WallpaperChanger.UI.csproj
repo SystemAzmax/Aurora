@@ -13,6 +13,8 @@
     <!-- Main は Program.cs に定義する（App.xaml はリソース定義のみ） -->
     <StartupObject>WallpaperChanger.UI.Program</StartupObject>
     <EnableDefaultApplicationDefinition>false</EnableDefaultApplicationDefinition>
+    <!-- ストア版のパッケージ（WallpaperChanger.Package）で、CPU ごとに .NET ランタイムを同梱して発行するため -->
+    <RuntimeIdentifiers>win-x86;win-x64;win-arm64</RuntimeIdentifiers>
   </PropertyGroup>
 
   <ItemGroup>

@@ -5,10 +5,7 @@ namespace WallpaperChanger.Infrastructure.Settings;
 /// </summary>
 public sealed class SettingsStorageOptions
 {
-    public static string DefaultFilePath { get; } = Path.Combine(
-        Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
-        "WallpaperChanger",
-        "settings.json");
+    public static string DefaultFilePath { get; } = Path.Combine(AppDataLocation.Directory, "settings.json");
 
     public string FilePath { get; set; } = DefaultFilePath;
 

@@ -58,8 +58,11 @@ The app sets wallpapers with the `IDesktopWallpaper` COM API (it does not use `S
 | `WallpaperChanger.Infrastructure` | Windows-specific implementations | `DesktopWallpaperComHost` (dedicated STA thread) `DesktopWallpaperService` `DesktopWallpaperMonitorService` `JsonSettingsService` `FileSystemImageProvider` |
 | `WallpaperChanger.UI` (WinExe) | WPF / MVVM / notification area icon | `Program` (composition root) `SettingsViewModel` `TrayIconViewModel` `TrayIconService` `SettingsWindowService` |
 | `WallpaperChanger.Tests` | xUnit v3 tests | Core / Infrastructure / ViewModel / integration tests with the real COM API |
+| `WallpaperChanger.Package` (wapproj) | Store (MSIX) package | `Package.appxmanifest`, package images, display name and description (Japanese and English) |
 
 - Views have no code-behind. `InitializeComponent()`, generated from `x:Class`, is called from `SettingsWindowService` and `Program`.
+- Data location: `%LOCALAPPDATA%\WallpaperChanger` for the exe version, and `%LOCALAPPDATA%\Packages\<package family name>\LocalState` for the Store version (when running with a package; `AppDataLocation`). Files that a packaged app creates in `%LOCALAPPDATA%` are not visible to other processes, so Explorer, which draws the wallpaper, could not read the combined images. The paths below are for the exe version.
+- Automatic startup: the HKCU Run key for the exe version, and the startup task in the manifest for the Store version (`PackagedStartupRegistrationService`)
 - Settings file: `%LOCALAPPDATA%\WallpaperChanger\settings.json`
 - History file: `%LOCALAPPDATA%\WallpaperChanger\history.json` (the "previous wallpaper" history and the in-order position for each monitor; it is written on every change, so it is kept separate from the settings file)
 - App icon: an original icon generated only from shapes by `tools/IconGenerator/generate-icons.cs` (no external assets). To regenerate it, run `dotnet run tools/IconGenerator/generate-icons.cs -- <output folder>` and copy `D-combined.ico` over `WallpaperChanger.UI/Resources/AppIcon.ico`.
@@ -85,7 +88,11 @@ On every push to master and every pull request, GitHub Actions (`.github/workflo
 
 ### Publish (Self-contained)
 
+The exe version:
+
 ```powershell
-dotnet publish WallpaperChanger.UI -p:PublishProfile=win-x64
+dotnet publish WallpaperChanger.UI -p:PublishProfile=exe-win-x64
 # => artifacts\publish\win-x64\WallpaperChanger.exe (a single file that includes the .NET runtime)
 ```
+
+The Store (MSIX) package is created from `WallpaperChanger.Package` in Visual Studio (see "ストア版のビルド" in [docs/BuildGuide.md](docs/BuildGuide.md), in Japanese).
