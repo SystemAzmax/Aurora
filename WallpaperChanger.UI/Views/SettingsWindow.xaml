@@ -513,6 +513,21 @@
                     </StackPanel>
                 </Border>
 
+                <!-- 設定の書き出し・読み込み（アプリ全体の設定） -->
+                <Border Style="{StaticResource CardStyle}">
+                    <StackPanel>
+                        <TextBlock Text="{x:Static res:Strings.SettingsTransferTitle}" Style="{StaticResource SectionTitleStyle}" />
+                        <TextBlock Style="{StaticResource CaptionTextStyle}" Margin="0,0,0,10"
+                                   Text="{x:Static res:Strings.SettingsTransferDescription}" />
+                        <WrapPanel>
+                            <Button Content="{x:Static res:Strings.ExportSettings}" Tag="&#xEDE1;" Style="{StaticResource IconButtonStyle}"
+                                    ToolTip="{x:Static res:Strings.ExportSettingsToolTip}" Command="{Binding ExportSettingsCommand}" />
+                            <Button Content="{x:Static res:Strings.ImportSettings}" Tag="&#xE8B5;" Style="{StaticResource IconButtonStyle}"
+                                    ToolTip="{x:Static res:Strings.ImportSettingsToolTip}" Command="{Binding ImportSettingsCommand}" />
+                        </WrapPanel>
+                    </StackPanel>
+                </Border>
+
                 <!-- アプリの情報（Microsoft Store で配布するアプリで共通の表示。StoreReleaseKit の決まりに従う） -->
                 <Border Style="{StaticResource CardStyle}">
                     <StackPanel>

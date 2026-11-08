@@ -120,6 +120,12 @@
   <data name="Exit" xml:space="preserve">
     <value>Exit</value>
   </data>
+  <data name="ExportSettings" xml:space="preserve">
+    <value>Export settings</value>
+  </data>
+  <data name="ExportSettingsToolTip" xml:space="preserve">
+    <value>Saves the current settings to a file.</value>
+  </data>
   <data name="FatalErrorFormat" xml:space="preserve">
     <value>The app will close because an error occurred.&#xA;&#xA;{0}</value>
   </data>
@@ -164,6 +170,15 @@
   </data>
   <data name="ImageRestoredFormat" xml:space="preserve">
     <value>{0} will be shown again.</value>
+  </data>
+  <data name="ImportSettings" xml:space="preserve">
+    <value>Import settings</value>
+  </data>
+  <data name="ImportSettingsConfirmFormat" xml:space="preserve">
+    <value>Import the settings from {0}?&#xA;All current settings, such as the wallpaper folders and layout of each monitor, the change interval, and hidden images, will be replaced.</value>
+  </data>
+  <data name="ImportSettingsToolTip" xml:space="preserve">
+    <value>Replaces the current settings with the settings in an exported file.</value>
   </data>
   <data name="IncludeSubfolders" xml:space="preserve">
     <value>Include subfolders</value>
@@ -339,11 +354,17 @@
   <data name="OperationExcludeImage" xml:space="preserve">
     <value>hide the image</value>
   </data>
+  <data name="OperationExportSettings" xml:space="preserve">
+    <value>export the settings</value>
+  </data>
   <data name="OperationFailed" xml:space="preserve">
     <value>Failed to {0}. {1}</value>
   </data>
   <data name="OperationIdentifyMonitors" xml:space="preserve">
     <value>identify monitors</value>
+  </data>
+  <data name="OperationImportSettings" xml:space="preserve">
+    <value>import the settings</value>
   </data>
   <data name="OperationLoadSettings" xml:space="preserve">
     <value>load the settings</value>
@@ -509,6 +530,30 @@
   </data>
   <data name="SettingsCopiedFormat" xml:space="preserve">
     <value>Copied the settings of {0} to {1}.</value>
+  </data>
+  <data name="SettingsExportedFormat" xml:space="preserve">
+    <value>Exported the settings to {0}.</value>
+  </data>
+  <data name="SettingsFileFilter" xml:space="preserve">
+    <value>Settings files (*.json)|*.json</value>
+  </data>
+  <data name="SettingsFileInvalidFormat" xml:space="preserve">
+    <value>Could not import {0} because it is not a settings file of this app or it is damaged. Your current settings have not changed.</value>
+  </data>
+  <data name="SettingsImported" xml:space="preserve">
+    <value>Imported the settings.</value>
+  </data>
+  <data name="SettingsImportedDisconnectedNote" xml:space="preserve">
+    <value>Settings of monitors that are not connected can be copied to a connected monitor with "Copy settings from another monitor".</value>
+  </data>
+  <data name="SettingsImportedLanguageFormat" xml:space="preserve">
+    <value>The language ({0}) takes effect after you restart the app.</value>
+  </data>
+  <data name="SettingsTransferDescription" xml:space="preserve">
+    <value>Export your settings to a file to import them on another PC or after reinstalling the app. Importing replaces all current settings (except "Start automatically with Windows").</value>
+  </data>
+  <data name="SettingsTransferTitle" xml:space="preserve">
+    <value>Export and import settings</value>
   </data>
   <data name="SettingsWindowTitle" xml:space="preserve">
     <value>Aurora Wallpaper Changer - Settings</value>

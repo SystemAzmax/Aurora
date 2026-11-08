@@ -131,6 +131,12 @@
   <data name="Exit" xml:space="preserve">
     <value>終了</value>
   </data>
+  <data name="ExportSettings" xml:space="preserve">
+    <value>設定を書き出す</value>
+  </data>
+  <data name="ExportSettingsToolTip" xml:space="preserve">
+    <value>今の設定をファイルに保存します。</value>
+  </data>
   <data name="FatalErrorFormat" xml:space="preserve">
     <value>エラーが発生したため終了します。&#xA;&#xA;{0}</value>
     <comment>{0}: エラーの内容</comment>
@@ -182,6 +188,16 @@
   <data name="ImageRestoredFormat" xml:space="preserve">
     <value>{0} を再び表示するようにしました。</value>
     <comment>{0}: 画像のファイル名</comment>
+  </data>
+  <data name="ImportSettings" xml:space="preserve">
+    <value>設定を読み込む</value>
+  </data>
+  <data name="ImportSettingsConfirmFormat" xml:space="preserve">
+    <value>{0} の設定を読み込みます。&#xA;今の設定（モニターごとの壁紙フォルダや表示レイアウト、切り替え間隔、表示しない画像など）は、すべて置き換わります。よろしいですか？</value>
+    <comment>{0}: 読み込むファイルの名前</comment>
+  </data>
+  <data name="ImportSettingsToolTip" xml:space="preserve">
+    <value>書き出したファイルの設定で、今の設定を置き換えます。</value>
   </data>
   <data name="IncludeSubfolders" xml:space="preserve">
     <value>サブフォルダも検索する</value>
@@ -375,12 +391,18 @@
   <data name="OperationExcludeImage" xml:space="preserve">
     <value>表示しない画像の設定</value>
   </data>
+  <data name="OperationExportSettings" xml:space="preserve">
+    <value>設定の書き出し</value>
+  </data>
   <data name="OperationFailed" xml:space="preserve">
     <value>{0}に失敗しました。{1}</value>
     <comment>{0}: 操作（Operation で始まるキー）、{1}: エラーの内容</comment>
   </data>
   <data name="OperationIdentifyMonitors" xml:space="preserve">
     <value>モニターの識別</value>
+  </data>
+  <data name="OperationImportSettings" xml:space="preserve">
+    <value>設定の読み込み</value>
   </data>
   <data name="OperationLoadSettings" xml:space="preserve">
     <value>設定の読み込み</value>
@@ -552,6 +574,34 @@
   <data name="SettingsCopiedFormat" xml:space="preserve">
     <value>{0} の設定を {1} にコピーしました。</value>
     <comment>{0}: コピー元、{1}: コピー先</comment>
+  </data>
+  <data name="SettingsExportedFormat" xml:space="preserve">
+    <value>設定を {0} に書き出しました。</value>
+    <comment>{0}: 書き出したファイル</comment>
+  </data>
+  <data name="SettingsFileFilter" xml:space="preserve">
+    <value>設定ファイル (*.json)|*.json</value>
+    <comment>ファイルを選ぶダイアログの種類の欄。「|」の前が表示名、後ろがファイル名のパターン</comment>
+  </data>
+  <data name="SettingsFileInvalidFormat" xml:space="preserve">
+    <value>{0} は、このアプリの設定ファイルではないか、壊れているため、読み込めませんでした。今の設定は変わっていません。</value>
+    <comment>{0}: 読み込もうとしたファイルの名前</comment>
+  </data>
+  <data name="SettingsImported" xml:space="preserve">
+    <value>設定を読み込みました。</value>
+  </data>
+  <data name="SettingsImportedDisconnectedNote" xml:space="preserve">
+    <value>接続していないモニターの設定は、「ほかのモニターの設定をコピー」で接続中のモニターにコピーできます。</value>
+  </data>
+  <data name="SettingsImportedLanguageFormat" xml:space="preserve">
+    <value>表示言語（{0}）は、アプリを再起動すると反映されます。</value>
+    <comment>{0}: 読み込んだ設定の表示言語の名前</comment>
+  </data>
+  <data name="SettingsTransferDescription" xml:space="preserve">
+    <value>設定をファイルに書き出しておくと、ほかの PC や、アプリを入れ直したあとに読み込めます。読み込むと、今の設定はすべて置き換わります（「Windows の起動時に自動的に開始する」は含みません）。</value>
+  </data>
+  <data name="SettingsTransferTitle" xml:space="preserve">
+    <value>設定の書き出し・読み込み</value>
   </data>
   <data name="SettingsWindowTitle" xml:space="preserve">
     <value>オーロラ壁紙チェンジャー - 設定</value>

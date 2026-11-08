@@ -18,6 +18,9 @@ public sealed partial class SettingsViewModel : ObservableObject, IDisposable
 {
     private const int PreviewDecodePixelWidth = 640;
 
+    /// <summary>設定を書き出すときに、はじめに表示するファイル名。</summary>
+    internal const string ExportFileName = "AuroraWallpaperChanger-settings.json";
+
     private readonly IMonitorService _monitorService;
     private readonly ISettingsService _settingsService;
     private readonly IWallpaperService _wallpaperService;
@@ -31,6 +34,8 @@ public sealed partial class SettingsViewModel : ObservableObject, IDisposable
     private readonly ILogDirectoryProvider _logDirectory;
     private readonly IFolderLauncher _folderLauncher;
     private readonly IMessageDialogService _messageDialog;
+    private readonly ISettingsFileDialogService _settingsFileDialog;
+    private readonly IMonitorSettingsInheritor _settingsInheritor;
     private readonly IUiDispatcher _uiDispatcher;
     private readonly ILogger<SettingsViewModel> _logger;
 
@@ -52,12 +57,16 @@ public sealed partial class SettingsViewModel : ObservableObject, IDisposable
         ILogDirectoryProvider logDirectory,
         IFolderLauncher folderLauncher,
         IMessageDialogService messageDialog,
+        ISettingsFileDialogService settingsFileDialog,
+        IMonitorSettingsInheritor settingsInheritor,
         IUiDispatcher uiDispatcher,
         ILogger<SettingsViewModel> logger)
     {
         _logDirectory = logDirectory ?? throw new ArgumentNullException(nameof(logDirectory));
         _folderLauncher = folderLauncher ?? throw new ArgumentNullException(nameof(folderLauncher));
         _messageDialog = messageDialog ?? throw new ArgumentNullException(nameof(messageDialog));
+        _settingsFileDialog = settingsFileDialog ?? throw new ArgumentNullException(nameof(settingsFileDialog));
+        _settingsInheritor = settingsInheritor ?? throw new ArgumentNullException(nameof(settingsInheritor));
         _monitorIdentifier = monitorIdentifier ?? throw new ArgumentNullException(nameof(monitorIdentifier));
         _startupRegistration = startupRegistration ?? throw new ArgumentNullException(nameof(startupRegistration));
         _monitorWatcher = monitorWatcher ?? throw new ArgumentNullException(nameof(monitorWatcher));
@@ -508,6 +517,60 @@ public sealed partial class SettingsViewModel : ObservableObject, IDisposable
     {
         _folderLauncher.OpenFolder(_logDirectory.LogDirectory);
         return Task.CompletedTask;
+    });
+
+    /// <summary>今の設定をファイルに書き出す。ほかの PC や、アプリを入れ直したあとに読み込むためのもの。</summary>
+    [RelayCommand]
+    private Task ExportSettingsAsync() => ExecuteSafelyAsync(Strings.OperationExportSettings, async () =>
+    {
+        if (_settingsFileDialog.PickExportPath(ExportFileName) is not { } path)
+        {
+            return;
+        }
+
+        await _settingsService.ExportAsync(path);
+        ShowInfo(Localizer.Format(Strings.SettingsExportedFormat, path));
+    });
+
+    /// <summary>
+    /// 書き出したファイルの設定で、今の設定をすべて置き換え、全モニターの壁紙を選び直す。
+    /// ほかの PC の設定はモニターの ID が合わないため、同じ型番のモニターには接続先を変えたときと同じ仕組みで当てはめる。
+    /// 当てはまらなかったモニターの設定は接続していないモニターとして残り、「ほかのモニターの設定をコピー」で使える。
+    /// </summary>
+    [RelayCommand]
+    private Task ImportSettingsAsync() => ExecuteSafelyAsync(Strings.OperationImportSettings, async () =>
+    {
+        if (_settingsFileDialog.PickImportPath() is not { } path)
+        {
+            return;
+        }
+
+        string fileName = System.IO.Path.GetFileName(path);
+        if (!_messageDialog.Confirm(Strings.ImportSettings, Localizer.Format(Strings.ImportSettingsConfirmFormat, fileName)))
+        {
+            return;
+        }
+
+        try
+        {
+            await _settingsService.ImportAsync(path);
+        }
+        catch (System.IO.InvalidDataException ex)
+        {
+            LogOperationFailed(ex, Strings.OperationImportSettings);
+            ShowError(Localizer.Format(Strings.SettingsFileInvalidFormat, fileName));
+            return;
+        }
+
+        await _settingsInheritor.InheritAsync(await _monitorService.GetMonitorsAsync());
+        LoadGlobalSettings();
+        await LoadMonitorsAsync();
+
+        string imported = DescribeImportedSettings();
+        ShowInfo(imported);
+
+        // 読み込んだ設定の画像を、次の定期実行を待たずに表示する
+        ReportProblems(await _scheduler.RefreshNowAsync(), imported);
     });
 
     /// <summary>
@@ -1232,6 +1295,24 @@ public sealed partial class SettingsViewModel : ObservableObject, IDisposable
         }
 
         SelectedCopySource = CopySources.FirstOrDefault(c => string.Equals(c.MonitorId, selectedId, StringComparison.OrdinalIgnoreCase));
+    }
+
+    /// <summary>設定を読み込んだ結果の文言。接続していないモニターの設定の使い方と、再起動が要る表示言語の変更も伝える。</summary>
+    private string DescribeImportedSettings()
+    {
+        AppSettings settings = _settingsService.Current;
+        var sentences = new List<string> { Strings.SettingsImported };
+        if (settings.Monitors.Any(m => m.HasFolderSettings && !IsConnected(m.MonitorId)))
+        {
+            sentences.Add(Strings.SettingsImportedDisconnectedNote);
+        }
+
+        if (settings.Language != Localizer.CurrentLanguage)
+        {
+            sentences.Add(Localizer.Format(Strings.SettingsImportedLanguageFormat, LanguageOption.From(settings.Language).DisplayName));
+        }
+
+        return string.Join(Strings.ProblemSentenceSeparator, sentences);
     }
 
     private bool IsConnected(string monitorId) =>

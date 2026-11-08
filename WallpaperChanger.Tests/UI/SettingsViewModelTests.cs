@@ -25,6 +25,8 @@ public sealed class SettingsViewModelTests : IDisposable
     private readonly ILogDirectoryProvider _logDirectory = Substitute.For<ILogDirectoryProvider>();
     private readonly IFolderLauncher _folderLauncher = Substitute.For<IFolderLauncher>();
     private readonly IMessageDialogService _messageDialog = Substitute.For<IMessageDialogService>();
+    private readonly ISettingsFileDialogService _settingsFileDialog = Substitute.For<ISettingsFileDialogService>();
+    private readonly IMonitorSettingsInheritor _inheritor = Substitute.For<IMonitorSettingsInheritor>();
     private readonly InMemorySettingsService _settings;
     private readonly SettingsViewModel _sut;
 
@@ -47,7 +49,7 @@ public sealed class SettingsViewModelTests : IDisposable
 
         _sut = new SettingsViewModel(
             _monitors, _settings, _wallpaper, _rotation, _scheduler, _folderPicker, _previewLoader, _identifier, _startup, _watcher,
-            _logDirectory, _folderLauncher, _messageDialog,
+            _logDirectory, _folderLauncher, _messageDialog, _settingsFileDialog, _inheritor,
             new InlineUiDispatcher(), NullLogger<SettingsViewModel>.Instance);
     }
 
@@ -358,6 +360,117 @@ public sealed class SettingsViewModelTests : IDisposable
         MonitorSettings saved = _settings.Current.GetMonitor("MON-P");
         Assert.Equal(ImageSelectionMode.Random, saved.SelectionMode);
         Assert.True(saved.IncludeSubfolders);
+    }
+
+    // ---- 設定の書き出し・読み込み ----
+
+    [Fact]
+    public async Task 選んだファイルに設定を書き出す()
+    {
+        await _sut.InitializeCommand.ExecuteAsync(null);
+        _settingsFileDialog.PickExportPath(SettingsViewModel.ExportFileName).Returns(@"C:\Backup\aurora.json");
+
+        await _sut.ExportSettingsCommand.ExecuteAsync(null);
+
+        (string path, AppSettings settings) = Assert.Single(_settings.Exported);
+        Assert.Equal(@"C:\Backup\aurora.json", path);
+        Assert.Same(_settings.Current, settings);
+        Assert.False(_sut.IsStatusError);
+        Assert.Equal(@"設定を C:\Backup\aurora.json に書き出しました。", _sut.StatusMessage);
+    }
+
+    [Fact]
+    public async Task 書き出し先を選ばなければ書き出さない()
+    {
+        await _sut.InitializeCommand.ExecuteAsync(null);
+        _settingsFileDialog.PickExportPath(Arg.Any<string>()).Returns((string?)null);
+
+        await _sut.ExportSettingsCommand.ExecuteAsync(null);
+
+        Assert.Empty(_settings.Exported);
+        Assert.Null(_sut.StatusMessage);
+    }
+
+    [Fact]
+    public async Task 設定を読み込むと今の設定を置き換えて同じ型番のモニターに当てはめ壁紙を選び直す()
+    {
+        await _sut.InitializeCommand.ExecuteAsync(null);
+        _settings.ImportFiles[@"C:\Backup\aurora.json"] = new AppSettings { IntervalMinutes = 45 }
+            .WithMonitor(MonitorSettings.CreateDefault("MON-L").AddFolder(@"D:\Left"))
+            .WithMonitor(MonitorSettings.CreateDefault("MON-OTHER-PC").AddFolder(@"D:\Other") with { DisplayName = "Other" });
+        _settingsFileDialog.PickImportPath().Returns(@"C:\Backup\aurora.json");
+        _messageDialog.Confirm(Arg.Any<string>(), Arg.Any<string>()).Returns(true);
+
+        await _sut.ImportSettingsCommand.ExecuteAsync(null);
+
+        _messageDialog.Received(1).Confirm(
+            "設定を読み込む",
+            Arg.Is<string>(m => m.StartsWith("aurora.json の設定を読み込みます。\n", StringComparison.Ordinal)));
+        Assert.Equal(45, _settings.Current.IntervalMinutes);
+        Assert.Empty(_settings.Current.GetMonitor("MON-P").Folders);
+        await _inheritor.Received(1).InheritAsync(
+            Arg.Is<IReadOnlyList<MonitorInfo>>(l => l.Count == 2 && l[0].Id == "MON-L" && l[1].Id == "MON-P"),
+            Arg.Any<CancellationToken>());
+
+        // 画面も読み込んだ設定で表示し直す
+        Assert.Equal(45, _sut.IntervalValue);
+        Assert.Equal("MON-P", _sut.SelectedMonitor?.Id);
+        Assert.Empty(_sut.Folders);
+        Assert.Contains(_sut.CopySources, c => c.MonitorId == "MON-OTHER-PC" && !c.IsConnected);
+        await _scheduler.Received(1).RefreshNowAsync(Arg.Any<CancellationToken>());
+        Assert.False(_sut.IsStatusError);
+        Assert.Equal(
+            "設定を読み込みました。接続していないモニターの設定は、「ほかのモニターの設定をコピー」で接続中のモニターにコピーできます。",
+            _sut.StatusMessage);
+    }
+
+    [Fact]
+    public async Task 表示言語の違う設定を読み込むと再起動を案内する()
+    {
+        await _sut.InitializeCommand.ExecuteAsync(null);
+        _settings.ImportFiles[@"C:\Backup\aurora.json"] = new AppSettings { Language = AppLanguage.English }
+            .WithMonitor(MonitorSettings.CreateDefault("MON-P").AddFolder(@"D:\Primary"));
+        _settingsFileDialog.PickImportPath().Returns(@"C:\Backup\aurora.json");
+        _messageDialog.Confirm(Arg.Any<string>(), Arg.Any<string>()).Returns(true);
+
+        await _sut.ImportSettingsCommand.ExecuteAsync(null);
+
+        Assert.Equal(AppLanguage.English, _sut.SelectedLanguage.Language);
+        Assert.Equal([@"D:\Primary"], _sut.Folders);
+        Assert.Equal("設定を読み込みました。表示言語（English）は、アプリを再起動すると反映されます。", _sut.StatusMessage);
+    }
+
+    [Fact]
+    public async Task 読み込みの確認でキャンセルすると設定を変えない()
+    {
+        await _sut.InitializeCommand.ExecuteAsync(null);
+        _settings.ImportFiles[@"C:\Backup\aurora.json"] = new AppSettings { IntervalMinutes = 45 };
+        _settingsFileDialog.PickImportPath().Returns(@"C:\Backup\aurora.json");
+        _messageDialog.Confirm(Arg.Any<string>(), Arg.Any<string>()).Returns(false);
+
+        await _sut.ImportSettingsCommand.ExecuteAsync(null);
+
+        Assert.Equal(120, _settings.Current.IntervalMinutes);
+        await _inheritor.DidNotReceive().InheritAsync(Arg.Any<IReadOnlyList<MonitorInfo>>(), Arg.Any<CancellationToken>());
+        await _scheduler.DidNotReceive().RefreshNowAsync(Arg.Any<CancellationToken>());
+        Assert.Null(_sut.StatusMessage);
+    }
+
+    [Fact]
+    public async Task 設定ファイルでなければ読み込まずに伝える()
+    {
+        await _sut.InitializeCommand.ExecuteAsync(null);
+        _settingsFileDialog.PickImportPath().Returns(@"C:\Backup\photo.json");
+        _messageDialog.Confirm(Arg.Any<string>(), Arg.Any<string>()).Returns(true);
+
+        await _sut.ImportSettingsCommand.ExecuteAsync(null);
+
+        Assert.Equal(120, _settings.Current.IntervalMinutes);
+        await _scheduler.DidNotReceive().RefreshNowAsync(Arg.Any<CancellationToken>());
+        Assert.True(_sut.IsStatusError);
+        Assert.Equal(
+            "photo.json は、このアプリの設定ファイルではないか、壊れているため、読み込めませんでした。今の設定は変わっていません。",
+            _sut.StatusMessage);
     }
 
     // ---- アプリの情報 ----

@@ -15,6 +15,7 @@ A multi-monitor wallpaper changer for Windows 10 / 11. It runs in the notificati
 - Waits to change wallpapers automatically while a full-screen app is running or while on battery power (each can be turned off in Settings)
 - Copy the settings of a previous monitor, for example to a new monitor
 - Start automatically with Windows
+- Export the settings to a file and import them on another PC or after reinstalling
 - Japanese and English user interface
 
 ## Requirements

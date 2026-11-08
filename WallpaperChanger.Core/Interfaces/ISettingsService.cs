@@ -27,4 +27,15 @@ public interface ISettingsService
 
     /// <summary>設定を変更して保存する。</summary>
     Task UpdateAsync(Func<AppSettings, AppSettings> update, CancellationToken cancellationToken = default);
+
+    /// <summary>今の設定を、指定したファイルに書き出す（設定ファイルと同じ形式）。ほかの PC や入れ直したあとに読み込むためのもの。</summary>
+    /// <param name="filePath">書き出し先のファイル。あれば上書きする。</param>
+    Task ExportAsync(string filePath, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// <see cref="ExportAsync"/> で書き出したファイルを読み込み、今の設定をすべて置き換えて保存する。
+    /// ファイルがこのアプリの設定ファイルでない・壊れている場合は <see cref="InvalidDataException"/> を投げ、今の設定は変えない。
+    /// </summary>
+    /// <param name="filePath">読み込むファイル。</param>
+    Task ImportAsync(string filePath, CancellationToken cancellationToken = default);
 }

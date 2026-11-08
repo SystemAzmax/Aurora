@@ -412,10 +412,96 @@ public sealed class JsonSettingsServiceTests : IDisposable
         Assert.Equal(AppSettings.MinIntervalMinutes, sut.Current.IntervalMinutes);
     }
 
-    private JsonSettingsService CreateSut(int readAttempts = 2, TimeSpan? readRetryDelay = null) => new(
+    // ---- 設定の書き出し・読み込み ----
+
+    [Fact]
+    public async Task 書き出した設定を読み込むと今の設定をすべて置き換えて保存する()
+    {
+        CancellationToken ct = TestContext.Current.CancellationToken;
+        string exportPath = Path.Combine(_temp.Path, "backup", "exported.json");
+        Directory.CreateDirectory(Path.GetDirectoryName(exportPath)!);
+        using (JsonSettingsService otherPc = CreateSut(filePath: Path.Combine(_temp.Path, "other-pc", "settings.json")))
+        {
+            await otherPc.UpdateAsync(
+                s => s.WithInterval(90)
+                    .WithMonitor(MonitorSettings.CreateDefault("MON-OTHER").AddFolder(@"D:\Pictures") with { DisplayName = "Other" })
+                    .AddExcludedImage(@"D:\Pictures\hidden.jpg") with { Language = AppLanguage.English },
+                ct);
+            await otherPc.ExportAsync(exportPath, ct);
+        }
+
+        using JsonSettingsService sut = CreateSut();
+        await sut.UpdateAsync(s => s.WithMonitor(MonitorSettings.CreateDefault("MON-MINE").AddFolder(@"C:\Mine")), ct);
+        AppSettings? changed = null;
+        sut.SettingsChanged += (_, s) => changed = s;
+
+        await sut.ImportAsync(exportPath, ct);
+
+        Assert.Same(sut.Current, changed);
+        AssertImported(sut.Current);
+
+        // 設定ファイルにも保存している
+        using JsonSettingsService reader = CreateSut();
+        await reader.LoadAsync(ct);
+        AssertImported(reader.Current);
+
+        static void AssertImported(AppSettings settings)
+        {
+            Assert.Equal(90, settings.IntervalMinutes);
+            Assert.Equal(AppLanguage.English, settings.Language);
+            Assert.Equal([@"D:\Pictures\hidden.jpg"], settings.ExcludedImages);
+            MonitorSettings monitor = Assert.Single(settings.Monitors);
+            Assert.Equal("MON-OTHER", monitor.MonitorId);
+            Assert.Equal("Other", monitor.DisplayName);
+            Assert.Equal([@"D:\Pictures"], monitor.Folders);
+        }
+    }
+
+    [Fact]
+    public async Task 書き出し先にファイルがあれば上書きする()
+    {
+        CancellationToken ct = TestContext.Current.CancellationToken;
+        string exportPath = Path.Combine(_temp.Path, "exported.json");
+        await File.WriteAllTextAsync(exportPath, "古い内容", ct);
+        using JsonSettingsService sut = CreateSut();
+        await sut.UpdateAsync(s => s.WithInterval(45), ct);
+
+        await sut.ExportAsync(exportPath, ct);
+
+        Assert.Contains("\"intervalMinutes\": 45", await File.ReadAllTextAsync(exportPath, ct), StringComparison.Ordinal);
+        Assert.False(File.Exists(exportPath + ".tmp"));
+    }
+
+    [Theory]
+    [InlineData("{ \"name\": \"other app\" }")]
+    [InlineData("[1, 2, 3]")]
+    [InlineData("null")]
+    [InlineData("{ \"monitors\": 1 }")]
+    [InlineData("{ \"monitors\": [], \"intervalMinutes\": \"abc\" }")]
+    [InlineData("{ \"monitors\": [ ")]
+    [InlineData("")]
+    public async Task 設定ファイルでないファイルは読み込まず今の設定も変えない(string content)
+    {
+        CancellationToken ct = TestContext.Current.CancellationToken;
+        string importPath = Path.Combine(_temp.Path, "not-settings.json");
+        await File.WriteAllTextAsync(importPath, content, ct);
+        using JsonSettingsService sut = CreateSut();
+        await sut.UpdateAsync(s => s.WithInterval(45), ct);
+        string saved = await File.ReadAllTextAsync(_filePath, ct);
+        bool changed = false;
+        sut.SettingsChanged += (_, _) => changed = true;
+
+        await Assert.ThrowsAsync<InvalidDataException>(() => sut.ImportAsync(importPath, ct));
+
+        Assert.False(changed);
+        Assert.Equal(45, sut.Current.IntervalMinutes);
+        Assert.Equal(saved, await File.ReadAllTextAsync(_filePath, ct));
+    }
+
+    private JsonSettingsService CreateSut(int readAttempts = 2, TimeSpan? readRetryDelay = null, string? filePath = null) => new(
         Options.Create(new SettingsStorageOptions
         {
-            FilePath = _filePath,
+            FilePath = filePath ?? _filePath,
             ReadAttempts = readAttempts,
             ReadRetryDelay = readRetryDelay ?? TimeSpan.Zero,
         }),

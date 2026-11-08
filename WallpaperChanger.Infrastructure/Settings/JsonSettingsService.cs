@@ -13,6 +13,16 @@ namespace WallpaperChanger.Infrastructure.Settings;
 /// </summary>
 internal sealed partial class JsonSettingsService : ISettingsService, IDisposable
 {
+    /// <summary>設定ファイルのモニターごとの設定の項目名（<see cref="AppSettings.Monitors"/> を camelCase にしたもの）。</summary>
+    private const string MonitorsPropertyName = "monitors";
+
+    /// <summary>読み込む設定のファイルも、設定ファイルと同じく、コメントと末尾のカンマを許す。</summary>
+    private static readonly JsonDocumentOptions ImportDocumentOptions = new()
+    {
+        CommentHandling = JsonCommentHandling.Skip,
+        AllowTrailingCommas = true,
+    };
+
     private readonly string _filePath;
     private readonly int _readAttempts;
     private readonly TimeSpan _readRetryDelay;
@@ -82,7 +92,60 @@ internal sealed partial class JsonSettingsService : ISettingsService, IDisposabl
         SettingsChanged?.Invoke(this, updated);
     }
 
+    public async Task ExportAsync(string filePath, CancellationToken cancellationToken = default)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(filePath);
+
+        string fullPath = Path.GetFullPath(filePath);
+
+        // 書き込み途中で失敗しても、前に書き出したファイルを壊さないよう、一時ファイルに書いてから置き換える
+        string tempPath = fullPath + ".tmp";
+        await SerializeToFileAsync(tempPath, Current, cancellationToken).ConfigureAwait(false);
+        File.Move(tempPath, fullPath, overwrite: true);
+        LogSettingsExported(fullPath);
+    }
+
+    public async Task ImportAsync(string filePath, CancellationToken cancellationToken = default)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(filePath);
+
+        string fullPath = Path.GetFullPath(filePath);
+        AppSettings imported = await ReadImportFileAsync(fullPath, cancellationToken).ConfigureAwait(false);
+        await UpdateAsync(_ => imported, cancellationToken).ConfigureAwait(false);
+        LogSettingsImported(fullPath);
+    }
+
     public void Dispose() => _gate.Dispose();
+
+    /// <summary>読み込む設定のファイルを読む。設定ファイルでない・壊れている場合は <see cref="InvalidDataException"/> を投げる。</summary>
+    private static async Task<AppSettings> ReadImportFileAsync(string filePath, CancellationToken cancellationToken)
+    {
+        await using FileStream stream = new(
+            filePath, FileMode.Open, FileAccess.Read, FileShare.Read, bufferSize: 4096, useAsync: true);
+        try
+        {
+            using JsonDocument document = await JsonDocument
+                .ParseAsync(stream, ImportDocumentOptions, cancellationToken)
+                .ConfigureAwait(false);
+
+            // ほかのアプリの JSON などを読み込んで今の設定を消さないよう、設定ファイルにかならずある項目を確かめる
+            JsonElement root = document.RootElement;
+            if (root.ValueKind != JsonValueKind.Object
+                || !root.TryGetProperty(MonitorsPropertyName, out JsonElement monitors)
+                || monitors.ValueKind != JsonValueKind.Array)
+            {
+                throw new InvalidDataException($"このアプリの設定ファイルの形式ではありません: {filePath}");
+            }
+
+            AppSettings settings = root.Deserialize(SettingsJsonContext.Default.AppSettings)
+                ?? throw new InvalidDataException($"このアプリの設定ファイルの形式ではありません: {filePath}");
+            return settings.Normalize();
+        }
+        catch (JsonException ex)
+        {
+            throw new InvalidDataException($"設定ファイルの JSON を読み取れません: {filePath}", ex);
+        }
+    }
 
     private async Task<AppSettings> ReadAsync(CancellationToken cancellationToken)
     {
@@ -170,13 +233,7 @@ internal sealed partial class JsonSettingsService : ISettingsService, IDisposabl
 
         // 書き込み途中の異常終了でファイルが壊れないよう、一時ファイルに書いてから置き換える
         string tempPath = _filePath + ".tmp";
-        await using (FileStream stream = new(
-            tempPath, FileMode.Create, FileAccess.Write, FileShare.None, bufferSize: 4096, useAsync: true))
-        {
-            await JsonSerializer
-                .SerializeAsync(stream, settings, SettingsJsonContext.Default.AppSettings, cancellationToken)
-                .ConfigureAwait(false);
-        }
+        await SerializeToFileAsync(tempPath, settings, cancellationToken).ConfigureAwait(false);
 
         if (_backupBeforeWrite && File.Exists(_filePath))
         {
@@ -191,7 +248,22 @@ internal sealed partial class JsonSettingsService : ISettingsService, IDisposabl
         LogSettingsSaved(_filePath);
     }
 
+    private static async Task SerializeToFileAsync(string filePath, AppSettings settings, CancellationToken cancellationToken)
+    {
+        await using FileStream stream = new(
+            filePath, FileMode.Create, FileAccess.Write, FileShare.None, bufferSize: 4096, useAsync: true);
+        await JsonSerializer
+            .SerializeAsync(stream, settings, SettingsJsonContext.Default.AppSettings, cancellationToken)
+            .ConfigureAwait(false);
+    }
+
     private string CreateBackupPath(string suffix) => $"{_filePath}.{DateTime.Now:yyyyMMddHHmmss}.{suffix}";
+
+    [LoggerMessage(Level = LogLevel.Information, Message = "設定を書き出しました: {FilePath}")]
+    private partial void LogSettingsExported(string filePath);
+
+    [LoggerMessage(Level = LogLevel.Information, Message = "設定を読み込み、今の設定を置き換えました: {FilePath}")]
+    private partial void LogSettingsImported(string filePath);
 
     [LoggerMessage(Level = LogLevel.Information, Message = "設定ファイルが無いため既定値を使用します: {FilePath}")]
     private partial void LogSettingsFileNotFound(string filePath);
