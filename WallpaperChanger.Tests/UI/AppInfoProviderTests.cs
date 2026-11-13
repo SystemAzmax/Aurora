@@ -61,4 +61,50 @@ public class AppInfoProviderTests
             File.ReadAllText(path),
             StringComparison.Ordinal);
     }
+
+    /// <summary>
+    /// 使い方ガイドの URL が、表示言語（テストでは日本語）の、このリポジトリの既定のブランチのガイドを指すことを検証します。
+    /// 配布済みのアプリもこの URL を開くため、ガイドのファイルの名前と場所を変えるとこのテストが失敗します。
+    /// </summary>
+    [Fact]
+    public void UserGuideUrl_表示言語が日本語の場合_日本語版のガイドを指す()
+    {
+        // Act
+        var url = AppInfoProvider.UserGuideUrl;
+
+        // Assert
+        Assert.Equal("https://github.com/SystemAzmax/Aurora/blob/master/docs/UserGuide_ja.md", url);
+    }
+
+    /// <summary>
+    /// URL が指すガイドのファイルが、リポジトリの docs フォルダーにあることを検証します。
+    /// </summary>
+    /// <param name="fileName">ガイドのファイル名。</param>
+    [Theory]
+    [InlineData("UserGuide.md")]
+    [InlineData("UserGuide_ja.md")]
+    public void UserGuideUrl_リポジトリ_ガイドのファイルがある(string fileName)
+    {
+        // Arrange
+        var repositoryRoot = FindRepositoryRoot();
+
+        // Assert
+        Assert.True(
+            File.Exists(Path.Combine(repositoryRoot, "docs", fileName)),
+            $"docs/{fileName} がありません");
+    }
+
+    /// <summary>テストの出力フォルダーから上にたどって、リポジトリのフォルダー（Aurora.slnx のあるフォルダー）を探します。</summary>
+    private static string FindRepositoryRoot()
+    {
+        for (var directory = new DirectoryInfo(AppContext.BaseDirectory); directory is not null; directory = directory.Parent)
+        {
+            if (File.Exists(Path.Combine(directory.FullName, "Aurora.slnx")))
+            {
+                return directory.FullName;
+            }
+        }
+
+        throw new DirectoryNotFoundException("Aurora.slnx のあるフォルダーが見つかりません。");
+    }
 }

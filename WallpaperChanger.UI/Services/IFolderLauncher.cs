@@ -1,10 +1,13 @@
 namespace WallpaperChanger.UI.Services;
 
 /// <summary>
-/// フォルダをエクスプローラーで開く。ファイルを既定のアプリで開く。
+/// フォルダをエクスプローラーで開く。ファイルを既定のアプリで、Web ページを既定のブラウザーで開く。
 /// </summary>
 public interface IFolderLauncher
 {
+    /// <summary>Web ページを既定のブラウザーで開く。http・https 以外の URL は <see cref="ArgumentException"/>。</summary>
+    void OpenWebPage(string url);
+
     /// <summary>フォルダを開く。存在しない場合は作成してから開く。</summary>
     void OpenFolder(string path);
 

@@ -1,3 +1,4 @@
+using System.Globalization;
 using WallpaperChanger.Core.Services;
 
 namespace WallpaperChanger.Tests.Core;
@@ -79,5 +80,29 @@ public class AppAboutInfoTests
 
         // Assert
         Assert.Equal("Aurora Wallpaper Changer\nVersion 1.0.0 (Store version)\n\n© 2026 SystemAzmax", message);
+    }
+
+    /// <summary>
+    /// 表示言語が日本語なら日本語版、それ以外なら英語版の使い方ガイドの URL になることを検証します。
+    /// フォルダーの URL の最後に「/」があっても、重ねないことも検証します。
+    /// </summary>
+    /// <param name="baseUrl">ガイドのあるフォルダーの URL。</param>
+    /// <param name="cultureName">表示言語。</param>
+    /// <param name="expected">期待する URL。</param>
+    [Theory]
+    [InlineData("https://example.com/docs", "ja-JP", "https://example.com/docs/UserGuide_ja.md")]
+    [InlineData("https://example.com/docs/", "ja", "https://example.com/docs/UserGuide_ja.md")]
+    [InlineData("https://example.com/docs", "en-US", "https://example.com/docs/UserGuide.md")]
+    [InlineData("https://example.com/docs", "fr-FR", "https://example.com/docs/UserGuide.md")]
+    public void CreateUserGuideUrl_表示言語_日本語なら日本語版でそれ以外は英語版を返す(
+        string baseUrl,
+        string cultureName,
+        string expected)
+    {
+        // Act
+        var url = AppAboutInfo.CreateUserGuideUrl(baseUrl, CultureInfo.GetCultureInfo(cultureName));
+
+        // Assert
+        Assert.Equal(expected, url);
     }
 }

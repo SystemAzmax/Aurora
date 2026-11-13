@@ -3,7 +3,7 @@ using System.Globalization;
 namespace WallpaperChanger.Core.Services;
 
 /// <summary>
-/// 「このアプリについて」に表示する文を作成するクラスです。
+/// 「このアプリについて」に表示する文と、使い方ガイドの URL を作成するクラスです。
 /// </summary>
 /// <remarks>
 /// StoreReleaseKit のひな形をもとにしている。このアプリは英語でも表示するため、
@@ -11,6 +11,30 @@ namespace WallpaperChanger.Core.Services;
 /// </remarks>
 public static class AppAboutInfo
 {
+    /// <summary>日本語の使い方ガイドのファイル名。</summary>
+    private const string USER_GUIDE_JA_FILE_NAME = "UserGuide_ja.md";
+
+    /// <summary>英語の使い方ガイドのファイル名。日本語以外の言語では、こちらを開きます。</summary>
+    private const string USER_GUIDE_EN_FILE_NAME = "UserGuide.md";
+
+    /// <summary>
+    /// 表示言語に合わせて、使い方ガイドの URL を作成します。
+    /// 日本語の場合は日本語版、それ以外の言語の場合は英語版のガイドを返します。
+    /// </summary>
+    /// <param name="baseUrl">ガイドのあるフォルダーの URL（例: https://github.com/SystemAzmax/Aurora/blob/master/docs）。</param>
+    /// <param name="culture">表示言語。</param>
+    /// <returns>使い方ガイドの URL。</returns>
+    public static string CreateUserGuideUrl(string baseUrl, CultureInfo culture)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(baseUrl);
+        ArgumentNullException.ThrowIfNull(culture);
+
+        var fileName = culture.TwoLetterISOLanguageName == "ja"
+            ? USER_GUIDE_JA_FILE_NAME
+            : USER_GUIDE_EN_FILE_NAME;
+        return $"{baseUrl.TrimEnd('/')}/{fileName}";
+    }
+
     /// <summary>
     /// バージョンを表示用の文字列にします。
     /// ストアに出すパッケージは 4 つ目の数字（リビジョン）が 0 のため、0 の場合は省きます。

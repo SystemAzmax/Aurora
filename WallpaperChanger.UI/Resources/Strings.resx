@@ -416,6 +416,9 @@
   <data name="OperationOpenThirdPartyNotices" xml:space="preserve">
     <value>ライセンス情報を開く処理</value>
   </data>
+  <data name="OperationOpenUserGuide" xml:space="preserve">
+    <value>使い方ガイドを開く処理</value>
+  </data>
   <data name="OperationPause" xml:space="preserve">
     <value>自動切り替えの一時停止</value>
   </data>
@@ -828,6 +831,16 @@
   </data>
   <data name="UnknownMonitorName" xml:space="preserve">
     <value>名前の分からないモニター</value>
+  </data>
+  <data name="UserGuide" xml:space="preserve">
+    <value>使い方</value>
+  </data>
+  <data name="UserGuideOpenFailedFormat" xml:space="preserve">
+    <value>使い方ガイドを開けませんでした。&#xA;&#xA;URL: {0}&#xA;詳細: {1}</value>
+    <comment>{0}: ガイドの URL、{1}: 例外のメッセージ</comment>
+  </data>
+  <data name="UserGuideToolTip" xml:space="preserve">
+    <value>使い方ガイドを Web ブラウザーで開きます。</value>
   </data>
   <data name="WallpaperChanged" xml:space="preserve">
     <value>壁紙を切り替えました</value>

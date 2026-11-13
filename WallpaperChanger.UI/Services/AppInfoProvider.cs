@@ -1,3 +1,4 @@
+using System.Globalization;
 using System.IO;
 using System.Reflection;
 using WallpaperChanger.Core.Services;
@@ -19,11 +20,24 @@ namespace WallpaperChanger.UI.Services
         private const string THIRD_PARTY_NOTICES_FILE_NAME = "ThirdPartyNotices.txt";
 
         /// <summary>
+        /// 使い方ガイド（docs/UserGuide.md、docs/UserGuide_ja.md）のあるフォルダーの URL。
+        /// 配布済みのアプリもこの URL を開くため、ガイドのファイルの名前と場所は変えない。
+        /// </summary>
+        private const string USER_GUIDE_BASE_URL = "https://github.com/SystemAzmax/Aurora/blob/master/docs";
+
+        /// <summary>
         /// 使用しているソフトウェアのライセンス表示のファイルのパスを取得します。
         /// ファイルはアプリと同じフォルダーに配置されます。
         /// </summary>
         public static string ThirdPartyNoticesPath =>
             Path.Combine(AppContext.BaseDirectory, THIRD_PARTY_NOTICES_FILE_NAME);
+
+        /// <summary>
+        /// 表示言語（日本語なら日本語版、英語なら英語版）の使い方ガイドの URL を取得します。
+        /// 表示言語は、Windows の言語ではなく、アプリの設定の言語（<see cref="Localizer"/> が反映したもの）を使います。
+        /// </summary>
+        public static string UserGuideUrl =>
+            AppAboutInfo.CreateUserGuideUrl(USER_GUIDE_BASE_URL, Strings.Culture ?? CultureInfo.CurrentUICulture);
 
         /// <summary>
         /// 表示言語のアプリ名を取得します。

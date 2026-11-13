@@ -508,6 +508,27 @@ public sealed class SettingsViewModelTests : IDisposable
     }
 
     [Fact]
+    public void 使い方は表示言語の使い方ガイドをブラウザーで開く()
+    {
+        _sut.ShowUserGuideCommand.Execute(null);
+
+        _folderLauncher.Received(1).OpenWebPage("https://github.com/SystemAzmax/Aurora/blob/master/docs/UserGuide_ja.md");
+        _messageDialog.DidNotReceiveWithAnyArgs().ShowMessage(default!, default!);
+    }
+
+    [Fact]
+    public void 使い方ガイドを開けなければURLと理由を表示する()
+    {
+        _folderLauncher.When(f => f.OpenWebPage(Arg.Any<string>())).Do(_ => throw new System.ComponentModel.Win32Exception("ブラウザーがありません"));
+
+        _sut.ShowUserGuideCommand.Execute(null);
+
+        _messageDialog.Received(1).ShowMessage(
+            "使い方",
+            $"使い方ガイドを開けませんでした。\n\nURL: {AppInfoProvider.UserGuideUrl}\n詳細: ブラウザーがありません");
+    }
+
+    [Fact]
     public async Task 表示言語を保存し変更した先の言語で再起動を案内する()
     {
         await _sut.InitializeCommand.ExecuteAsync(null);

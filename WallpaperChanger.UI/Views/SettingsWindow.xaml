@@ -537,6 +537,8 @@
                                     ToolTip="{x:Static res:Strings.AboutToolTip}" Command="{Binding ShowAboutCommand}" />
                             <Button Content="{x:Static res:Strings.ThirdPartyNotices}" Tag="&#xE8A5;" Style="{StaticResource IconButtonStyle}"
                                     ToolTip="{x:Static res:Strings.ThirdPartyNoticesToolTip}" Command="{Binding ShowThirdPartyNoticesCommand}" />
+                            <Button Content="{x:Static res:Strings.UserGuide}" Tag="&#xE897;" Style="{StaticResource IconButtonStyle}"
+                                    ToolTip="{x:Static res:Strings.UserGuideToolTip}" Command="{Binding ShowUserGuideCommand}" />
                         </WrapPanel>
                     </StackPanel>
                 </Border>

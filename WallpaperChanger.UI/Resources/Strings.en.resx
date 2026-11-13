@@ -378,6 +378,9 @@
   <data name="OperationOpenThirdPartyNotices" xml:space="preserve">
     <value>open the license information</value>
   </data>
+  <data name="OperationOpenUserGuide" xml:space="preserve">
+    <value>open the user guide</value>
+  </data>
   <data name="OperationPause" xml:space="preserve">
     <value>pause automatic changes</value>
   </data>
@@ -761,6 +764,15 @@
   </data>
   <data name="UnknownMonitorName" xml:space="preserve">
     <value>Unknown monitor</value>
+  </data>
+  <data name="UserGuide" xml:space="preserve">
+    <value>User guide</value>
+  </data>
+  <data name="UserGuideOpenFailedFormat" xml:space="preserve">
+    <value>Could not open the user guide.&#xA;&#xA;URL: {0}&#xA;Details: {1}</value>
+  </data>
+  <data name="UserGuideToolTip" xml:space="preserve">
+    <value>Opens the user guide in your web browser.</value>
   </data>
   <data name="WallpaperChanged" xml:space="preserve">
     <value>Wallpapers changed</value>

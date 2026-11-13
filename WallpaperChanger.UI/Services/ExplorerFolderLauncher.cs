@@ -39,4 +39,17 @@ internal sealed class ExplorerFolderLauncher : IFolderLauncher
 
         using Process? process = Process.Start(new ProcessStartInfo(filePath) { UseShellExecute = true });
     }
+
+    public void OpenWebPage(string url)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(url);
+
+        // シェルに渡すと、URL でない文字列はファイルやプログラムとして開かれるため、Web ページの URL だけを受け付ける
+        if (!Uri.TryCreate(url, UriKind.Absolute, out Uri? uri) || (uri.Scheme != Uri.UriSchemeHttps && uri.Scheme != Uri.UriSchemeHttp))
+        {
+            throw new ArgumentException($"Web ページの URL ではありません: {url}", nameof(url));
+        }
+
+        using Process? process = Process.Start(new ProcessStartInfo(uri.AbsoluteUri) { UseShellExecute = true });
+    }
 }

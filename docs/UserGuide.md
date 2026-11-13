@@ -154,6 +154,7 @@ Export your settings to a file to import them on another PC or after reinstallin
 | --- | --- |
 | About this app | Shows the app version and other information |
 | License information | Shows the licenses of the software this app uses |
+| User guide | Opens this page (the user guide) in your web browser |
 
 ## 3. Tray Menu
 

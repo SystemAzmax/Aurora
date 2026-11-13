@@ -602,6 +602,26 @@ public sealed partial class SettingsViewModel : ObservableObject, IDisposable
         }
     }
 
+    /// <summary>
+    /// 「使い方」。表示言語の使い方ガイドを、既定のブラウザーで開きます。
+    /// </summary>
+    [RelayCommand]
+    private void ShowUserGuide()
+    {
+        string url = AppInfoProvider.UserGuideUrl;
+        try
+        {
+            _folderLauncher.OpenWebPage(url);
+        }
+        catch (Exception ex)
+        {
+            LogOperationFailed(ex, Strings.OperationOpenUserGuide);
+            _messageDialog.ShowMessage(
+                Strings.UserGuide,
+                Localizer.Format(Strings.UserGuideOpenFailedFormat, url, ex.Message));
+        }
+    }
+
     /// <summary>選択中の画像を表示しない画像から外し、再び壁紙の候補にする。</summary>
     [RelayCommand(CanExecute = nameof(HasSelectedExcludedImage))]
     private Task RestoreExcludedImageAsync() => ExecuteSafelyAsync(Strings.OperationRestoreExcludedImage, async () =>

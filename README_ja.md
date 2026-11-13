@@ -72,10 +72,10 @@ Microsoft Store で配布する準備をしている。それまでは、ソー�
 - スパン（複数モニターにまたがる 1 枚表示）: 表示レイアウトに「スパン」を選んだモニターどうしで、1 枚の画像を各モニターの位置（`MonitorInfo.Bounds`）に合わせて切り分けて表示する（Windows の「スパン」は全モニター共通のため使わない）。フォルダ・選び方・収め方はスパン専用の設定（`AppSettings.Span`）で、履歴はスパン全体で 1 つ持つ。
 - 自動切り替えを見合わせる条件: 全画面表示のアプリ（`SHQueryUserNotificationState`）やバッテリー駆動（`GetSystemPowerStatus`）の間は、定期実行の切り替えを待ち、当てはまらなくなったら切り替える（`AppSettings.SkipConditions`、既定で両方有効）。手動の切り替えは止めない。
 - 表示言語: 日本語（既定）と英語。文言は `WallpaperChanger.UI/Resources/Strings.resx`（日本語）と `Strings.en.resx`（英語）にあり、ビルド時に生成される `Strings` クラスから参照する（XAML は `{x:Static res:Strings.Xxx}`）。文言を足すときは両方のファイルに同じキーで書く（英語が無い・埋め込む値の番号が違う場合はテストが失敗する）。Infrastructure で作る画面向けの文言は `WallpaperChanger.Infrastructure/Resources/Strings.resx` にある。言語の変更はアプリの再起動後に反映し、ログは常に日本語で書く。
-- アプリの情報: 設定画面の最後の「アプリの情報」に「このアプリについて」（アプリ名・バージョン・著作権表記。パッケージありで動いているときは「ストア版」、なしのときは「exe 版」）と「ライセンス情報」（`ThirdPartyNotices.txt` を既定のアプリで開く）を置く。表示は、Microsoft Store で配るアプリで共通の決まり（StoreReleaseKit）に従う。アプリ名・バージョン・著作権表記は `Directory.Build.props`、ライセンス表示の作り直しとバージョンの上げ方は [docs/BuildGuide.md](docs/BuildGuide.md)、プライバシーポリシーは [docs/PrivacyPolicy.md](docs/PrivacyPolicy.md)。
+- アプリの情報: 設定画面の最後の「アプリの情報」に「このアプリについて」（アプリ名・バージョン・著作権表記。パッケージありで動いているときは「ストア版」、なしのときは「exe 版」）と「ライセンス情報」（`ThirdPartyNotices.txt` を既定のアプリで開く）と「使い方」（表示言語の使い方ガイドを既定のブラウザーで開く。URL は `AppInfoProvider` にある）を置く。表示は、Microsoft Store で配るアプリで共通の決まり（StoreReleaseKit）に従う。アプリ名・バージョン・著作権表記は `Directory.Build.props`、ライセンス表示の作り直しとバージョンの上げ方は [docs/BuildGuide.md](docs/BuildGuide.md)、プライバシーポリシーは [docs/PrivacyPolicy.md](docs/PrivacyPolicy.md)。
 - 1 枚表示の表示方法: 既定（`MonitorSettings.SingleImageFit` が null）では画像をそのまま設定し、Windows の「調整方法」で表示させる。Windows の調整方法は全モニター共通のため、モニターごとに「画面を埋める」「全体を表示」「引き伸ばす」「中央に表示」を選んだ場合は、分割表示と同じ `WicWallpaperComposer` でモニター解像度の画像を作って設定する（余白は黒）。
 - README は英語版の `README.md` と日本語版の `README_ja.md` に分けている。内容を変えるときは両方を直す。
-- 利用者向けの使い方ガイドも、英語版の `docs/UserGuide.md` と日本語版の `docs/UserGuide_ja.md` に分けている。画面の文言をそのまま使っているため、ガイドに書いた文言や動きを変えたときは両方を直す。Partner Center の「Web サイト」には `docs/UserGuide.md` の URL を登録する。
+- 利用者向けの使い方ガイドも、英語版の `docs/UserGuide.md` と日本語版の `docs/UserGuide_ja.md` に分けている。画面の文言をそのまま使っているため、ガイドに書いた文言や動きを変えたときは両方を直す。Partner Center の「Web サイト」には `docs/UserGuide.md` の URL を登録する。設定画面の「使い方」が開くため、ガイドのファイルの名前と場所は変えない。
 
 ### ビルド・実行・テスト
 
