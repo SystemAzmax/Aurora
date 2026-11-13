@@ -34,6 +34,8 @@ Microsoft Store で配布する準備をしている。それまでは、ソー�
 3. モニターを選び、「壁紙フォルダ」に画像のフォルダを追加する。
 4. 表示レイアウト・表示方法・画像の選び方・切り替え間隔を選ぶ。
 
+設定の項目、タスクトレイのメニュー、困ったときの対処は [使い方ガイド](docs/UserGuide_ja.md) にまとめている。
+
 ## プライバシー
 
 このアプリは個人情報を収集せず、外部に送信もしない。詳しくは [プライバシーポリシー](docs/PrivacyPolicy.md) を参照。
@@ -73,6 +75,7 @@ Microsoft Store で配布する準備をしている。それまでは、ソー�
 - アプリの情報: 設定画面の最後の「アプリの情報」に「このアプリについて」（アプリ名・バージョン・著作権表記。パッケージありで動いているときは「ストア版」、なしのときは「exe 版」）と「ライセンス情報」（`ThirdPartyNotices.txt` を既定のアプリで開く）を置く。表示は、Microsoft Store で配るアプリで共通の決まり（StoreReleaseKit）に従う。アプリ名・バージョン・著作権表記は `Directory.Build.props`、ライセンス表示の作り直しとバージョンの上げ方は [docs/BuildGuide.md](docs/BuildGuide.md)、プライバシーポリシーは [docs/PrivacyPolicy.md](docs/PrivacyPolicy.md)。
 - 1 枚表示の表示方法: 既定（`MonitorSettings.SingleImageFit` が null）では画像をそのまま設定し、Windows の「調整方法」で表示させる。Windows の調整方法は全モニター共通のため、モニターごとに「画面を埋める」「全体を表示」「引き伸ばす」「中央に表示」を選んだ場合は、分割表示と同じ `WicWallpaperComposer` でモニター解像度の画像を作って設定する（余白は黒）。
 - README は英語版の `README.md` と日本語版の `README_ja.md` に分けている。内容を変えるときは両方を直す。
+- 利用者向けの使い方ガイドも、英語版の `docs/UserGuide.md` と日本語版の `docs/UserGuide_ja.md` に分けている。画面の文言をそのまま使っているため、ガイドに書いた文言や動きを変えたときは両方を直す。Partner Center の「Web サイト」には `docs/UserGuide.md` の URL を登録する。
 
 ### ビルド・実行・テスト
 

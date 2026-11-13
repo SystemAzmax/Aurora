@@ -34,6 +34,8 @@ The app is being prepared for release on the Microsoft Store. Until then, build 
 3. Select a monitor and add folders of images to "Wallpaper folders".
 4. Choose the layout, fit, selection, and change interval.
 
+For details on each setting, the tray menu, and troubleshooting, see the [User Guide](docs/UserGuide.md).
+
 ## Privacy
 
 The app does not collect personal information or send it anywhere. For details, see the [privacy policy](docs/PrivacyPolicy.md).
@@ -73,6 +75,7 @@ The app sets wallpapers with the `IDesktopWallpaper` COM API (it does not use `S
 - App information: "App information", at the end of the Settings window, has "About this app" (app name, version, and copyright; it shows "Store version" when running with a package and "exe version" without one) and "License information" (opens `ThirdPartyNotices.txt` in the default app). They follow the shared rules for apps distributed on the Microsoft Store (StoreReleaseKit). The app name, version, and copyright are in `Directory.Build.props`. How to regenerate the license notices and how to bump the version are in [docs/BuildGuide.md](docs/BuildGuide.md) (in Japanese). The privacy policy is [docs/PrivacyPolicy.md](docs/PrivacyPolicy.md).
 - Fit for a single image: by default (`MonitorSettings.SingleImageFit` is null), the image is set as is and shown with the Windows fit setting. Because the Windows fit setting applies to all monitors, when Fill, Fit, Stretch, or Center is chosen for a monitor, `WicWallpaperComposer` (the same one used for tiles) creates an image at the monitor's resolution and sets it (margins are black).
 - The README is split into English (`README.md`) and Japanese (`README_ja.md`). When you change it, update both.
+- The user guide is also split into English (`docs/UserGuide.md`) and Japanese (`docs/UserGuide_ja.md`). It uses the same wording as the app, so when you change the UI text or behavior described there, update both. The URL of `docs/UserGuide.md` is registered as the "Website" in Partner Center.
 
 ### Build, Run, and Test
 
