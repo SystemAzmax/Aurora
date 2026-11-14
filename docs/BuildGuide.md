@@ -133,3 +133,30 @@ exe とウィンドウのアイコン（`WallpaperChanger.UI\Resources\AppIcon.i
    確認用のプレビュー（`%TEMP%\AuroraIcon\preview-package.png`）も作られます。
 
 - 画像の種類や大きさを変えたときは、`Package.appxmanifest` の指定も合わせて確認してください。
+
+## ストア登録情報のスクリーンショット
+
+Partner Center のストア登録情報に載せるスクリーンショット（2560 × 1440 の PNG、日本語と英語で 5 枚ずつ）は、
+`tools\StoreScreenshots\make-screenshots.cs` で作ります。
+アプリの本物の設定画面とタスクトレイのメニューを、サンプルの設定で動かして描き、
+このスクリプトが図形だけで描いた壁紙（オーロラや夕暮れの風景）と重ねます。
+写真や個人のパスは写らず、実際の壁紙・設定ファイル・モニターにも触れません。
+
+```powershell
+dotnet run tools/StoreScreenshots/make-screenshots.cs -- artifacts/store-screenshots
+```
+
+`artifacts\store-screenshots\ja-JP` と `en-US` に、次の 5 枚が作られます。
+日本語の登録情報には `ja-JP`、英語の登録情報には `en-US` の画像を、番号の順に上げます。
+
+| ファイル | 写っているもの |
+| --- | --- |
+| `01-settings.png` | 設定画面（1 枚表示のフォルダと表示方法、プレビュー） |
+| `02-grid.png` | 4 分割表示の壁紙と、マスごとのフォルダの設定 |
+| `03-tray-menu.png` | 16 分割表示の壁紙と、タスクトレイのメニュー（「この画像を表示しない」を開いたところ） |
+| `04-schedule.png` | 切り替え間隔、全画面表示・バッテリーのときに切り替えない設定、画像の選び方 |
+| `05-options.png` | 表示しない画像、Windows の起動時の自動開始、表示言語、設定の書き出し・読み込み |
+
+- 画面はダークテーマで撮ります。ライトテーマにするときは、最後に `--theme light` を付けます。
+- トレイのメニューを描くために、画面の隅にメニューが一瞬だけ開きます。
+- 設定画面の見た目や文言を変えたときは、作り直してストアの画像も差し替えます。
