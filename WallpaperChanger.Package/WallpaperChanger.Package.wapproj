@@ -57,6 +57,7 @@
     <!-- アプリのプロジェクトの NuGet パッケージが、パッケージのプロジェクト（UAP）の復元にも流れて互換性の警告が出るため。
          パッケージのプロジェクト自体は NuGet パッケージを使わない -->
     <NoWarn>$(NoWarn);NU1701</NoWarn>
+    <GenerateTemporaryStoreCertificate>True</GenerateTemporaryStoreCertificate>
   </PropertyGroup>
   <ItemGroup>
     <AppxManifest Include="Package.appxmanifest">
@@ -66,6 +67,7 @@
   <ItemGroup>
     <Content Include="Images\*.png" />
     <!-- マニフェストの表示名と説明（ms-resource:）の日本語と英語 -->
+    <None Include="Package.StoreAssociation.xml" />
     <PRIResource Include="Strings\ja-JP\Resources.resw" />
     <PRIResource Include="Strings\en-US\Resources.resw" />
   </ItemGroup>

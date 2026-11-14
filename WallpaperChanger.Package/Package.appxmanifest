@@ -1,4 +1,4 @@
-<?xml version="1.0" encoding="utf-8"?>
+﻿<?xml version="1.0" encoding="utf-8"?>
 
 <Package
   xmlns="http://schemas.microsoft.com/appx/manifest/foundation/windows10"
@@ -13,8 +13,8 @@
     Version は Directory.Build.props の Version と同じ値にし、4 つ目の数字は 0 にする。
   -->
   <Identity
-    Name="SystemAzmax.AuroraWallpaperChanger"
-    Publisher="CN=SystemAzmax"
+    Name="F0C48714.AuroraWallpaperChanger"
+    Publisher="CN=984901FF-A7B3-415C-B173-06EC90101C99"
     Version="1.0.0.0" />
 
   <Properties>
